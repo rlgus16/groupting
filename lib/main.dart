@@ -117,6 +117,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
         }
         _wasLoggedIn = authController.isLoggedIn;
 
+        // 임시 회원가입 데이터가 있으면 프로필 생성 화면으로
+        if (authController.tempRegistrationData != null) {
+          return const ProfileCreateView();
+        }
+
         // 로그인 되어있지 않으면 로그인 화면
         if (!authController.isLoggedIn) {
           return const LoginView();
