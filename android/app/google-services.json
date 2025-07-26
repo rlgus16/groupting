@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "826622552589",
+    "firebase_url": "https://groupting-aebab-default-rtdb.firebaseio.com",
+    "project_id": "groupting-aebab",
+    "storage_bucket": "groupting-aebab.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:826622552589:android:b8cd6195c9eca66aeb4344",
+        "android_client_info": {
+          "package_name": "com.example.groupting"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDGzgBkOmqsh3Su_lHarO3yufDpJXCSdQQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

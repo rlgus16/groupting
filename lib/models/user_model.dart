@@ -1,0 +1,131 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class UserModel {
+  final String uid;
+  final String userId; // 로그인 아이디
+  final String phoneNumber;
+  final String birthDate; // YYYYMMDD format
+  final String gender; // '남' or '여'
+  final String nickname;
+  final String introduction;
+  final int height;
+  final String activityArea;
+  final List<String> profileImages;
+  final String? currentGroupId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isProfileComplete;
+
+  UserModel({
+    required this.uid,
+    required this.userId,
+    required this.phoneNumber,
+    required this.birthDate,
+    required this.gender,
+    required this.nickname,
+    required this.introduction,
+    required this.height,
+    required this.activityArea,
+    required this.profileImages,
+    this.currentGroupId,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.isProfileComplete,
+  });
+
+  // 나이 계산
+  int get age {
+    final birth = DateTime(
+      int.parse(birthDate.substring(0, 4)),
+      int.parse(birthDate.substring(4, 6)),
+      int.parse(birthDate.substring(6, 8)),
+    );
+    final now = DateTime.now();
+    int age = now.year - birth.year;
+    if (now.month < birth.month ||
+        (now.month == birth.month && now.day < birth.day)) {
+      age--;
+    }
+    return age;
+  }
+
+  // 메인 프로필 이미지
+  String? get mainProfileImage {
+    return profileImages.isNotEmpty ? profileImages.first : null;
+  }
+
+  // Firestore에서 데이터 가져오기
+  factory UserModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return UserModel(
+      uid: doc.id,
+      userId: data['userId'] ?? '',
+      phoneNumber: data['phoneNumber'] ?? '',
+      birthDate: data['birthDate'] ?? '',
+      gender: data['gender'] ?? '',
+      nickname: data['nickname'] ?? '',
+      introduction: data['introduction'] ?? '',
+      height: data['height'] ?? 0,
+      activityArea: data['activityArea'] ?? '',
+      profileImages: List<String>.from(data['profileImages'] ?? []),
+      currentGroupId: data['currentGroupId'],
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+      isProfileComplete: data['isProfileComplete'] ?? false,
+    );
+  }
+
+  // Firestore에 저장할 데이터 형태로 변환
+  Map<String, dynamic> toFirestore() {
+    return {
+      'userId': userId,
+      'phoneNumber': phoneNumber,
+      'birthDate': birthDate,
+      'gender': gender,
+      'nickname': nickname,
+      'introduction': introduction,
+      'height': height,
+      'activityArea': activityArea,
+      'profileImages': profileImages,
+      'currentGroupId': currentGroupId,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+      'isProfileComplete': isProfileComplete,
+    };
+  }
+
+  // 사용자 정보 업데이트용 copyWith 메서드
+  UserModel copyWith({
+    String? uid,
+    String? userId,
+    String? phoneNumber,
+    String? birthDate,
+    String? gender,
+    String? nickname,
+    String? introduction,
+    int? height,
+    String? activityArea,
+    List<String>? profileImages,
+    String? currentGroupId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isProfileComplete,
+  }) {
+    return UserModel(
+      uid: uid ?? this.uid,
+      userId: userId ?? this.userId,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      birthDate: birthDate ?? this.birthDate,
+      gender: gender ?? this.gender,
+      nickname: nickname ?? this.nickname,
+      introduction: introduction ?? this.introduction,
+      height: height ?? this.height,
+      activityArea: activityArea ?? this.activityArea,
+      profileImages: profileImages ?? this.profileImages,
+      currentGroupId: currentGroupId ?? this.currentGroupId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isProfileComplete: isProfileComplete ?? this.isProfileComplete,
+    );
+  }
+}

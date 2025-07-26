@@ -1,0 +1,216 @@
+import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import '../services/firebase_service.dart';
+import '../services/user_service.dart';
+import '../models/user_model.dart';
+
+class ProfileController extends ChangeNotifier {
+  final FirebaseService _firebaseService = FirebaseService();
+  final UserService _userService = UserService();
+
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  // Getters
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
+
+  void _setError(String? error) {
+    _errorMessage = error;
+    notifyListeners();
+  }
+
+  // 프로필 생성 (회원가입 시)
+  Future<bool> createProfile({
+    String? userId,
+    String? phoneNumber,
+    required String nickname,
+    required String birthDate,
+    required String gender,
+    required String introduction,
+    required int height,
+    required String activityArea,
+    List<XFile>? profileImages,
+  }) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final currentUser = _firebaseService.currentUser;
+      if (currentUser == null) {
+        _setError('로그인이 필요합니다.');
+        return false;
+      }
+
+      // 이미지 업로드
+      List<String> imageUrls = [];
+      if (profileImages != null && profileImages.isNotEmpty) {
+        try {
+          for (int i = 0; i < profileImages.length; i++) {
+            final file = profileImages[i];
+            final fileName = '${currentUser.uid}_profile_$i.jpg';
+
+            print('Firebase Storage 업로드 시작: $fileName');
+
+            // Firebase Storage에 업로드
+            final ref = FirebaseStorage.instance
+                .ref()
+                .child('profile_images')
+                .child(fileName);
+
+            // 플랫폼별 업로드 처리
+            late UploadTask uploadTask;
+            if (kIsWeb) {
+              // 웹에서는 XFile에서 bytes 사용
+              final bytes = await file.readAsBytes();
+              uploadTask = ref.putData(bytes);
+            } else {
+              // 모바일에서는 XFile을 File로 변환
+              final ioFile = File(file.path);
+              uploadTask = ref.putFile(ioFile);
+            }
+
+            final snapshot = await uploadTask;
+            final downloadUrl = await snapshot.ref.getDownloadURL();
+
+            print('Firebase Storage 업로드 성공: $downloadUrl');
+            imageUrls.add(downloadUrl);
+          }
+        } catch (e) {
+          print('Firebase Storage 업로드 실패: $e');
+          // Firebase Storage 실패 시 로컬 경로 사용 (모바일만)
+          imageUrls.clear();
+          if (!kIsWeb) {
+            for (int i = 0; i < profileImages.length; i++) {
+              imageUrls.add('local://${profileImages[i].path}');
+            }
+          } else {
+            // 웹에서는 빈 배열로 두기
+            print('웹에서는 로컬 이미지 저장 불가');
+          }
+        }
+      }
+
+      // 사용자 모델 생성
+      final userModel = UserModel(
+        uid: currentUser.uid,
+        userId: userId ?? currentUser.email?.split('@')[0] ?? '',
+        phoneNumber: phoneNumber ?? '',
+        birthDate: birthDate,
+        gender: gender,
+        nickname: nickname,
+        introduction: introduction,
+        height: height,
+        activityArea: activityArea,
+        profileImages: imageUrls,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        isProfileComplete: true,
+      );
+
+      // Firestore에 저장
+      await _userService.createUser(userModel);
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setError('프로필 생성에 실패했습니다: $e');
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  // 프로필 업데이트
+  Future<bool> updateProfile({
+    required String nickname,
+    required String introduction,
+    required int height,
+    required String activityArea,
+    List<String>? profileImages,
+  }) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final currentUser = _firebaseService.currentUser;
+      if (currentUser == null) {
+        _setError('로그인이 필요합니다.');
+        return false;
+      }
+
+      // 현재 사용자 정보 가져오기
+      final currentUserModel = await _userService.getUserById(currentUser.uid);
+      if (currentUserModel == null) {
+        _setError('사용자 정보를 찾을 수 없습니다.');
+        return false;
+      }
+
+      // 업데이트된 사용자 모델 생성
+      final updatedUser = currentUserModel.copyWith(
+        nickname: nickname,
+        introduction: introduction,
+        height: height,
+        activityArea: activityArea,
+        profileImages: profileImages ?? currentUserModel.profileImages,
+        updatedAt: DateTime.now(),
+      );
+
+      // Firestore에 업데이트
+      await _userService.updateUser(updatedUser);
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setError('프로필 업데이트에 실패했습니다: $e');
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  // 프로필 이미지 업데이트
+  Future<bool> updateProfileImages(List<String> imageUrls) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final currentUser = _firebaseService.currentUser;
+      if (currentUser == null) {
+        _setError('로그인이 필요합니다.');
+        return false;
+      }
+
+      final currentUserModel = await _userService.getUserById(currentUser.uid);
+      if (currentUserModel == null) {
+        _setError('사용자 정보를 찾을 수 없습니다.');
+        return false;
+      }
+
+      final updatedUser = currentUserModel.copyWith(
+        profileImages: imageUrls,
+        updatedAt: DateTime.now(),
+      );
+
+      await _userService.updateUser(updatedUser);
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setError('이미지 업데이트에 실패했습니다: $e');
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  // 에러 클리어
+  void clearError() {
+    _setError(null);
+  }
+}
