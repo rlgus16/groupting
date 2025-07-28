@@ -154,9 +154,13 @@ class GroupController extends ChangeNotifier {
   void _handleMatchingCompleted() {
     print('매칭 완료 처리 시작');
 
-    // UI 콜백 호출
+    // UI 콜백 호출 (null 체크)
     if (onMatchingCompleted != null) {
-      onMatchingCompleted!();
+      try {
+        onMatchingCompleted!();
+      } catch (e) {
+        print('매칭 완료 콜백 실행 중 오류: $e');
+      }
     }
 
     // 그룹 멤버 다시 로드 (상대방 그룹 멤버 포함)
@@ -164,8 +168,11 @@ class GroupController extends ChangeNotifier {
 
     // 잠시 후 한 번 더 로드 (Firestore 동기화 지연 대응)
     Future.delayed(const Duration(seconds: 2), () {
-      print('매칭 완료 2초 후 추가 멤버 로드');
-      _loadGroupMembers();
+      // 컨트롤러가 여전히 유효한지 확인
+      if (_currentGroup != null && _currentGroup!.status == GroupStatus.matched) {
+        print('매칭 완료 2초 후 추가 멤버 로드');
+        _loadGroupMembers();
+      }
     });
   }
 
@@ -455,6 +462,10 @@ class GroupController extends ChangeNotifier {
     print('로그아웃: 모든 스트림과 데이터 정리');
     _groupSubscription?.cancel();
     _reconnectTimer?.cancel();
+    
+    // 매칭 리스너도 모두 정리
+    GroupService.stopAllMatchingListeners();
+    
     _clearData();
   }
 
@@ -462,6 +473,10 @@ class GroupController extends ChangeNotifier {
   void dispose() {
     _groupSubscription?.cancel();
     _reconnectTimer?.cancel();
+    
+    // 매칭 리스너도 모두 정리
+    GroupService.stopAllMatchingListeners();
+    
     _clearData();
     super.dispose();
   }

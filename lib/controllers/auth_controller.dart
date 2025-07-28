@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../services/firebase_service.dart';
 import '../services/user_service.dart';
 import '../models/user_model.dart';
@@ -32,6 +37,35 @@ class AuthController extends ChangeNotifier {
   void _setError(String? error) {
     _errorMessage = error;
     notifyListeners();
+  }
+
+  // Firebase Auth 에러를 한국어로 변환
+  String _getKoreanErrorMessage(dynamic error) {
+    if (error is FirebaseAuthException) {
+      switch (error.code) {
+        case 'user-not-found':
+          return '등록되지 않은 아이디입니다. 아이디를 확인하거나 회원가입을 진행해주세요.';
+        case 'wrong-password':
+          return '비밀번호가 올바르지 않습니다. 다시 확인해주세요.';
+        case 'invalid-email':
+          return '올바르지 않은 이메일 형식입니다.';
+        case 'user-disabled':
+          return '비활성화된 계정입니다. 고객센터에 문의해주세요.';
+        case 'too-many-requests':
+          return '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.';
+        case 'invalid-credential':
+          return '아이디 또는 비밀번호가 올바르지 않습니다.';
+        case 'network-request-failed':
+          return '네트워크 연결을 확인해주세요.';
+        case 'email-already-in-use':
+          return '이미 사용 중인 이메일입니다.';
+        case 'weak-password':
+          return '비밀번호가 너무 간단합니다. 더 복잡한 비밀번호를 사용해주세요.';
+        default:
+          return '로그인 중 오류가 발생했습니다. 아이디와 비밀번호를 확인해주세요.';
+      }
+    }
+    return '로그인 중 오류가 발생했습니다. 다시 시도해주세요.';
   }
 
   // 로그아웃
@@ -71,7 +105,8 @@ class AuthController extends ChangeNotifier {
 
       _setLoading(false);
     } catch (e) {
-      _setError('로그인에 실패했습니다: $e');
+      print('로그인 에러: $e');
+      _setError(_getKoreanErrorMessage(e));
       _setLoading(false);
     }
   }
@@ -125,7 +160,7 @@ class AuthController extends ChangeNotifier {
     required String introduction,
     required int height,
     required String activityArea,
-    List<String>? profileImages,
+    List<XFile>? profileImages,
   }) async {
     if (_tempRegistrationData == null) {
       _setError('회원가입 데이터가 없습니다.');
@@ -159,6 +194,51 @@ class AuthController extends ChangeNotifier {
           print('ID 토큰 새로고침 실패: $e');
         }
         
+        // 이미지 업로드 처리
+        List<String> imageUrls = [];
+        if (profileImages != null && profileImages.isNotEmpty) {
+          try {
+            print('프로필 이미지 업로드 시작: ${profileImages.length}개');
+            for (int i = 0; i < profileImages.length; i++) {
+              final file = profileImages[i];
+              final fileName = '${userCredential.user!.uid}_profile_$i.jpg';
+
+              print('Firebase Storage 업로드 시작: $fileName');
+
+              // Firebase Storage에 업로드
+              final ref = FirebaseStorage.instance
+                  .ref()
+                  .child('profile_images')
+                  .child(userCredential.user!.uid)
+                  .child(fileName);
+
+              // 플랫폼별 업로드 처리
+              late UploadTask uploadTask;
+              if (kIsWeb) {
+                // 웹에서는 XFile에서 bytes 사용
+                final bytes = await file.readAsBytes();
+                uploadTask = ref.putData(bytes);
+              } else {
+                // 모바일에서는 XFile을 File로 변환
+                final ioFile = File(file.path);
+                uploadTask = ref.putFile(ioFile);
+              }
+
+              final snapshot = await uploadTask;
+              final downloadUrl = await snapshot.ref.getDownloadURL();
+
+              print('Firebase Storage 업로드 성공: $downloadUrl');
+              imageUrls.add(downloadUrl);
+            }
+            print('모든 프로필 이미지 업로드 완료: ${imageUrls.length}개');
+          } catch (e) {
+            print('Firebase Storage 업로드 실패: $e');
+            // Firebase Storage 실패 시 빈 배열로 처리 (나중에 다시 업로드할 수 있도록)
+            imageUrls.clear();
+            _setError('이미지 업로드에 실패했습니다. 프로필은 생성되었으니 나중에 다시 업로드해주세요.');
+          }
+        }
+        
         // 완전한 사용자 정보와 함께 사용자 문서 생성
         await _createCompleteUserProfile(
           userCredential.user!.uid,
@@ -170,7 +250,7 @@ class AuthController extends ChangeNotifier {
           introduction,
           height,
           activityArea,
-          profileImages ?? [],
+          imageUrls,
         );
 
         print('Firestore 사용자 문서 생성 완료');

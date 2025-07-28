@@ -27,7 +27,7 @@ void main() async {
 
     // Firebase Realtime Database URL 설정
     FirebaseDatabase.instance.databaseURL =
-        'https://babple-agency-default-rtdb.firebaseio.com';
+        'https://groupting-aebab-default-rtdb.firebaseio.com';
 
     print('Firebase 초기화 성공');
   } catch (e) {

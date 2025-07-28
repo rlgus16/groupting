@@ -28,18 +28,15 @@ class _LoginViewState extends State<LoginView> {
 
     final authController = context.read<AuthController>();
 
+    // 이전 에러 메시지 클리어
+    authController.clearError();
+
     // 아이디에 @groupting.com을 붙여서 이메일 형식으로 만듦
     final email = '${_idController.text}@groupting.com';
     await authController.signInWithEmailAndPassword(
       email,
       _passwordController.text,
     );
-
-    if (authController.errorMessage != null && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(authController.errorMessage!)));
-    }
   }
 
   @override
@@ -139,13 +136,52 @@ class _LoginViewState extends State<LoginView> {
                         onPressed: _login,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
+                          minimumSize: const Size(double.infinity, 50),
                         ),
                         child: const Text(
                           '로그인',
-                          style: TextStyle(fontSize: 16),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       );
+                    },
+                  ),
+
+                  // 에러 메시지 표시
+                  Consumer<AuthController>(
+                    builder: (context, authController, _) {
+                      if (authController.errorMessage != null) {
+                        return Container(
+                          margin: const EdgeInsets.only(top: 16),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  authController.errorMessage!,
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
                     },
                   ),
                   const SizedBox(height: 16),

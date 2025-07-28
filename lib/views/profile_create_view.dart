@@ -28,7 +28,7 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
 
   String _selectedGender = '';
   DateTime? _selectedDate;
-  List<XFile> _selectedImages = [];
+  List<XFile?> _selectedImages = List.filled(6, null); // 6개 슬롯을 null로 초기화
   final ImagePicker _picker = ImagePicker();
   
   // 이미지 피커 활성화 상태 플래그
@@ -142,7 +142,14 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
       final images = await _picker.pickMultiImage();
       if (images.isNotEmpty && images.length <= 6) {
         setState(() {
-          _selectedImages = images;
+          // 선택된 이미지들을 순서대로 빈 슬롯에 배치
+          for (int i = 0; i < images.length && i < 6; i++) {
+            _selectedImages[i] = images[i];
+          }
+          // 나머지 슬롯은 null로 유지
+          for (int i = images.length; i < 6; i++) {
+            _selectedImages[i] = null;
+          }
         });
       } else if (images.length > 6) {
         ScaffoldMessenger.of(
@@ -169,16 +176,8 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
       final image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
         setState(() {
-          if (index < _selectedImages.length) {
-            // 기존 이미지 교체
-            _selectedImages[index] = image;
-          } else if (index == _selectedImages.length) {
-            // 다음 순서에 새 이미지 추가
-            _selectedImages.add(image);
-          } else {
-            // 중간에 빈 공간이 있는 경우, 마지막에 추가
-            _selectedImages.add(image);
-          }
+          // 해당 인덱스에 직접 이미지 저장
+          _selectedImages[index] = image;
         });
       }
     } catch (e) {
@@ -196,7 +195,9 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedImages.isEmpty) {
+    // null이 아닌 이미지 개수 체크
+    final hasImages = _selectedImages.any((image) => image != null);
+    if (!hasImages) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('프로필 사진을 최소 1장 선택해주세요.')));
@@ -205,32 +206,15 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
 
     final authController = context.read<AuthController>();
 
-    // 이미지 업로드 먼저 처리
-    List<String> imageUrls = [];
-    if (_selectedImages.isNotEmpty) {
-      try {
-        final profileController = context.read<ProfileController>();
-        // 임시로 이미지 업로드 (실제 구현 시 Firebase Storage 사용)
-        imageUrls = _selectedImages.map((image) => 'temp://${image.path}').toList();
-        print('이미지 업로드 완료: $imageUrls');
-      } catch (e) {
-        print('이미지 업로드 실패: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('이미지 업로드에 실패했습니다.')),
-          );
-        }
-        return;
-      }
-    }
-
-    // 실제 Firebase 계정 생성과 프로필 완성
+    // 실제 Firebase 계정 생성과 프로필 완성 (이미지 포함)
+    final validImages = _selectedImages.where((image) => image != null).cast<XFile>().toList();
+    
     await authController.completeRegistrationWithProfile(
       nickname: _nicknameController.text.trim(),
       introduction: _introductionController.text.trim(),
       height: int.parse(_heightController.text.trim()),
       activityArea: _activityAreaController.text.trim(),
-      profileImages: imageUrls,
+      profileImages: validImages, // XFile 리스트를 직접 전달
     );
 
     if (mounted) {
@@ -361,167 +345,71 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
                 ),
                 const SizedBox(height: 12),
                 Container(
-                  height: 200,
                   decoration: BoxDecoration(
                     border: Border.all(color: AppTheme.gray300),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
-                    child: Row(
+                    child: Column(
                       children: [
-                        // 좌측 메인 프로필 이미지 (1번)
-                        Expanded(
-                          flex: 3,
-                          child: GestureDetector(
-                            onTap: () => _selectSingleImage(0),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: _selectedImages.isNotEmpty
-                                      ? AppTheme.primaryColor
-                                      : AppTheme.gray300,
-                                  width: 2,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: _selectedImages.isNotEmpty
-                                  ? Stack(
-                                      children: [
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(10),
-                                          child: _buildImageWidget(
-                                            _selectedImages[0],
-                                            isMainProfile: true,
-                                          ),
-                                        ),
-                                        Positioned(
-                                          bottom: 8,
-                                          left: 8,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: AppTheme.primaryColor,
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                            child: const Text(
-                                              '프로필',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        Positioned(
-                                          top: 8,
-                                          right: 8,
-                                          child: GestureDetector(
-                                            onTap: () {
-                                              setState(() {
-                                                _selectedImages.removeAt(0);
-                                              });
-                                            },
-                                            child: Container(
-                                              width: 24,
-                                              height: 24,
-                                              decoration: const BoxDecoration(
-                                                color: Colors.red,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(
-                                                Icons.close,
-                                                color: Colors.white,
-                                                size: 16,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  : const Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.add_photo_alternate,
-                                          size: 48,
-                                          color: AppTheme.gray400,
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          '1번\n프로필 사진',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: AppTheme.textSecondary,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                            ),
-                          ),
+                        // 상단 3개 이미지 (1, 2, 3번)
+                        Row(
+                          children: [
+                            Expanded(child: _buildImageSlot(0, isMainProfile: true)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildImageSlot(1)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildImageSlot(2)),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        // 우측 작은 이미지들 (2-6번)
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            children: [
-                              // 상단 2개
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: _buildSmallImageSlot(1),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: _buildSmallImageSlot(2),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              // 하단 2개
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: _buildSmallImageSlot(3),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: _buildSmallImageSlot(4),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                        const SizedBox(height: 8),
+                        // 하단 3개 이미지 (4, 5, 6번)
+                        Row(
+                          children: [
+                            Expanded(child: _buildImageSlot(3)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildImageSlot(4)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildImageSlot(5)),
+                          ],
                         ),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                // 5-6번 이미지 슬롯 (하단 추가)
-                if (_selectedImages.length >= 4) // 4개 이상일 때 5-6번 슬롯 표시
-                  Container(
-                    height: 80,
-                    child: Row(
-                      children: [
-                        Expanded(child: _buildSmallImageSlot(4)), // 5번째 이미지
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildSmallImageSlot(5)), // 6번째 이미지
-                        const SizedBox(width: 12),
-                        Expanded(child: Container()), // 빈 공간
-                      ],
+                // 대표 프로필 이미지 선택 안내
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppTheme.primaryColor.withOpacity(0.3),
                     ),
                   ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.star,
+                        color: AppTheme.primaryColor,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '1번 사진이 대표 프로필로 사용됩니다',
+                          style: TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 24),
 
                 // 회원가입 정보 섹션
@@ -838,79 +726,111 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
     }
   }
 
-  Widget _buildSmallImageSlot(int index) {
-    final hasImage = _selectedImages.length > index;
-    final isNextSlot = index == _selectedImages.length; // 다음에 추가할 수 있는 슬롯인지
-    final canAddImage = _selectedImages.length < 6; // 더 추가할 수 있는지
+  Widget _buildImageSlot(int index, {bool isMainProfile = false}) {
+    final hasImage = _selectedImages[index] != null;
+    final currentImageCount = _selectedImages.where((image) => image != null).length;
+    final isNextSlot = !hasImage && currentImageCount < 6; // 이미지가 없고 전체 개수가 6개 미만일 때
+    final canAddImage = currentImageCount < 6; // 더 추가할 수 있는지
     
-    return GestureDetector(
-      onTap: hasImage || (isNextSlot && canAddImage) ? () => _selectSingleImage(index) : null,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: hasImage 
-                ? AppTheme.gray300 
-                : (isNextSlot && canAddImage) 
-                    ? AppTheme.primaryColor.withOpacity(0.5)
-                    : AppTheme.gray200
+    return AspectRatio(
+      aspectRatio: 1.0, // 정사각형 비율
+      child: GestureDetector(
+        onTap: hasImage || (isNextSlot && canAddImage) ? () => _selectSingleImage(index) : null,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: hasImage 
+                  ? (isMainProfile ? AppTheme.primaryColor : AppTheme.gray300)
+                  : (isNextSlot && canAddImage) 
+                      ? AppTheme.primaryColor.withOpacity(0.5)
+                      : AppTheme.gray200,
+              width: isMainProfile && hasImage ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
           ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: hasImage
-            ? Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: _buildImageWidget(_selectedImages[index]),
-                  ),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedImages.removeAt(index);
-                        });
-                      },
-                      child: Container(
-                        width: 20,
-                        height: 20,
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
+          child: hasImage
+              ? Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: _buildImageWidget(_selectedImages[index]!),
+                    ),
+                    // 메인 프로필 표시
+                    if (isMainProfile)
+                      Positioned(
+                        bottom: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            '프로필',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 14,
+                      ),
+                    // 삭제 버튼
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedImages[index] = null;
+                          });
+                        },
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 14,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.add,
-                    color: (isNextSlot && canAddImage) 
-                        ? AppTheme.primaryColor 
-                        : AppTheme.gray300,
-                    size: 24,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    index == 5 ? '6번' : '${index + 2}번',
-                    style: TextStyle(
+                  ],
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isMainProfile ? Icons.add_photo_alternate : Icons.add,
                       color: (isNextSlot && canAddImage) 
                           ? AppTheme.primaryColor 
-                          : AppTheme.textSecondary,
-                      fontSize: 12,
+                          : AppTheme.gray300,
+                      size: isMainProfile ? 24 : 20,
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isMainProfile ? '1번\n프로필' : '${index + 1}번',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: (isNextSlot && canAddImage) 
+                            ? AppTheme.primaryColor 
+                            : AppTheme.textSecondary,
+                        fontSize: 10,
+                        fontWeight: isMainProfile ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }

@@ -93,7 +93,7 @@ class GroupModel {
   String get groupId => id; // id와 동일
   int get memberCount => memberIds.length;
   bool get isFull => memberIds.length >= maxMembers;
-  bool get canMatch => memberIds.length >= 2 && status == GroupStatus.active;
+  bool get canMatch => memberIds.length >= 1 && status == GroupStatus.active; // 1명부터 매칭 가능
   bool isOwner(String userId) => ownerId == userId;
   bool isMember(String userId) => memberIds.contains(userId);
 }

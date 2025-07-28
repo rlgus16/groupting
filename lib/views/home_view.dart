@@ -39,6 +39,10 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    // 매칭 완료 콜백 제거
+    final groupController = context.read<GroupController>();
+    groupController.onMatchingCompleted = null;
+    
     // 앱 생명주기 감지 해제
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -662,43 +666,45 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
               '멤버 수: ${groupController.groupMembers.length}/5',
               style: const TextStyle(color: AppTheme.textSecondary),
             ),
-            if (groupController.isMatched) ...[
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () {
-                  String chatRoomId;
+            // 채팅 버튼 (매칭 전/후 모두 표시) -> 요청 사항 반영
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () {
+                String chatRoomId;
 
-                  // 매칭된 경우 통합 채팅방 ID 사용
-                  if (groupController.isMatched &&
-                      groupController.currentGroup!.matchedGroupId != null) {
-                    // 두 그룹 ID 중 작은 것을 채팅방 ID로 사용 (일관성 보장)
-                    final currentGroupId = groupController.currentGroup!.id;
-                    final matchedGroupId =
-                        groupController.currentGroup!.matchedGroupId!;
-                    chatRoomId = currentGroupId.compareTo(matchedGroupId) < 0
-                        ? '${currentGroupId}_${matchedGroupId}'
-                        : '${matchedGroupId}_${currentGroupId}';
-                    print('매칭된 그룹 통합 채팅방 ID: $chatRoomId');
-                  } else {
-                    // 매칭되지 않은 경우 기존 그룹 ID 사용
-                    chatRoomId = groupController.currentGroup!.id;
-                    print('일반 그룹 채팅방 ID: $chatRoomId');
-                  }
+                // 매칭된 경우 통합 채팅방 ID 사용
+                if (groupController.isMatched &&
+                    groupController.currentGroup!.matchedGroupId != null) {
+                  // 두 그룹 ID 중 작은 것을 채팅방 ID로 사용 (일관성 보장)
+                  final currentGroupId = groupController.currentGroup!.id;
+                  final matchedGroupId =
+                      groupController.currentGroup!.matchedGroupId!;
+                  chatRoomId = currentGroupId.compareTo(matchedGroupId) < 0
+                      ? '${currentGroupId}_${matchedGroupId}'
+                      : '${matchedGroupId}_${currentGroupId}';
+                  print('매칭된 그룹 통합 채팅방 ID: $chatRoomId');
+                } else {
+                  // 매칭되지 않은 경우 그룹 ID 사용
+                  chatRoomId = groupController.currentGroup!.id;
+                  print('그룹 채팅방 ID: $chatRoomId');
+                }
 
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ChatView(groupId: chatRoomId),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.chat),
-                label: const Text('채팅하기'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                ),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatView(groupId: chatRoomId),
+                  ),
+                );
+              },
+              icon: Icon(groupController.isMatched ? Icons.chat : Icons.group_outlined),
+              label: Text(groupController.isMatched ? '매칭 채팅' : '그룹 채팅'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: groupController.isMatched 
+                    ? AppTheme.successColor 
+                    : AppTheme.primaryColor,
+                foregroundColor: Colors.white,
               ),
-            ],
+            ),
           ],
         ),
       ),
@@ -819,7 +825,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
         // 매칭 버튼 (방장만, 매칭 전)
         if (groupController.isOwner && !groupController.isMatched)
           ElevatedButton.icon(
-            onPressed: groupController.currentGroup!.memberIds.length < 2
+            onPressed: groupController.currentGroup!.memberIds.length < 1
                 ? null
                 : groupController.isMatching
                 ? groupController.cancelMatching
@@ -828,11 +834,13 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
               groupController.isMatching ? Icons.close : Icons.favorite,
             ),
             label: Text(
-              groupController.currentGroup!.memberIds.length < 2
-                  ? '최소 2명 필요'
+              groupController.currentGroup!.memberIds.length < 1
+                  ? '최소 1명 필요'
                   : groupController.isMatching
                   ? '매칭 취소'
-                  : '매칭 시작',
+                  : groupController.currentGroup!.memberIds.length == 1
+                  ? '1:1 매칭 시작'
+                  : '그룹 매칭 시작',
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: groupController.isMatching

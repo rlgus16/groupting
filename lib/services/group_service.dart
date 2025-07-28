@@ -3,6 +3,7 @@ import '../models/group_model.dart';
 import '../models/user_model.dart';
 import 'firebase_service.dart';
 import 'user_service.dart';
+import 'dart:async'; // Added for StreamSubscription
 
 class GroupService {
   static final GroupService _instance = GroupService._internal();
@@ -181,12 +182,83 @@ class GroupService {
 
       print('그룹 상태를 매칭 중으로 변경 완료');
 
-      // 2. 매칭 가능한 그룹 찾기
+      // 2. 매칭 가능한 그룹 찾기 (초기 시도)
       await _findAndMatchGroups(groupId);
+      
+      // 3. 실시간 매칭 감지 시작 (새로운 추가!)
+      _startMatchingListener(groupId);
     } catch (e) {
       print('매칭 시작 실패: $e');
       throw Exception('매칭 시작에 실패했습니다: $e');
     }
+  }
+
+  // 실시간 매칭 감지 리스너 추가
+  static final Map<String, StreamSubscription> _matchingListeners = {};
+  
+  void _startMatchingListener(String groupId) {
+    // 기존 리스너가 있다면 제거
+    _matchingListeners[groupId]?.cancel();
+    
+    print('실시간 매칭 감지 시작: $groupId');
+    
+    // 매칭 중인 모든 그룹들의 변화를 감지
+    final listener = _groupsCollection
+        .where('status', isEqualTo: GroupStatus.matching.toString().split('.').last)
+        .snapshots()
+        .listen((snapshot) async {
+          try {
+            // 현재 그룹 상태 확인
+            final currentGroupDoc = await _groupsCollection.doc(groupId).get();
+            if (!currentGroupDoc.exists) return;
+            
+            final currentGroup = GroupModel.fromFirestore(currentGroupDoc);
+            
+            // 이미 매칭된 경우 리스너 정지
+            if (currentGroup.status != GroupStatus.matching) {
+              print('그룹 $groupId가 더 이상 매칭 중이 아님. 리스너 정지');
+              _stopMatchingListener(groupId);
+              return;
+            }
+            
+            // 변화된 그룹들 중에서 새로 추가된 그룹만 확인
+            bool hasNewGroup = false;
+            for (final change in snapshot.docChanges) {
+              if (change.type == DocumentChangeType.added && 
+                  change.doc.id != groupId) {
+                hasNewGroup = true;
+                print('새로운 매칭 그룹 발견: ${change.doc.id}');
+                break;
+              }
+            }
+            
+            // 새로운 그룹이 추가된 경우에만 매칭 재시도
+            if (hasNewGroup) {
+              print('새로운 매칭 가능 그룹으로 인한 매칭 재시도: $groupId');
+              await _findAndMatchGroups(groupId);
+            }
+          } catch (e) {
+            print('실시간 매칭 처리 중 오류: $e');
+          }
+        });
+        
+    _matchingListeners[groupId] = listener;
+  }
+  
+  void _stopMatchingListener(String groupId) {
+    _matchingListeners[groupId]?.cancel();
+    _matchingListeners.remove(groupId);
+    print('매칭 리스너 정지: $groupId');
+  }
+
+  // 모든 매칭 리스너 정리 (앱 종료 시 사용)
+  static void stopAllMatchingListeners() {
+    print('모든 매칭 리스너 정리 중...');
+    for (final listener in _matchingListeners.values) {
+      listener.cancel();
+    }
+    _matchingListeners.clear();
+    print('모든 매칭 리스너 정리 완료');
   }
 
   // 매칭 가능한 그룹을 찾아서 매칭 처리
@@ -199,7 +271,20 @@ class GroupService {
         return;
       }
 
+      // 이미 매칭된 그룹인지 다시 한번 확인
+      if (currentGroup.status != GroupStatus.matching) {
+        print('그룹 $groupId이 더 이상 매칭 중이 아님: ${currentGroup.status}');
+        return;
+      }
+
       print('현재 그룹 정보: 멤버수=${currentGroup.memberCount}');
+      
+      // 1:1 매칭인지 그룹 매칭인지 확인
+      if (currentGroup.memberCount == 1) {
+        print('1:1 매칭 모드로 진행');
+      } else {
+        print('그룹 매칭 모드로 진행 (${currentGroup.memberCount}명)');
+      }
 
       // 현재 그룹의 멤버들 정보 가져오기
       final currentMembers = await getGroupMembers(groupId);
@@ -222,36 +307,58 @@ class GroupService {
       print('매칭 가능한 그룹 수: ${matchableGroups.length}');
 
       if (matchableGroups.isNotEmpty) {
-        // 첫 번째 매칭 가능한 그룹과 매칭
+        // 첫 번째 매칭 가능한 그룹과 매칭 시도 (트랜잭션으로 안전하게 처리)
         final targetGroup = matchableGroups.first;
-        print('매칭 대상 그룹: ${targetGroup.id}');
+        print('매칭 대상 그룹: ${targetGroup.id} (멤버수: ${targetGroup.memberCount})');
 
-        await completeMatching(groupId, targetGroup.id);
-        print('매칭 완료: $groupId ↔ ${targetGroup.id}');
+        final success = await _safeCompleteMatching(groupId, targetGroup.id);
+        
+        if (success) {
+          if (currentGroup.memberCount == 1 && targetGroup.memberCount == 1) {
+            print('1:1 매칭 완료: $groupId ↔ ${targetGroup.id}');
+          } else {
+            print('그룹 매칭 완료: $groupId (${currentGroup.memberCount}명) ↔ ${targetGroup.id} (${targetGroup.memberCount}명)');
+          }
+        } else {
+          print('매칭 시도 실패 (이미 다른 그룹과 매칭되었을 수 있음)');
+        }
       } else {
-        print('매칭 가능한 그룹이 없음. 대기 상태 유지');
+        if (currentGroup.memberCount == 1) {
+          print('1:1 매칭 가능한 상대가 없음. 대기 상태 유지');
+        } else {
+          print('그룹 매칭 가능한 그룹이 없음. 대기 상태 유지');
+        }
       }
     } catch (e) {
       print('매칭 처리 실패: $e');
     }
   }
 
-  // 매칭 취소
-  Future<void> cancelMatching(String groupId) async {
+  // 안전한 매칭 완료 처리 (중복 매칭 방지)
+  Future<bool> _safeCompleteMatching(String groupId1, String groupId2) async {
     try {
-      await _groupsCollection.doc(groupId).update({
-        'status': GroupStatus.waiting.toString().split('.').last,
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      });
-    } catch (e) {
-      throw Exception('매칭 취소에 실패했습니다: $e');
-    }
-  }
-
-  // 매칭 완료
-  Future<void> completeMatching(String groupId1, String groupId2) async {
-    try {
+      bool success = false;
+      
       await _firebaseService.runTransaction((transaction) async {
+        // 두 그룹의 현재 상태 확인
+        final group1Doc = await transaction.get(_groupsCollection.doc(groupId1));
+        final group2Doc = await transaction.get(_groupsCollection.doc(groupId2));
+        
+        if (!group1Doc.exists || !group2Doc.exists) {
+          print('그룹 중 하나가 존재하지 않음');
+          return;
+        }
+        
+        final group1 = GroupModel.fromFirestore(group1Doc);
+        final group2 = GroupModel.fromFirestore(group2Doc);
+        
+        // 두 그룹 모두 매칭 중인지 확인
+        if (group1.status != GroupStatus.matching || group2.status != GroupStatus.matching) {
+          print('그룹 중 하나가 이미 매칭되었거나 매칭 중이 아님');
+          print('Group1 상태: ${group1.status}, Group2 상태: ${group2.status}');
+          return;
+        }
+        
         final now = DateTime.now();
 
         // 두 그룹 모두 매칭 완료로 업데이트
@@ -266,9 +373,44 @@ class GroupService {
           'matchedGroupId': groupId1,
           'updatedAt': Timestamp.fromDate(now),
         });
+        
+        success = true;
+        print('매칭 트랜잭션 성공');
+      });
+      
+      if (success) {
+        // 매칭 성공시 리스너 정지
+        _stopMatchingListener(groupId1);
+        _stopMatchingListener(groupId2);
+      }
+      
+      return success;
+    } catch (e) {
+      print('안전한 매칭 완료 처리 실패: $e');
+      return false;
+    }
+  }
+
+  // 매칭 취소
+  Future<void> cancelMatching(String groupId) async {
+    try {
+      // 리스너 정지
+      _stopMatchingListener(groupId);
+      
+      await _groupsCollection.doc(groupId).update({
+        'status': GroupStatus.waiting.toString().split('.').last,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
     } catch (e) {
-      throw Exception('매칭 완료 처리에 실패했습니다: $e');
+      throw Exception('매칭 취소에 실패했습니다: $e');
+    }
+  }
+
+  // 매칭 완료 (기존 메소드 - 호환성 유지)
+  Future<void> completeMatching(String groupId1, String groupId2) async {
+    final success = await _safeCompleteMatching(groupId1, groupId2);
+    if (!success) {
+      throw Exception('매칭 완료 처리에 실패했습니다');
     }
   }
 
@@ -305,16 +447,28 @@ class GroupService {
         print('그룹 $i: ID=${g.id}, 멤버수=${g.memberCount}, 상태=${g.status}');
       }
 
-      // 같은 인원 수이고 매칭 조건을 만족하는 그룹들 필터링
+      // 매칭 조건을 만족하는 그룹들 필터링 (1:1 매칭 포함)
       final matchableGroups = <GroupModel>[];
 
       for (final group in groups) {
         print('그룹 ${group.id} 검사 중...');
         print(
-          '- 멤버수 비교: ${group.memberCount} == $memberCount ? ${group.memberCount == memberCount}',
+          '- 멤버수 비교: ${group.memberCount} vs $memberCount',
         );
 
-        if (group.memberCount == memberCount) {
+        // 1:1 매칭 또는 같은 인원 수 매칭 허용
+        bool canMatchBySize = false;
+        if (memberCount == 1 && group.memberCount == 1) {
+          // 1:1 매칭
+          canMatchBySize = true;
+          print('- 1:1 매칭 가능');
+        } else if (memberCount > 1 && group.memberCount == memberCount) {
+          // 같은 인원 수 그룹 매칭
+          canMatchBySize = true;
+          print('- 같은 인원 수 매칭 가능');
+        }
+
+        if (canMatchBySize) {
           // 그룹 멤버들 정보 가져오기
           print('- 멤버 정보 가져오는 중: ${group.memberIds}');
           final members = await Future.wait(
@@ -416,44 +570,56 @@ class GroupService {
   // 그룹 나가기
   Future<bool> leaveGroup(String groupId, String userId) async {
     try {
-      print('GroupService.leaveGroup 시작: groupId=$groupId, userId=$userId');
+      print('그룹 나가기 시작: 그룹ID=$groupId, 사용자ID=$userId');
 
-      final group = await getGroupById(groupId);
-      if (group == null) {
+      // 그룹 정보 가져오기
+      final groupDoc = await _groupsCollection.doc(groupId).get();
+      if (!groupDoc.exists) {
         print('그룹을 찾을 수 없음: $groupId');
         return false;
       }
 
-      print('현재 그룹 멤버들: ${group.memberIds}');
+      final group = GroupModel.fromFirestore(groupDoc);
+      print('현재 그룹 상태: ${group.status}, 멤버수: ${group.memberCount}');
 
-      final updatedMemberIds = group.memberIds
-          .where((id) => id != userId)
-          .toList();
-
-      print('업데이트된 멤버들: $updatedMemberIds');
-
-      if (updatedMemberIds.isEmpty) {
-        // 마지막 멤버인 경우 그룹 삭제
-        print('마지막 멤버이므로 그룹 삭제');
-        await _groupsCollection.doc(groupId).delete();
-      } else {
-        // 멤버 목록에서 제거
-        print('멤버 목록에서 사용자 제거');
-        await _groupsCollection.doc(groupId).update({
-          'memberIds': updatedMemberIds,
-          'updatedAt': Timestamp.fromDate(DateTime.now()),
-        });
+      // 매칭 중이었다면 리스너 정리
+      if (group.status == GroupStatus.matching) {
+        _stopMatchingListener(groupId);
+        print('매칭 중인 그룹 나가기로 인한 리스너 정리');
       }
 
-      // 사용자의 현재 그룹 ID 제거
-      print('사용자의 currentGroupId 제거');
-      await _userService.updateCurrentGroupId(userId, null);
+      // 멤버가 1명인 경우 (그룹 소유자) - 그룹 삭제
+      if (group.memberCount <= 1) {
+        print('마지막 멤버 나가기 - 그룹 삭제');
+        await _groupsCollection.doc(groupId).delete();
+        print('그룹 삭제 완료: $groupId');
+        
+        // 사용자의 현재 그룹 ID 제거
+        await _userService.updateCurrentGroupId(userId, null);
+        print('사용자의 currentGroupId 제거 완료');
+        
+        return true;
+      }
 
-      print('그룹 나가기 성공');
+      // 멤버가 여러 명인 경우 - 멤버 목록에서 제거
+      final updatedMemberIds = List<String>.from(group.memberIds)
+        ..remove(userId);
+
+      await _groupsCollection.doc(groupId).update({
+        'memberIds': updatedMemberIds,
+        'memberCount': updatedMemberIds.length,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
+
+      // 사용자의 현재 그룹 ID 제거
+      await _userService.updateCurrentGroupId(userId, null);
+      print('사용자의 currentGroupId 제거 완료');
+
+      print('그룹에서 멤버 제거 완료. 남은 멤버수: ${updatedMemberIds.length}');
       return true;
     } catch (e) {
       print('그룹 나가기 실패: $e');
-      throw Exception('그룹 나가기에 실패했습니다: $e');
+      return false;
     }
   }
 }

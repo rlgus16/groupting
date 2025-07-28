@@ -69,10 +69,13 @@ class _RegisterViewState extends State<RegisterView> {
     }
 
     final authController = context.read<AuthController>();
+    
+    // 이전 에러 메시지 클리어
+    authController.clearError();
 
     /// TODO -> 메모 남겨드려요.
     /// 아이디에 @groupting.com을 붙여서 이메일 형식으로 만들었어요.
-    /// 나중에 자체 그룹팅 도메인을 도입할 예정이라면 수정하면서 개발해 주시면 됩니다.
+    /// 나중에 자체 그룹팅 도메인을 도입할 예정이라면 수정하면서 개발해 주시면 됩니다. 또는 전달 받을 이메일을 입력하는 것도 좋은 방법으로 보입니다.
 
     final email = '${_idController.text}@groupting.com';
     
@@ -147,10 +150,14 @@ class _RegisterViewState extends State<RegisterView> {
                           children: [
                             const Icon(Icons.lock, size: 16, color: AppTheme.textSecondary),
                             const SizedBox(width: 4),
-                            Text(
-                              '자물쇠 표시된 정보는 가입 후 변경할 수 없습니다',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: AppTheme.textSecondary),
+                            Expanded(
+                              child: Text(
+                                '자물쇠 표시된 정보는 가입 후 변경할 수 없습니다',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: AppTheme.textSecondary),
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
@@ -429,13 +436,52 @@ class _RegisterViewState extends State<RegisterView> {
                         onPressed: _register,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
+                          minimumSize: const Size(double.infinity, 50),
                         ),
                         child: const Text(
                           '회원가입',
-                          style: TextStyle(fontSize: 16),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       );
+                    },
+                  ),
+
+                  // 에러 메시지 표시
+                  Consumer<AuthController>(
+                    builder: (context, authController, _) {
+                      if (authController.errorMessage != null) {
+                        return Container(
+                          margin: const EdgeInsets.only(top: 16),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  authController.errorMessage!,
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
                     },
                   ),
                   const SizedBox(height: 16),

@@ -62,8 +62,8 @@ class ChatController extends ChangeNotifier {
       print('ChatController: 채팅방 초기화');
       _realtimeChatService.initializeChatRoom(groupId);
 
-      // 매칭된 그룹 멤버 로드
-      _loadMatchedGroupMembers();
+      // 그룹 멤버 로드 (매칭 전/후 구분)
+      _loadGroupMembers();
 
       // 메시지 스트림 구독
       print('ChatController: 메시지 스트림 구독 시작');
@@ -158,15 +158,7 @@ class ChatController extends ChangeNotifier {
     return currentUserId != null && message.senderId == currentUserId;
   }
 
-  // 매칭된 그룹 멤버 로드
-  Future<void> loadMatchedGroupMembers(List<String> memberIds) async {
-    try {
-      _matchedGroupMembers = await _userService.getUsersByIds(memberIds);
-      notifyListeners();
-    } catch (e) {
-      _setError('매칭된 그룹 멤버를 로드하는데 실패했습니다: $e');
-    }
-  }
+
 
   // 정리
   void clearData() {
@@ -209,8 +201,8 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  // 매칭된 그룹 멤버 로드
-  Future<void> _loadMatchedGroupMembers() async {
+  // 그룹 멤버 로드 (매칭 전/후 구분)
+  Future<void> _loadGroupMembers() async {
     try {
       final currentUserId = _firebaseService.currentUserId;
       if (currentUserId == null) return;
@@ -225,18 +217,30 @@ class ChatController extends ChangeNotifier {
         'ChatController: 현재 그룹 - ${currentGroup.id}, 매칭 상태: ${currentGroup.status}',
       );
 
-      // 매칭된 경우 모든 그룹 멤버 로드
+      // 매칭 상태에 따라 다른 멤버 로드
       if (currentGroup.status == GroupStatus.matched) {
+        // 매칭된 경우: 모든 그룹 멤버 로드 (자신 그룹 + 상대방 그룹)
         final allMembers = await _groupService.getGroupMembers(currentGroup.id);
         _matchedGroupMembers = allMembers;
         print('ChatController: 매칭된 그룹 멤버 ${_matchedGroupMembers.length}명 로드');
         for (final member in _matchedGroupMembers) {
           print('- ${member.nickname}');
         }
-        notifyListeners();
+      } else {
+        // 매칭 전: 현재 그룹 멤버만 로드
+        final groupMembers = await Future.wait(
+          currentGroup.memberIds.map((id) => _userService.getUserById(id)),
+        );
+        _matchedGroupMembers = groupMembers.whereType<UserModel>().toList();
+        print('ChatController: 현재 그룹 멤버 ${_matchedGroupMembers.length}명 로드');
+        for (final member in _matchedGroupMembers) {
+          print('- ${member.nickname}');
+        }
       }
+      
+      notifyListeners();
     } catch (e) {
-      print('ChatController: 매칭된 그룹 멤버 로드 실패 - $e');
+      print('ChatController: 그룹 멤버 로드 실패 - $e');
     }
   }
 

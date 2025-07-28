@@ -22,9 +22,13 @@ service cloud.firestore {
       // 인증된 사용자는 그룹 생성 가능
       allow create: if request.auth != null;
       
-      // 그룹 멤버만 읽기, 수정 가능
+      // 그룹 멤버는 항상 읽기, 수정 가능
       allow read, update: if request.auth != null && 
         request.auth.uid in resource.data.memberIds;
+      
+      // 매칭을 위해 'matching' 상태인 그룹은 인증된 사용자가 읽기 가능
+      allow read: if request.auth != null && 
+        resource.data.status == 'matching';
       
       // 그룹 소유자(방장)만 삭제 가능
       allow delete: if request.auth != null && 

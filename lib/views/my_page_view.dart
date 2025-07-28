@@ -7,6 +7,8 @@ import '../controllers/auth_controller.dart';
 import '../controllers/profile_controller.dart';
 import '../utils/app_theme.dart';
 import 'profile_edit_view.dart';
+import 'settings_view.dart';
+import 'help_view.dart';
 
 class MyPageView extends StatelessWidget {
   const MyPageView({super.key});
@@ -191,7 +193,12 @@ class MyPageView extends StatelessWidget {
                         icon: Icons.settings_outlined,
                         title: '설정',
                         onTap: () {
-                          // TODO: 설정 페이지로 이동
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SettingsView(),
+                            ),
+                          );
                         },
                       ),
                       const Divider(height: 1),
@@ -199,7 +206,12 @@ class MyPageView extends StatelessWidget {
                         icon: Icons.help_outline,
                         title: '도움말',
                         onTap: () {
-                          // TODO: 도움말 페이지로 이동
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HelpView(),
+                            ),
+                          );
                         },
                       ),
                       const Divider(height: 1),
@@ -312,11 +324,19 @@ class MyPageView extends StatelessWidget {
             ElevatedButton(
               onPressed: () async {
                 Navigator.of(context).pop();
-                await authController.signOut();
-                if (context.mounted) {
-                  Navigator.of(
-                    context,
-                  ).pushNamedAndRemoveUntil('/login', (route) => false);
+                try {
+                  await authController.signOut();
+                  if (context.mounted) {
+                    Navigator.of(
+                      context,
+                    ).pushNamedAndRemoveUntil('/login', (route) => false);
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('로그아웃 중 오류가 발생했습니다: $e')),
+                    );
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(
