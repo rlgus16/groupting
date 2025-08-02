@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../controllers/group_controller.dart';
 import '../utils/app_theme.dart';
+import '../widgets/member_avatar.dart';
 
 class InvitationListView extends StatefulWidget {
   const InvitationListView({super.key});
@@ -76,36 +77,10 @@ class _InvitationListViewState extends State<InvitationListView> {
                       Row(
                         children: [
                           // 프로필 이미지
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppTheme.gray200,
-                            ),
-                            child: ClipOval(
-                              child: invitation.fromUserProfileImage != null
-                                  ? CachedNetworkImage(
-                                      imageUrl:
-                                          invitation.fromUserProfileImage!,
-                                      fit: BoxFit.cover,
-                                      placeholder: (context, url) =>
-                                          const Center(
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          ),
-                                      errorWidget: (context, url, error) =>
-                                          const Icon(
-                                            Icons.person,
-                                            color: AppTheme.textSecondary,
-                                          ),
-                                    )
-                                  : const Icon(
-                                      Icons.person,
-                                      color: AppTheme.textSecondary,
-                                    ),
-                            ),
+                          MemberAvatar(
+                            imageUrl: invitation.fromUserProfileImage,
+                            name: invitation.fromUserNickname,
+                            size: 48,
                           ),
                           const SizedBox(width: 12),
 

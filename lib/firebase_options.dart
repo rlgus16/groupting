@@ -75,4 +75,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'groupting-aebab.firebasestorage.app',
     iosBundleId: 'com.example.groupting',
   );
+
 }

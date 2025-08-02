@@ -33,6 +33,7 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
   
   // 이미지 피커 활성화 상태 플래그
   bool _isPickerActive = false;
+  int _mainProfileIndex = 0; // 메인 프로필 이미지 인덱스 (기본값: 0번)
   
   // 회원가입에서 전달받은 데이터
   Map<String, dynamic>? _registerData;
@@ -207,14 +208,26 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
     final authController = context.read<AuthController>();
 
     // 실제 Firebase 계정 생성과 프로필 완성 (이미지 포함)
-    final validImages = _selectedImages.where((image) => image != null).cast<XFile>().toList();
+    List<XFile> sortedImages = [];
+    
+    // 메인 프로필 이미지가 있다면 첫 번째로 추가
+    if (_selectedImages[_mainProfileIndex] != null) {
+      sortedImages.add(_selectedImages[_mainProfileIndex]!);
+    }
+    
+    // 나머지 이미지들 추가 (메인 프로필 제외)
+    for (int i = 0; i < _selectedImages.length; i++) {
+      if (i != _mainProfileIndex && _selectedImages[i] != null) {
+        sortedImages.add(_selectedImages[i]!);
+      }
+    }
     
     await authController.completeRegistrationWithProfile(
       nickname: _nicknameController.text.trim(),
       introduction: _introductionController.text.trim(),
       height: int.parse(_heightController.text.trim()),
       activityArea: _activityAreaController.text.trim(),
-      profileImages: validImages, // XFile 리스트를 직접 전달
+      profileImages: sortedImages, // 정렬된 XFile 리스트 전달
     );
 
     if (mounted) {
@@ -336,7 +349,7 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  '1번 사진은 프로필 사진으로 사용됩니다.',
+                  '이미지를 길게 눌러서 대표 프로필로 설정할 수 있습니다.',
                   style: TextStyle(
                     color: AppTheme.primaryColor,
                     fontSize: 12,
@@ -356,22 +369,22 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
                         // 상단 3개 이미지 (1, 2, 3번)
                         Row(
                           children: [
-                            Expanded(child: _buildImageSlot(0, isMainProfile: true)),
+                            Expanded(child: _buildImageGridSlot(0)),
                             const SizedBox(width: 8),
-                            Expanded(child: _buildImageSlot(1)),
+                            Expanded(child: _buildImageGridSlot(1)),
                             const SizedBox(width: 8),
-                            Expanded(child: _buildImageSlot(2)),
+                            Expanded(child: _buildImageGridSlot(2)),
                           ],
                         ),
                         const SizedBox(height: 8),
                         // 하단 3개 이미지 (4, 5, 6번)
                         Row(
                           children: [
-                            Expanded(child: _buildImageSlot(3)),
+                            Expanded(child: _buildImageGridSlot(3)),
                             const SizedBox(width: 8),
-                            Expanded(child: _buildImageSlot(4)),
+                            Expanded(child: _buildImageGridSlot(4)),
                             const SizedBox(width: 8),
-                            Expanded(child: _buildImageSlot(5)),
+                            Expanded(child: _buildImageGridSlot(5)),
                           ],
                         ),
                       ],
@@ -399,7 +412,7 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '1번 사진이 대표 프로필로 사용됩니다',
+                          '선택한 대표 프로필 이미지가 메인으로 사용됩니다',
                           style: TextStyle(
                             color: AppTheme.primaryColor,
                             fontSize: 12,
@@ -726,25 +739,55 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
     }
   }
 
-  Widget _buildImageSlot(int index, {bool isMainProfile = false}) {
+  // 메인 프로필 설정 메서드
+  void _setMainProfile(int index) {
+    setState(() {
+      _mainProfileIndex = index;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${index + 1}번 이미지가 대표 프로필로 설정되었습니다.')),
+    );
+  }
+
+  // 이미지 삭제 시 메인 프로필 인덱스 조정
+  void _removeImageFromSlot(int index) {
+    setState(() {
+      _selectedImages[index] = null;
+      
+      // 메인 프로필 인덱스 조정
+      if (_mainProfileIndex == index) {
+        // 삭제된 이미지가 메인 프로필이었다면 첫 번째 유효한 이미지로 변경
+        int newMainIndex = -1;
+        for (int i = 0; i < 6; i++) {
+          if (_selectedImages[i] != null) {
+            newMainIndex = i;
+            break;
+          }
+        }
+        _mainProfileIndex = newMainIndex >= 0 ? newMainIndex : 0;
+      }
+    });
+  }
+
+  // 새로운 그리드 이미지 슬롯 빌더
+  Widget _buildImageGridSlot(int index) {
     final hasImage = _selectedImages[index] != null;
-    final currentImageCount = _selectedImages.where((image) => image != null).length;
-    final isNextSlot = !hasImage && currentImageCount < 6; // 이미지가 없고 전체 개수가 6개 미만일 때
-    final canAddImage = currentImageCount < 6; // 더 추가할 수 있는지
+    final isMainProfile = index == _mainProfileIndex && hasImage;
     
     return AspectRatio(
       aspectRatio: 1.0, // 정사각형 비율
       child: GestureDetector(
-        onTap: hasImage || (isNextSlot && canAddImage) ? () => _selectSingleImage(index) : null,
+        onTap: () => _selectSingleImage(index),
+        onLongPress: hasImage ? () => _setMainProfile(index) : null,
         child: Container(
           decoration: BoxDecoration(
             border: Border.all(
-              color: hasImage 
-                  ? (isMainProfile ? AppTheme.primaryColor : AppTheme.gray300)
-                  : (isNextSlot && canAddImage) 
-                      ? AppTheme.primaryColor.withOpacity(0.5)
+              color: isMainProfile 
+                  ? AppTheme.primaryColor
+                  : hasImage 
+                      ? AppTheme.gray300 
                       : AppTheme.gray200,
-              width: isMainProfile && hasImage ? 2 : 1,
+              width: isMainProfile ? 2 : 1,
             ),
             borderRadius: BorderRadius.circular(8),
           ),
@@ -770,7 +813,7 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: const Text(
-                            '프로필',
+                            '대표',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -784,11 +827,7 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
                       top: 4,
                       right: 4,
                       child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedImages[index] = null;
-                          });
-                        },
+                        onTap: () => _removeImageFromSlot(index),
                         child: Container(
                           width: 20,
                           height: 20,
@@ -809,23 +848,17 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
               : Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      isMainProfile ? Icons.add_photo_alternate : Icons.add,
-                      color: (isNextSlot && canAddImage) 
-                          ? AppTheme.primaryColor 
-                          : AppTheme.gray300,
-                      size: isMainProfile ? 24 : 20,
+                    const Icon(
+                      Icons.add,
+                      color: AppTheme.gray300,
+                      size: 24,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      isMainProfile ? '1번\n프로필' : '${index + 1}번',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: (isNextSlot && canAddImage) 
-                            ? AppTheme.primaryColor 
-                            : AppTheme.textSecondary,
-                        fontSize: 10,
-                        fontWeight: isMainProfile ? FontWeight.bold : FontWeight.normal,
+                      '${index + 1}번',
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
                       ),
                     ),
                   ],

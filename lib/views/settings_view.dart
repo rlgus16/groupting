@@ -366,58 +366,152 @@ class _SettingsViewState extends State<SettingsView> {
     final currentPasswordController = TextEditingController();
     final newPasswordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
+    final authController = context.read<AuthController>();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('비밀번호 변경'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: currentPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: '현재 비밀번호',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: newPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: '새 비밀번호',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: confirmPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: '새 비밀번호 확인',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // TODO: 비밀번호 변경 로직 구현
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('비밀번호가 변경되었습니다.')),
-              );
-            },
-            child: const Text('변경'),
-          ),
-        ],
+      builder: (context) => Consumer<AuthController>(
+        builder: (context, authController, child) {
+          return AlertDialog(
+            title: const Text('비밀번호 변경'),
+            content: authController.isLoading
+                ? const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('비밀번호를 변경하고 있습니다...'),
+                    ],
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: currentPasswordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: '현재 비밀번호',
+                          border: OutlineInputBorder(),
+                          hintText: '현재 사용중인 비밀번호를 입력하세요',
+                        ),
+                        enabled: !authController.isLoading,
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: newPasswordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: '새 비밀번호',
+                          border: OutlineInputBorder(),
+                          hintText: '6자 이상의 새 비밀번호를 입력하세요',
+                        ),
+                        enabled: !authController.isLoading,
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: confirmPasswordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: '새 비밀번호 확인',
+                          border: OutlineInputBorder(),
+                          hintText: '새 비밀번호를 다시 입력하세요',
+                        ),
+                        enabled: !authController.isLoading,
+                      ),
+                    ],
+                  ),
+            actions: authController.isLoading
+                ? []
+                : [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('취소'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final currentPassword = currentPasswordController.text.trim();
+                        final newPassword = newPasswordController.text.trim();
+                        final confirmPassword = confirmPasswordController.text.trim();
+
+                        // 입력 검증
+                        if (currentPassword.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('현재 비밀번호를 입력해주세요.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (newPassword.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('새 비밀번호를 입력해주세요.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (newPassword.length < 6) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('새 비밀번호는 최소 6자 이상이어야 합니다.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (newPassword != confirmPassword) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('새 비밀번호와 확인 비밀번호가 일치하지 않습니다.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        // 비밀번호 변경 실행
+                        final success = await authController.changePassword(
+                          currentPassword,
+                          newPassword,
+                        );
+
+                        if (mounted) {
+                          Navigator.pop(context); // 다이얼로그 닫기
+
+                          if (success) {
+                            // 비밀번호 변경 성공
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('비밀번호가 성공적으로 변경되었습니다.'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } else {
+                            // 비밀번호 변경 실패
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  authController.errorMessage ?? '비밀번호 변경에 실패했습니다.',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                      ),
+                      child: const Text('변경'),
+                    ),
+                  ],
+          );
+        },
       ),
     );
   }
@@ -497,32 +591,63 @@ class _SettingsViewState extends State<SettingsView> {
     
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('최종 확인'),
-        content: const Text('정말로 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              // TODO: 계정 삭제 로직 구현
-              await authController.signOut();
-              if (mounted) {
-                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('계정이 삭제되었습니다.')),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorColor,
-            ),
-            child: const Text('최종 삭제'),
-          ),
-        ],
+      builder: (context) => Consumer<AuthController>(
+        builder: (context, authController, child) {
+          return AlertDialog(
+            title: const Text('최종 확인'),
+            content: authController.isLoading
+                ? const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('계정을 삭제하고 있습니다...'),
+                    ],
+                  )
+                : const Text('정말로 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.'),
+            actions: authController.isLoading
+                ? []
+                : [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('취소'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        // 계정 삭제 실행
+                        final success = await authController.deleteAccount();
+                        
+                        if (mounted) {
+                          Navigator.pop(context); // 다이얼로그 닫기
+                          
+                          if (success) {
+                            // 계정 삭제 성공
+                            Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('계정이 성공적으로 삭제되었습니다.'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } else {
+                            // 계정 삭제 실패
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(authController.errorMessage ?? '계정 삭제에 실패했습니다.'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.errorColor,
+                      ),
+                      child: const Text('최종 삭제'),
+                    ),
+                  ],
+          );
+        },
       ),
     );
   }

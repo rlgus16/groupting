@@ -30,6 +30,16 @@ service cloud.firestore {
       allow read: if request.auth != null && 
         resource.data.status == 'matching';
       
+      // 매칭된 그룹의 정보를 읽을 수 있도록 허용 (임시로 모든 매칭된 그룹을 허용)
+      allow read: if request.auth != null && 
+        resource.data.status == 'matched';
+      
+      // 매칭 완료를 위해 'matching' 상태인 그룹을 'matched' 상태로 업데이트 허용
+      allow update: if request.auth != null && 
+        resource.data.status == 'matching' &&
+        request.resource.data.status == 'matched' &&
+        request.resource.data.keys().hasAll(['status', 'matchedGroupId', 'updatedAt']);
+      
       // 그룹 소유자(방장)만 삭제 가능
       allow delete: if request.auth != null && 
         request.auth.uid == resource.data.ownerId;
@@ -75,6 +85,14 @@ service cloud.firestore {
     function isGroupMember(groupId, userId) {
       return exists(/databases/$(database)/documents/groups/$(groupId)) &&
         userId in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds;
+    }
+    
+    // 헬퍼 함수: 매칭된 그룹의 멤버인지 확인
+    function isMatchedGroupMember(groupId, userId) {
+      let groupDoc = get(/databases/$(database)/documents/groups/$(groupId));
+      return groupDoc.data.keys().hasAll(['matchedGroupId']) &&
+        exists(/databases/$(database)/documents/groups/$(groupDoc.data.matchedGroupId)) &&
+        userId in get(/databases/$(database)/documents/groups/$(groupDoc.data.matchedGroupId)).data.memberIds;
     }
   }
 } 

@@ -53,6 +53,11 @@ class ChatController extends ChangeNotifier {
     _setLoading(true);
     _currentGroupId = groupId;
 
+    _startMessageStreamAsync(groupId);
+  }
+
+  // 비동기 메시지 스트림 시작
+  Future<void> _startMessageStreamAsync(String groupId) async {
     try {
       // 기존 구독 해제
       _messagesSubscription?.cancel();
@@ -60,10 +65,11 @@ class ChatController extends ChangeNotifier {
 
       // 채팅방 초기화
       print('ChatController: 채팅방 초기화');
-      _realtimeChatService.initializeChatRoom(groupId);
+      await _realtimeChatService.initializeChatRoom(groupId);
+      print('ChatController: 채팅방 초기화 완료');
 
       // 그룹 멤버 로드 (매칭 전/후 구분)
-      _loadGroupMembers();
+      await _loadGroupMembers();
 
       // 메시지 스트림 구독
       print('ChatController: 메시지 스트림 구독 시작');
@@ -162,25 +168,31 @@ class ChatController extends ChangeNotifier {
 
   // 정리
   void clearData() {
-    _messages.clear();
-    _matchedGroupMembers.clear();
-    _onlineUsers.clear();
-    _messageController.clear();
+    try {
+      _messages.clear();
+      _matchedGroupMembers.clear();
+      _onlineUsers.clear();
+      _messageController.clear();
 
-    // 구독 해제
-    _messagesSubscription?.cancel();
-    _onlineUsersSubscription?.cancel();
+      // 구독 해제
+      _messagesSubscription?.cancel();
+      _messagesSubscription = null;
+      _onlineUsersSubscription?.cancel();
+      _onlineUsersSubscription = null;
 
-    // 오프라인 상태로 변경 (임시 비활성화)
-    // if (_currentGroupId != null) {
-    //   final currentUserId = _firebaseService.currentUserId;
-    //   if (currentUserId != null) {
-    //     _realtimeChatService.setUserOffline(_currentGroupId!, currentUserId);
-    //   }
-    // }
+      // 오프라인 상태로 변경 (임시 비활성화)
+      // if (_currentGroupId != null) {
+      //   final currentUserId = _firebaseService.currentUserId;
+      //   if (currentUserId != null) {
+      //     _realtimeChatService.setUserOffline(_currentGroupId!, currentUserId);
+      //   }
+      // }
 
-    _currentGroupId = null;
-    notifyListeners();
+      _currentGroupId = null;
+      notifyListeners();
+    } catch (e) {
+      print('ChatController clearData 중 에러: $e');
+    }
   }
 
   // 에러 클리어
@@ -190,14 +202,20 @@ class ChatController extends ChangeNotifier {
 
   // 그룹 나가기/앱 종료 시 호출
   void stopMessageStream() {
-    _messagesSubscription?.cancel();
-    _onlineUsersSubscription?.cancel();
+    try {
+      _messagesSubscription?.cancel();
+      _messagesSubscription = null;
+      _onlineUsersSubscription?.cancel();
+      _onlineUsersSubscription = null;
 
-    if (_currentGroupId != null) {
-      final currentUserId = _firebaseService.currentUserId;
-      if (currentUserId != null) {
-        _realtimeChatService.setUserOffline(_currentGroupId!, currentUserId);
+      if (_currentGroupId != null) {
+        final currentUserId = _firebaseService.currentUserId;
+        if (currentUserId != null) {
+          _realtimeChatService.setUserOffline(_currentGroupId!, currentUserId);
+        }
       }
+    } catch (e) {
+      print('ChatController stopMessageStream 중 에러: $e');
     }
   }
 

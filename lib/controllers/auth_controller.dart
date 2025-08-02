@@ -6,10 +6,13 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/firebase_service.dart';
 import '../services/user_service.dart';
+import '../services/group_service.dart';
 import '../models/user_model.dart';
 
 class AuthController extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
+  final UserService _userService = UserService();
+  final GroupService _groupService = GroupService();
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -89,6 +92,151 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  // 비밀번호 변경
+  Future<bool> changePassword(String currentPassword, String newPassword) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final currentUser = _firebaseService.currentUser;
+      if (currentUser == null) {
+        _setError('로그인된 사용자가 없습니다.');
+        return false;
+      }
+
+      // 새 비밀번호 유효성 검사
+      if (newPassword.length < 6) {
+        _setError('새 비밀번호는 최소 6자 이상이어야 합니다.');
+        return false;
+      }
+
+      // 현재 비밀번호와 동일한지 확인
+      if (currentPassword == newPassword) {
+        _setError('새 비밀번호는 현재 비밀번호와 달라야 합니다.');
+        return false;
+      }
+
+      print('비밀번호 변경 시작');
+
+      // 1. 현재 비밀번호로 재인증
+      final credential = EmailAuthProvider.credential(
+        email: currentUser.email!,
+        password: currentPassword,
+      );
+
+      await currentUser.reauthenticateWithCredential(credential);
+      print('재인증 성공');
+
+      // 2. 새 비밀번호로 변경
+      await currentUser.updatePassword(newPassword);
+      print('비밀번호 변경 완료');
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      print('비밀번호 변경 실패: $e');
+      String errorMessage = '비밀번호 변경에 실패했습니다';
+      
+      if (e is FirebaseAuthException) {
+        switch (e.code) {
+          case 'wrong-password':
+            errorMessage = '현재 비밀번호가 올바르지 않습니다.';
+            break;
+          case 'weak-password':
+            errorMessage = '새 비밀번호가 너무 약합니다. 더 강한 비밀번호를 사용해주세요.';
+            break;
+          case 'requires-recent-login':
+            errorMessage = '보안을 위해 다시 로그인한 후 비밀번호를 변경해주세요.';
+            break;
+          default:
+            errorMessage = '비밀번호 변경에 실패했습니다: ${e.message}';
+        }
+      } else {
+        errorMessage = '비밀번호 변경에 실패했습니다: $e';
+      }
+      
+      _setError(errorMessage);
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  // 계정 삭제
+  Future<bool> deleteAccount() async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final currentUser = _firebaseService.currentUser;
+      if (currentUser == null) {
+        _setError('로그인된 사용자가 없습니다.');
+        return false;
+      }
+
+      final userId = currentUser.uid;
+      print('계정 삭제 시작: $userId');
+
+      // 1. 현재 사용자가 속한 그룹에서 제거
+      if (_currentUserModel?.currentGroupId != null) {
+        print('그룹에서 사용자 제거 중...');
+        await _groupService.leaveGroup(_currentUserModel!.currentGroupId!, userId);
+      }
+
+      // 2. Firebase Storage에서 프로필 이미지 삭제
+      if (_currentUserModel?.profileImages != null && _currentUserModel!.profileImages.isNotEmpty) {
+        print('프로필 이미지 삭제 중...');
+        for (final imageUrl in _currentUserModel!.profileImages) {
+          if (imageUrl.startsWith('http')) {
+            try {
+              await FirebaseStorage.instance.refFromURL(imageUrl).delete();
+            } catch (e) {
+              print('이미지 삭제 실패 (계속 진행): $e');
+            }
+          }
+        }
+      }
+
+      // 3. Firestore에서 사용자 데이터 삭제
+      print('Firestore에서 사용자 데이터 삭제 중...');
+      await _userService.deleteUser(userId);
+
+      // 4. Firebase Authentication에서 계정 삭제
+      print('Firebase Auth에서 계정 삭제 중...');
+      await currentUser.delete();
+
+      // 5. 로컬 상태 정리
+      _currentUserModel = null;
+
+      // 로그아웃 콜백 호출 (다른 컨트롤러들 정리)
+      if (onSignOutCallback != null) {
+        onSignOutCallback!();
+      }
+
+      _setLoading(false);
+      print('계정 삭제 완료');
+      return true;
+    } catch (e) {
+      print('계정 삭제 실패: $e');
+      String errorMessage = '계정 삭제에 실패했습니다';
+      
+      if (e is FirebaseAuthException) {
+        switch (e.code) {
+          case 'requires-recent-login':
+            errorMessage = '보안을 위해 다시 로그인한 후 계정을 삭제해주세요.';
+            break;
+          default:
+            errorMessage = '계정 삭제에 실패했습니다: ${e.message}';
+        }
+      } else {
+        errorMessage = '계정 삭제에 실패했습니다: $e';
+      }
+      
+      _setError(errorMessage);
+      _setLoading(false);
+      return false;
+    }
+  }
+
   // 이메일과 비밀번호로 로그인
   Future<void> signInWithEmailAndPassword(String email, String password) async {
     try {
@@ -135,7 +283,7 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  // 회원가입 데이터 임시 저장 (Firebase 계정 생성하지 않는 방식으로 구현했습니다.)
+  // 회원가입 데이터 임시 저장 (Firebase 계정 생성하지 않는 방식으로 구현했습니다.) -> 생명 주기 관리
   void saveTemporaryRegistrationData({
     required String email,
     required String password,

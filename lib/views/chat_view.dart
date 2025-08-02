@@ -18,19 +18,46 @@ class ChatView extends StatefulWidget {
 }
 
 class _ChatViewState extends State<ChatView> {
+  ChatController? _chatController;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final chatController = context.read<ChatController>();
-      chatController.startMessageStream(widget.groupId);
+      if (mounted) {
+        try {
+          final chatController = context.read<ChatController>();
+          _chatController = chatController;
+          chatController.startMessageStream(widget.groupId);
+        } catch (e) {
+          print('ChatView initState 에러: $e');
+        }
+      }
     });
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ChatController 참조를 안전하게 저장
+    if (_chatController == null) {
+      try {
+        _chatController = context.read<ChatController>();
+      } catch (e) {
+        print('ChatController 참조 저장 실패: $e');
+      }
+    }
+  }
+
+  @override
   void dispose() {
-    final chatController = context.read<ChatController>();
-    chatController.clearData();
+    // 안전하게 ChatController 정리
+    try {
+      _chatController?.clearData();
+    } catch (e) {
+      print('ChatController 정리 중 에러: $e');
+    }
+    _chatController = null;
     super.dispose();
   }
 

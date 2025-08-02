@@ -114,8 +114,8 @@ class MemberAvatar extends StatelessWidget {
   }
 
   Widget _buildProfileImage(String imageUrl, double size) {
-    // 로컬 이미지인지 확인 (모바일만)
-    if (imageUrl.startsWith('local://')) {
+    // 로컬 이미지인지 확인 (local:// 또는 temp://)
+    if (imageUrl.startsWith('local://') || imageUrl.startsWith('temp://')) {
       if (kIsWeb) {
         // 웹에서는 로컬 이미지 표시 불가 - 기본 아이콘 표시
         return Icon(
@@ -125,7 +125,13 @@ class MemberAvatar extends StatelessWidget {
         );
       } else {
         // 모바일에서만 로컬 파일 접근
-        final localPath = imageUrl.substring(8); // 'local://' 제거
+        String localPath;
+        if (imageUrl.startsWith('local://')) {
+          localPath = imageUrl.substring(8); // 'local://' 제거
+        } else {
+          localPath = imageUrl.substring(7); // 'temp://' 제거
+        }
+        
         return Image.file(
           File(localPath),
           fit: BoxFit.cover,

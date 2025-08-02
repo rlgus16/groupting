@@ -4,10 +4,10 @@
     ".write": false,
     
     "chats": {
-      "$groupId": {
-        ".read": "auth != null && (root.child('groups').child($groupId).child('memberIds').val().contains(auth.uid) || root.child('groups').child($groupId).child('matchedGroupId').exists())",
-        ".write": "auth != null && (root.child('groups').child($groupId).child('memberIds').val().contains(auth.uid) || root.child('groups').child($groupId).child('matchedGroupId').exists())",
-        
+      "$chatRoomId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+
         "messages": {
           "$messageId": {
             ".validate": "newData.hasChildren(['senderId', 'content', 'timestamp', 'type'])",

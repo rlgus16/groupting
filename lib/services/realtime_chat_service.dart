@@ -13,8 +13,8 @@ class RealtimeChatService {
     // Firebase Realtime Database 인스턴스 초기화
     final database = FirebaseDatabase.instanceFor(
       app: Firebase.app(),
-      // database URL을 입력 연동해야 합니다. -> https://그룹팅-default-rtdb.firebaseio.com
-      databaseURL: '',
+      // Firebase Realtime Database URL
+      databaseURL: 'https://groupting-aebab-default-rtdb.firebaseio.com',
     );
     _database = database.ref();
   }

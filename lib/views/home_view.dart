@@ -118,8 +118,12 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
         print('일반 그룹 채팅방 ID: $chatRoomId');
       }
 
-      chatController.startMessageStream(chatRoomId);
-      Navigator.pushNamed(context, '/chat');
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatView(groupId: chatRoomId),
+        ),
+      );
     }
   }
 
@@ -727,18 +731,42 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (groupController.groupMembers.length > 3)
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const GroupMembersView(),
+                Row(
+                  children: [
+                    // 멤버 추가 버튼 (매칭 전이고 멤버가 5명 미만일 때만 표시)
+                    if (!groupController.isMatched && 
+                        groupController.groupMembers.length < 5)
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const InviteFriendView(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.person_add, size: 16),
+                        label: const Text('초대'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.primaryColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                         ),
-                      );
-                    },
-                    child: const Text('전체 보기'),
-                  ),
+                      ),
+                    // 전체 보기 버튼
+                    if (groupController.groupMembers.length > 3)
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const GroupMembersView(),
+                            ),
+                          );
+                        },
+                        child: const Text('전체 보기'),
+                      ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -746,8 +774,60 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
               height: 80,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: groupController.groupMembers.length,
+                itemCount: groupController.groupMembers.length + 
+                    // 매칭 전이고 멤버가 5명 미만일 때 "+추가" 슬롯 표시
+                    (!groupController.isMatched && groupController.groupMembers.length < 5 ? 1 : 0),
                 itemBuilder: (context, index) {
+                  // 멤버 추가 슬롯
+                  if (index == groupController.groupMembers.length) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const InviteFriendView(),
+                            ),
+                          );
+                        },
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: AppTheme.gray100,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppTheme.primaryColor,
+                                  width: 2,
+                                  style: BorderStyle.solid,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.add,
+                                color: AppTheme.primaryColor,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              '친구 초대',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  
+                  // 기존 멤버 표시
                   final member = groupController.groupMembers[index];
                   return Padding(
                     padding: const EdgeInsets.only(right: 12),
@@ -794,34 +874,6 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 친구 초대 버튼 (방장만, 매칭 전)
-        if (groupController.isOwner && !groupController.isMatched)
-          ElevatedButton.icon(
-            onPressed: groupController.currentGroup!.memberIds.length >= 5
-                ? null
-                : () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const InviteFriendView(),
-                      ),
-                    );
-                  },
-            icon: const Icon(Icons.person_add),
-            label: Text(
-              groupController.currentGroup!.memberIds.length >= 5
-                  ? '인원 가득 참'
-                  : '친구 초대하기',
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.gray600,
-              foregroundColor: Colors.white,
-            ),
-          ),
-
-        if (groupController.isOwner && !groupController.isMatched)
-          const SizedBox(height: 12),
-
         // 매칭 버튼 (방장만, 매칭 전)
         if (groupController.isOwner && !groupController.isMatched)
           ElevatedButton.icon(
@@ -840,7 +892,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                   ? '매칭 취소'
                   : groupController.currentGroup!.memberIds.length == 1
                   ? '1:1 매칭 시작'
-                  : '그룹 매칭 시작',
+                  : '그룹 매칭 시작 (${groupController.currentGroup!.memberIds.length}명)',
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: groupController.isMatching

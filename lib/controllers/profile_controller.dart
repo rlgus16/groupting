@@ -91,7 +91,15 @@ class ProfileController extends ChangeNotifier {
           imageUrls.clear();
           if (!kIsWeb) {
             for (int i = 0; i < profileImages.length; i++) {
-              imageUrls.add('local://${profileImages[i].path}');
+              String filePath = profileImages[i].path;
+              // 이미 local:// 또는 temp:// 접두사가 있는지 확인
+              if (!filePath.startsWith('local://') && !filePath.startsWith('temp://')) {
+                // 접두사가 없으면 local:// 추가
+                imageUrls.add('local://$filePath');
+              } else {
+                // 이미 접두사가 있으면 그대로 사용
+                imageUrls.add(filePath);
+              }
             }
           } else {
             // 웹에서는 빈 배열로 두기
@@ -99,11 +107,6 @@ class ProfileController extends ChangeNotifier {
           }
         }
       }
-
-      // final userModel = UserModel(
-      //   uid: currentUser.uid,
-      //   userId: userId ?? currentUser.email?.split('@')[0] ?? '',
-      //   phoneNumber: phoneNumber ?? '',
       // 기존 사용자 정보 가져오기
       final existingUser = await _userService.getUserById(currentUser.uid);
       if (existingUser == null) {
@@ -224,5 +227,48 @@ class ProfileController extends ChangeNotifier {
   // 에러 클리어
   void clearError() {
     _setError(null);
+  }
+
+  // 프로필 이미지 정리 (유효하지 않은 로컬 경로 제거)
+  Future<bool> cleanupProfileImages() async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final currentUser = _firebaseService.currentUser;
+      if (currentUser == null) {
+        _setError('로그인이 필요합니다.');
+        return false;
+      }
+
+      final currentUserModel = await _userService.getUserById(currentUser.uid);
+      if (currentUserModel == null) {
+        _setError('사용자 정보를 찾을 수 없습니다.');
+        return false;
+      }
+
+      // 유효한 이미지 URL만 필터링 (http, https로 시작하는 것만)
+      final validImages = currentUserModel.profileImages.where((imageUrl) {
+        return imageUrl.startsWith('http://') || imageUrl.startsWith('https://');
+      }).toList();
+
+      // 변경사항이 있다면 업데이트
+      if (validImages.length != currentUserModel.profileImages.length) {
+        final updatedUser = currentUserModel.copyWith(
+          profileImages: validImages,
+          updatedAt: DateTime.now(),
+        );
+
+        await _userService.updateUser(updatedUser);
+        print('프로필 이미지 정리 완료: ${currentUserModel.profileImages.length} → ${validImages.length}');
+      }
+
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setError('프로필 이미지 정리에 실패했습니다: $e');
+      _setLoading(false);
+      return false;
+    }
   }
 }

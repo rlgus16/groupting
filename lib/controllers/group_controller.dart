@@ -344,8 +344,16 @@ class GroupController extends ChangeNotifier {
         return false;
       }
 
+      // 디버깅: 매칭 시작 전 현재 상태 확인
+      await _groupService.debugMatchingGroups();
+      
       await _groupService.startMatching(_currentGroup!.id);
       _isMatching = true;
+      
+      print('=== 매칭 시작 완료 ===');
+      print('그룹 ID: ${_currentGroup!.id}');
+      print('멤버 수: ${_currentGroup!.memberCount}');
+      print('==================');
 
       _setLoading(false);
       return true;

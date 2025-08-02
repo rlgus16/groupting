@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import '../controllers/auth_controller.dart';
@@ -28,11 +29,13 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   List<String> _originalImages = []; // 기존 저장된 이미지들
   final ImagePicker _picker = ImagePicker();
   bool _isPickerActive = false;
+  int _mainProfileIndex = 0; // 메인 프로필 이미지 인덱스 (기본값: 0번)
 
   @override
   void initState() {
     super.initState();
     _initializeControllers();
+    _cleanupInvalidImages();
   }
 
   void _initializeControllers() {
@@ -45,9 +48,38 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       _heightController.text = user.height.toString();
       _activityAreaController.text = user.activityArea;
       
-      // 기존 이미지들 로드
-      _originalImages = List.from(user.profileImages);
-      print('기존 프로필 이미지들: $_originalImages');
+      // 기존 이미지들 로드 (유효한 URL만 필터링)
+      _originalImages = user.profileImages.where((imageUrl) {
+        // 로컬 경로 (local://, temp://)는 제외하고 Firebase Storage URL만 유지
+        return imageUrl.startsWith('http://') || imageUrl.startsWith('https://');
+      }).toList();
+      
+      // print('기존 프로필 이미지들: $_originalImages');
+      
+      // 로컬 경로가 있었다면 사용자에게 알림
+      // if (user.profileImages.length > _originalImages.length) {
+        // print('일부 로컬 이미지 경로가 제외되었습니다. 새로운 이미지를 업로드해주세요.');
+      // }
+    }
+  }
+
+  // 무효한 이미지 경로들을 데이터베이스에서 정리
+  Future<void> _cleanupInvalidImages() async {
+    final profileController = context.read<ProfileController>();
+    final authController = context.read<AuthController>();
+    
+    try {
+      final success = await profileController.cleanupProfileImages();
+      if (success) {
+        // 정리 후 사용자 정보 새로고침
+        await authController.refreshCurrentUser();
+        // 컨트롤러 다시 초기화
+        if (mounted) {
+          _initializeControllers();
+        }
+      }
+    } catch (e) {
+      print('이미지 정리 중 오류: $e');
     }
   }
 
@@ -111,6 +143,19 @@ class _ProfileEditViewState extends State<ProfileEditView> {
         _selectedImages[index] = null;
         // 실제로는 저장 시 해당 인덱스를 제외하도록 처리
       }
+      
+      // 메인 프로필 인덱스 조정
+      if (_mainProfileIndex == index) {
+        // 삭제된 이미지가 메인 프로필이었다면 첫 번째 유효한 이미지로 변경
+        int newMainIndex = -1;
+        for (int i = 0; i < 6; i++) {
+          if (_getImageForSlot(i) != null) {
+            newMainIndex = i;
+            break;
+          }
+        }
+        _mainProfileIndex = newMainIndex >= 0 ? newMainIndex : 0;
+      }
     });
   }
 
@@ -172,7 +217,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    '1번 사진은 프로필 사진으로 사용됩니다.',
+                    '이미지를 길게 눌러서 대표 프로필로 설정할 수 있습니다.',
                     style: TextStyle(
                       color: AppTheme.primaryColor,
                       fontSize: 12,
@@ -180,165 +225,41 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  // 프로필 이미지 그리드 (3x2)
                   Container(
-                    height: 200,
                     decoration: BoxDecoration(
                       border: Border.all(color: AppTheme.gray300),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(12),
-                      child: Row(
+                      child: Column(
                         children: [
-                          // 좌측 메인 프로필 이미지 (1번)
-                          Expanded(
-                            flex: 3,
-                            child: GestureDetector(
-                              onTap: () => _selectSingleImage(0),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: _getImageForSlot(0) != null
-                                        ? AppTheme.primaryColor
-                                        : AppTheme.gray300,
-                                    width: 2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: _getImageForSlot(0) != null
-                                    ? Stack(
-                                        children: [
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(10),
-                                            child: _buildImageWidget(
-                                              _getImageForSlot(0),
-                                              isMainProfile: true,
-                                            ),
-                                          ),
-                                          Positioned(
-                                            bottom: 8,
-                                            left: 8,
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                                vertical: 4,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: AppTheme.primaryColor,
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: const Text(
-                                                '프로필',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          Positioned(
-                                            top: 8,
-                                            right: 8,
-                                            child: GestureDetector(
-                                              onTap: () => _removeImageFromSlot(0),
-                                              child: Container(
-                                                width: 24,
-                                                height: 24,
-                                                decoration: const BoxDecoration(
-                                                  color: Colors.red,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                child: const Icon(
-                                                  Icons.close,
-                                                  color: Colors.white,
-                                                  size: 16,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : const Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.add_photo_alternate,
-                                            size: 48,
-                                            color: AppTheme.gray400,
-                                          ),
-                                          SizedBox(height: 8),
-                                          Text(
-                                            '1번\n프로필 사진',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              color: AppTheme.textSecondary,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                              ),
-                            ),
+                          // 첫 번째 줄 (1, 2, 3번)
+                          Row(
+                            children: [
+                              Expanded(child: _buildImageGridSlot(0)),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildImageGridSlot(1)),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildImageGridSlot(2)),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          // 우측 작은 이미지들 (2-5번)
-                          Expanded(
-                            flex: 2,
-                            child: Column(
-                              children: [
-                                // 상단 2개
-                                Expanded(
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: _buildSmallImageSlot(1),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: _buildSmallImageSlot(2),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                // 하단 2개
-                                Expanded(
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: _buildSmallImageSlot(3),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: _buildSmallImageSlot(4),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                          const SizedBox(height: 8),
+                          // 두 번째 줄 (4, 5, 6번)
+                          Row(
+                            children: [
+                              Expanded(child: _buildImageGridSlot(3)),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildImageGridSlot(4)),
+                              const SizedBox(width: 8),
+                              Expanded(child: _buildImageGridSlot(5)),
+                            ],
                           ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  // 6번 이미지 슬롯 (하단 추가)
-                  if (_getImageForSlot(5) != null || _originalImages.length > 5 || 
-                      _selectedImages.take(5).any((image) => image != null)) // 6번째 이미지가 있거나 기존에 있었거나 1-5번 중 편집된 이미지가 있으면 표시
-                    Container(
-                      height: 80,
-                      child: Row(
-                        children: [
-                          Expanded(child: _buildSmallImageSlot(5)), // 6번째 이미지
-                          const SizedBox(width: 12),
-                          Expanded(child: Container()), // 빈 공간
-                          const SizedBox(width: 12),
-                          Expanded(child: Container()), // 빈 공간
-                        ],
-                      ),
-                    ),
 
                   const SizedBox(height: 32),
 
@@ -572,12 +493,41 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     List<String> uploadedUrls = [];
     if (newImages.isNotEmpty) {
       try {
-        // 간단히 임시 URL로 처리 (실제로는 Firebase Storage 업로드)
+        print('새 이미지 업로드 시작: ${newImages.length}개');
         for (int i = 0; i < newImages.length; i++) {
-          uploadedUrls.add('temp://${newImages[i].path}');
+          final file = newImages[i];
+          final fileName = '${user.uid}_profile_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+
+          print('Firebase Storage 업로드 시작: $fileName');
+
+          // Firebase Storage에 업로드
+          final ref = FirebaseStorage.instance
+              .ref()
+              .child('profile_images')
+              .child(user.uid)
+              .child(fileName);
+
+          // 플랫폼별 업로드 처리
+          late UploadTask uploadTask;
+          if (kIsWeb) {
+            // 웹에서는 XFile에서 bytes 사용
+            final bytes = await file.readAsBytes();
+            uploadTask = ref.putData(bytes);
+          } else {
+            // 모바일에서는 XFile을 File로 변환
+            final ioFile = File(file.path);
+            uploadTask = ref.putFile(ioFile);
+          }
+
+          final snapshot = await uploadTask;
+          final downloadUrl = await snapshot.ref.getDownloadURL();
+
+          print('Firebase Storage 업로드 성공: $downloadUrl');
+          uploadedUrls.add(downloadUrl);
         }
         print('새 이미지 업로드 완료: $uploadedUrls');
       } catch (e) {
+        print('Firebase Storage 업로드 실패: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('이미지 업로드에 실패했습니다.')),
@@ -587,20 +537,33 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       }
     }
 
-    // 3. 최종 이미지 목록 생성 (순서 유지)
+    // 3. 최종 이미지 목록 생성 (메인 프로필 우선)
+    List<String> tempImages = [];
     int uploadedIndex = 0;
+    
+    // 먼저 모든 이미지를 순서대로 수집
     for (int i = 0; i < 6; i++) {
       if (_selectedImages[i] != null) {
         // 새로 선택된 이미지
         if (uploadedIndex < uploadedUrls.length) {
-          finalImages.add(uploadedUrls[uploadedIndex]);
+          tempImages.add(uploadedUrls[uploadedIndex]);
           uploadedIndex++;
         }
         hasImageChanges = true;
       } else if (i < _originalImages.length) {
         // 기존 이미지 유지
-        finalImages.add(_originalImages[i]);
+        tempImages.add(_originalImages[i]);
       }
+    }
+    
+    // 메인 프로필 이미지가 있다면 첫 번째로 이동
+    if (tempImages.isNotEmpty && _mainProfileIndex < tempImages.length) {
+      String mainProfileImage = tempImages[_mainProfileIndex];
+      tempImages.removeAt(_mainProfileIndex);
+      finalImages.add(mainProfileImage);
+      finalImages.addAll(tempImages);
+    } else {
+      finalImages.addAll(tempImages);
     }
 
     print('최종 이미지 목록: $finalImages');
@@ -627,72 +590,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
         SnackBar(content: Text(profileController.errorMessage!)),
       );
     }
-  }
-
-  Widget _buildSmallImageSlot(int index) {
-    final imageData = _getImageForSlot(index);
-    final hasImage = imageData != null;
-    
-    return GestureDetector(
-      onTap: () => _selectSingleImage(index),
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: hasImage 
-                ? AppTheme.gray300 
-                : AppTheme.gray200
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: hasImage
-            ? Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: _buildImageWidget(imageData),
-                  ),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: GestureDetector(
-                      onTap: () => _removeImageFromSlot(index),
-                      child: Container(
-                        width: 20,
-                        height: 20,
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.add,
-                    color: AppTheme.gray300,
-                    size: 24,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${index + 1}번',
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-      ),
-    );
   }
 
   Widget _buildImageWidget(dynamic imageData, {bool isMainProfile = false}) {
@@ -760,8 +657,8 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   }
 
   Widget _buildProfileImage(String imageUrl, double size) {
-    // 로컬 이미지인지 확인
-    if (imageUrl.startsWith('local://')) {
+    // 로컬 이미지인지 확인 (local:// 또는 temp://)
+    if (imageUrl.startsWith('local://') || imageUrl.startsWith('temp://')) {
       if (kIsWeb) {
         // 웹에서는 로컬 이미지 표시 불가
         return Icon(
@@ -771,7 +668,13 @@ class _ProfileEditViewState extends State<ProfileEditView> {
         );
       } else {
         // 모바일에서만 로컬 파일 접근
-        final localPath = imageUrl.substring(8); // 'local://' 제거
+        String localPath;
+        if (imageUrl.startsWith('local://')) {
+          localPath = imageUrl.substring(8); // 'local://' 제거
+        } else {
+          localPath = imageUrl.substring(7); // 'temp://' 제거
+        }
+        
         return Image.file(
           File(localPath),
           fit: BoxFit.cover,
@@ -793,5 +696,115 @@ class _ProfileEditViewState extends State<ProfileEditView> {
             Icon(Icons.person, size: size * 0.5, color: AppTheme.textSecondary),
       );
     }
+  }
+
+  // 메인 프로필 설정 메서드
+  void _setMainProfile(int index) {
+    setState(() {
+      _mainProfileIndex = index;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${index + 1}번 이미지가 대표 프로필로 설정되었습니다.')),
+    );
+  }
+
+  // 새로운 그리드 이미지 슬롯 빌더
+  Widget _buildImageGridSlot(int index) {
+    final imageData = _getImageForSlot(index);
+    final hasImage = imageData != null;
+    final isMainProfile = index == _mainProfileIndex && hasImage;
+    
+    return AspectRatio(
+      aspectRatio: 1.0, // 정사각형 비율
+      child: GestureDetector(
+        onTap: () => _selectSingleImage(index),
+        onLongPress: hasImage ? () => _setMainProfile(index) : null,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: isMainProfile 
+                  ? AppTheme.primaryColor
+                  : hasImage 
+                      ? AppTheme.gray300 
+                      : AppTheme.gray200,
+              width: isMainProfile ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: hasImage
+              ? Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: _buildImageWidget(imageData),
+                    ),
+                    // 메인 프로필 표시
+                    if (isMainProfile)
+                      Positioned(
+                        bottom: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            '대표',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    // 삭제 버튼
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: GestureDetector(
+                        onTap: () => _removeImageFromSlot(index),
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.add,
+                      color: AppTheme.gray300,
+                      size: 24,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${index + 1}번',
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
   }
 }

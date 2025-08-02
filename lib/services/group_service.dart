@@ -3,6 +3,7 @@ import '../models/group_model.dart';
 import '../models/user_model.dart';
 import 'firebase_service.dart';
 import 'user_service.dart';
+import 'realtime_chat_service.dart';
 import 'dart:async'; // Added for StreamSubscription
 
 class GroupService {
@@ -261,6 +262,32 @@ class GroupService {
     print('모든 매칭 리스너 정리 완료');
   }
 
+  // 디버깅용: 현재 매칭 중인 그룹들 확인
+  Future<void> debugMatchingGroups() async {
+    try {
+      final query = await _groupsCollection
+          .where('status', isEqualTo: GroupStatus.matching.toString().split('.').last)
+          .get();
+      
+      print('=== 현재 매칭 중인 그룹들 ===');
+      print('총 ${query.docs.length}개 그룹이 매칭 대기 중');
+      
+      for (final doc in query.docs) {
+        final group = GroupModel.fromFirestore(doc);
+        final members = await getGroupMembers(group.id);
+        print('그룹 ${group.id}:');
+        print('  - 멤버 수: ${group.memberCount}');
+        print('  - 멤버들: ${members.map((m) => m.nickname).join(', ')}');
+        if (members.isNotEmpty) {
+          print('  - 활동지역: ${members.first.activityArea}');
+        }
+      }
+      print('==========================');
+    } catch (e) {
+      print('매칭 그룹 디버깅 실패: $e');
+    }
+  }
+
   // 매칭 가능한 그룹을 찾아서 매칭 처리
   Future<void> _findAndMatchGroups(String groupId) async {
     try {
@@ -305,6 +332,19 @@ class GroupService {
       );
 
       print('매칭 가능한 그룹 수: ${matchableGroups.length}');
+      
+      // 1:1 매칭 특별 디버깅 [주석 필요]
+      if (currentGroup.memberCount == 1) {
+        print('=== 1:1 매칭 디버깅 정보 ===');
+        print('현재 그룹 ID: $groupId');
+        print('현재 그룹 활동지역: $activityArea');
+        print('현재 그룹 멤버 수: ${currentGroup.memberCount}');
+        print('매칭 대기 중인 1:1 그룹들:');
+        for (int i = 0; i < matchableGroups.length; i++) {
+          final group = matchableGroups[i];
+          print('  - 그룹 ${i+1}: ID=${group.id}, 멤버수=${group.memberCount}');
+        }
+      }
 
       if (matchableGroups.isNotEmpty) {
         // 첫 번째 매칭 가능한 그룹과 매칭 시도 (트랜잭션으로 안전하게 처리)
@@ -338,6 +378,9 @@ class GroupService {
   Future<bool> _safeCompleteMatching(String groupId1, String groupId2) async {
     try {
       bool success = false;
+      String? failureReason;
+      
+      print('매칭 트랜잭션 시작: $groupId1 ↔ $groupId2');
       
       await _firebaseService.runTransaction((transaction) async {
         // 두 그룹의 현재 상태 확인
@@ -345,7 +388,8 @@ class GroupService {
         final group2Doc = await transaction.get(_groupsCollection.doc(groupId2));
         
         if (!group1Doc.exists || !group2Doc.exists) {
-          print('그룹 중 하나가 존재하지 않음');
+          failureReason = '그룹 중 하나가 존재하지 않음 (Group1: ${group1Doc.exists}, Group2: ${group2Doc.exists})';
+          print('매칭 트랜잭션 실패: $failureReason');
           return;
         }
         
@@ -354,39 +398,86 @@ class GroupService {
         
         // 두 그룹 모두 매칭 중인지 확인
         if (group1.status != GroupStatus.matching || group2.status != GroupStatus.matching) {
-          print('그룹 중 하나가 이미 매칭되었거나 매칭 중이 아님');
-          print('Group1 상태: ${group1.status}, Group2 상태: ${group2.status}');
+          failureReason = '그룹 중 하나가 이미 매칭되었거나 매칭 중이 아님 (Group1: ${group1.status}, Group2: ${group2.status})';
+          print('매칭 트랜잭션 실패: $failureReason');
           return;
         }
         
+        print('트랜잭션 검증 완료 - 두 그룹 모두 매칭 상태 확인됨');
+        
         final now = DateTime.now();
+        final matchedStatus = GroupStatus.matched.toString().split('.').last;
 
         // 두 그룹 모두 매칭 완료로 업데이트
-        transaction.update(_groupsCollection.doc(groupId1), {
-          'status': GroupStatus.matched.toString().split('.').last,
+        final group1Update = {
+          'status': matchedStatus,
           'matchedGroupId': groupId2,
           'updatedAt': Timestamp.fromDate(now),
-        });
-
-        transaction.update(_groupsCollection.doc(groupId2), {
-          'status': GroupStatus.matched.toString().split('.').last,
+        };
+        
+        final group2Update = {
+          'status': matchedStatus,
           'matchedGroupId': groupId1,
           'updatedAt': Timestamp.fromDate(now),
-        });
+        };
+        
+        print('Group1 업데이트 데이터: $group1Update');
+        print('Group2 업데이트 데이터: $group2Update');
+
+        transaction.update(_groupsCollection.doc(groupId1), group1Update);
+        transaction.update(_groupsCollection.doc(groupId2), group2Update);
         
         success = true;
         print('매칭 트랜잭션 성공');
       });
       
       if (success) {
+        print('매칭 트랜잭션 완료 - 후속 처리 시작');
+        
         // 매칭 성공시 리스너 정지
         _stopMatchingListener(groupId1);
         _stopMatchingListener(groupId2);
+        print('매칭 리스너 정지 완료');
+        
+        // 매칭 완료 시스템 메시지 전송
+        try {
+          final chatRoomId = groupId1.compareTo(groupId2) < 0
+              ? '${groupId1}_${groupId2}'
+              : '${groupId2}_${groupId1}';
+          
+          print('매칭 완료 - 채팅방 ID: $chatRoomId');
+          
+          // 실시간 채팅 서비스 초기화 및 환영 메시지 전송
+          final realtimeChatService = RealtimeChatService();
+          await realtimeChatService.initializeChatRoom(chatRoomId);
+          print('채팅방 초기화 완료');
+          
+          await realtimeChatService.sendSystemMessage(
+            groupId: chatRoomId,
+            content: '매칭이 완료되었습니다! 서로 인사해보세요 👋',
+          );
+          print('매칭 완료 시스템 메시지 전송 완료');
+        } catch (e) {
+          print('매칭 완료 시스템 메시지 전송 실패: $e');
+          // 시스템 메시지 실패는 매칭 성공에 영향을 주지 않음
+        }
+        
+        print('매칭 완료 처리 모든 단계 성공');
+      } else {
+        print('매칭 트랜잭션 실패 - 이유: ${failureReason ?? "알 수 없는 이유"}');
       }
       
       return success;
     } catch (e) {
       print('안전한 매칭 완료 처리 실패: $e');
+      print('에러 타입: ${e.runtimeType}');
+      
+      // Firebase 관련 에러인 경우 추가 정보 출력
+      if (e.toString().contains('permission-denied')) {
+        print('권한 거부 에러 - Firestore 규칙을 확인하세요');
+        print('매칭 상태에서 matched 상태로 업데이트 권한이 필요합니다');
+      }
+      
       return false;
     }
   }
@@ -495,7 +586,18 @@ class GroupService {
 
           print('- 활동지역 매칭: $hasMatchingArea');
 
-          if (hasMatchingArea) {
+          // 1:1 매칭의 경우 활동지역 조건을 더 유연하게 처리
+          bool shouldMatch = false;
+          if (memberCount == 1 && group.memberCount == 1) {
+            // 1:1 매칭은 활동지역이 다르더라도 매칭 허용 (테스트용)
+            shouldMatch = true;
+            print('- 1:1 매칭: 활동지역 조건 완화하여 매칭 허용');
+          } else {
+            // 그룹 매칭은 기존대로 활동지역 일치 필요
+            shouldMatch = hasMatchingArea;
+          }
+
+          if (shouldMatch) {
             print('- 매칭 가능한 그룹으로 추가!');
             matchableGroups.add(group);
           } else {
@@ -513,7 +615,7 @@ class GroupService {
     }
   }
 
-  // 성별 기반 매칭 조건 확인 (미래 확장용)
+  // 성별 기반 매칭 조건 확인 (미래 확장용) -> 이거 뭔데.. 안만들어놨는데..
   bool _isGenderCompatible(
     List<UserModel> group1Members,
     List<UserModel> group2Members,

@@ -19,7 +19,7 @@ class HelpView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 자주 묻는 질문 섹션
+            // 자주 묻는 질문 섹션인데 나중에 여기 부분 수정해 주시거나 notion로 정리한 다음 웹뷰로 연동해서 봐주시면 좋습니다!
             _buildSectionCard(
               title: '자주 묻는 질문',
               icon: Icons.help_outline,
@@ -455,7 +455,7 @@ class HelpView extends StatelessWidget {
   }
 
   Future<void> _openKakaoTalk() async {
-    // 카카오톡 채널 링크 (실제 서비스에서는 실제 링크 사용)
+    // 카카오톡 채널 링크 (실제 서비스에서는 실제 링크 사용이 필요. 현재 링크는 가볍게 테스트 작성용)
     final Uri kakaoUri = Uri.parse('https://pf.kakao.com/_groupting');
 
     try {
