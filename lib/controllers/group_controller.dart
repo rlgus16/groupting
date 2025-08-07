@@ -24,6 +24,8 @@ class GroupController extends ChangeNotifier {
   // Streams
   Stream<GroupModel?>? _groupStream;
   StreamSubscription<GroupModel?>? _groupSubscription;
+  StreamSubscription<List<InvitationModel>>? _receivedInvitationsSubscription;
+  StreamSubscription<List<InvitationModel>>? _sentInvitationsSubscription;
   Timer? _reconnectTimer;
 
   // Callbacks
@@ -243,11 +245,17 @@ class GroupController extends ChangeNotifier {
     if (currentUserId == null) return;
 
     try {
-      _invitationService.getReceivedInvitationsStream(currentUserId).listen((
+      // 기존 구독 취소
+      _receivedInvitationsSubscription?.cancel();
+      
+      _receivedInvitationsSubscription = _invitationService.getReceivedInvitationsStream(currentUserId).listen((
         invitations,
       ) {
         _receivedInvitations = invitations;
         notifyListeners();
+      }, onError: (error) {
+        print('받은 초대 스트림 오류: $error');
+        _setError('받은 초대를 로드하는데 실패했습니다: $error');
       });
     } catch (e) {
       _setError('받은 초대를 로드하는데 실패했습니다: $e');
@@ -260,11 +268,17 @@ class GroupController extends ChangeNotifier {
     if (currentUserId == null) return;
 
     try {
-      _invitationService.getSentInvitationsStream(currentUserId).listen((
+      // 기존 구독 취소
+      _sentInvitationsSubscription?.cancel();
+      
+      _sentInvitationsSubscription = _invitationService.getSentInvitationsStream(currentUserId).listen((
         invitations,
       ) {
         _sentInvitations = invitations;
         notifyListeners();
+      }, onError: (error) {
+        print('보낸 초대 스트림 오류: $error');
+        _setError('보낸 초대를 로드하는데 실패했습니다: $error');
       });
     } catch (e) {
       _setError('보낸 초대를 로드하는데 실패했습니다: $e');
@@ -469,17 +483,22 @@ class GroupController extends ChangeNotifier {
   void onSignOut() {
     print('로그아웃: 모든 스트림과 데이터 정리');
     _groupSubscription?.cancel();
+    _receivedInvitationsSubscription?.cancel();
+    _sentInvitationsSubscription?.cancel();
     _reconnectTimer?.cancel();
     
     // 매칭 리스너도 모두 정리
     GroupService.stopAllMatchingListeners();
     
     _clearData();
+    print('GroupController: 모든 스트림 정리 완료');
   }
 
   // 정리
   void dispose() {
     _groupSubscription?.cancel();
+    _receivedInvitationsSubscription?.cancel();
+    _sentInvitationsSubscription?.cancel();
     _reconnectTimer?.cancel();
     
     // 매칭 리스너도 모두 정리

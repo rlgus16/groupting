@@ -24,20 +24,28 @@ service cloud.firestore {
     
     // 그룹 컬렉션
     match /groups/{groupId} {
-      // 인증된 사용자는 그룹 생성 가능
-      allow create: if request.auth != null;
+      // 인증된 사용자는 그룹 생성 가능 (자신이 소유자인 경우만)
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.ownerId &&
+        request.resource.data.keys().hasAll(['ownerId', 'memberIds', 'status', 'createdAt']);
       
-      // 그룹 멤버는 항상 읽기, 수정 가능
-      allow read, update: if request.auth != null && 
+      // 그룹 멤버는 항상 읽기 가능
+      allow read: if request.auth != null && 
         request.auth.uid in resource.data.memberIds;
+      
+      // 그룹 소유자만 멤버 추가/제거 등 수정 가능
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.ownerId;
       
       // 매칭을 위해 'matching' 상태인 그룹은 인증된 사용자가 읽기 가능
       allow read: if request.auth != null && 
         resource.data.status == 'matching';
       
-      // 매칭된 그룹의 정보를 읽을 수 있도록 허용 (임시로 모든 매칭된 그룹을 허용)
+      // 매칭된 그룹의 정보를 읽을 수 있도록 허용 (매칭된 그룹 멤버만)
       allow read: if request.auth != null && 
-        resource.data.status == 'matched';
+        resource.data.status == 'matched' &&
+        (request.auth.uid in resource.data.memberIds ||
+         isMatchedGroupMember(groupId, request.auth.uid));
       
       // 매칭 완료를 위해 'matching' 상태인 그룹을 'matched' 상태로 업데이트 허용
       allow update: if request.auth != null && 
@@ -52,13 +60,17 @@ service cloud.firestore {
     
     // 메시지 컬렉션
     match /messages/{messageId} {
-      // 메시지 작성자만 생성 가능
+      // 메시지 작성자만 생성 가능 (필수 필드 검증 포함)
       allow create: if request.auth != null && 
-        request.auth.uid == request.resource.data.senderId;
+        request.auth.uid == request.resource.data.senderId &&
+        request.resource.data.keys().hasAll(['senderId', 'groupId', 'content', 'type', 'createdAt']) &&
+        isGroupMember(request.resource.data.groupId, request.auth.uid);
       
-      // 메시지가 속한 그룹의 멤버만 읽기 가능
-      allow read: if request.auth != null && 
-        isGroupMember(resource.data.groupId, request.auth.uid);
+      // 메시지가 속한 그룹의 멤버만 읽기 가능 (매칭된 그룹 멤버도 포함)
+      allow read: if request.auth != null && (
+        isGroupMember(resource.data.groupId, request.auth.uid) ||
+        isMatchedGroupMember(resource.data.groupId, request.auth.uid)
+      );
       
       // 메시지 작성자만 수정, 삭제 가능
       allow update, delete: if request.auth != null && 
@@ -69,7 +81,8 @@ service cloud.firestore {
     match /invitations/{invitationId} {
       // 초대 보낸 사람만 생성 가능
       allow create: if request.auth != null && 
-        request.auth.uid == request.resource.data.fromUserId;
+        request.auth.uid == request.resource.data.fromUserId &&
+        request.resource.data.keys().hasAll(['fromUserId', 'toUserId', 'groupId', 'status', 'createdAt']);
       
       // 초대 보낸 사람과 받는 사람만 읽기 가능
       allow read: if request.auth != null && (
@@ -77,11 +90,16 @@ service cloud.firestore {
         request.auth.uid == resource.data.toUserId
       );
       
-      // 초대 받는 사람만 수정 가능 (수락/거절)
+      // 초대 받는 사람만 수정 가능 (수락/거절) - 상태와 업데이트 시간만 변경 허용
       allow update: if request.auth != null && 
-        request.auth.uid == resource.data.toUserId;
+        request.auth.uid == resource.data.toUserId &&
+        request.resource.data.fromUserId == resource.data.fromUserId &&
+        request.resource.data.toUserId == resource.data.toUserId &&
+        request.resource.data.groupId == resource.data.groupId &&
+        request.resource.data.status in ['accepted', 'rejected'] &&
+        request.resource.data.keys().hasAll(['status', 'updatedAt']);
       
-      // 초대 보낸 사람만 삭제 가능
+      // 초대 보낸 사람만 삭제 가능 (취소)
       allow delete: if request.auth != null && 
         request.auth.uid == resource.data.fromUserId;
     }
@@ -90,6 +108,15 @@ service cloud.firestore {
     function isGroupMember(groupId, userId) {
       return exists(/databases/$(database)/documents/groups/$(groupId)) &&
         userId in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds;
+    }
+    
+    // 헬퍼 함수: 매칭된 그룹 멤버 확인
+    function isMatchedGroupMember(groupId, userId) {
+      let group = get(/databases/$(database)/documents/groups/$(groupId));
+      return group.data.status == 'matched' &&
+        group.data.matchedGroupId != null &&
+        exists(/databases/$(database)/documents/groups/$(group.data.matchedGroupId)) &&
+        userId in get(/databases/$(database)/documents/groups/$(group.data.matchedGroupId)).data.memberIds;
     }
   }
 } 

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:typed_data';
 import 'dart:io' if (dart.library.html) '';
 import '../controllers/auth_controller.dart';
@@ -117,7 +118,29 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
       setState(() {
         // UI 업데이트
       });
+    } else {
+      // 현재 사용자 정보가 없는 경우 (프로필이 없는 상태)
+      print('현재 사용자 정보가 없음 - 빈 폼으로 초기화');
+      _initializeEmptyForm();
     }
+  }
+
+  // 빈 폼으로 초기화하는 메서드
+  void _initializeEmptyForm() {
+    _userIdController.text = '';
+    _phoneController.text = '';
+    _birthDateController.text = '';
+    _selectedGender = '';
+    _heightController.text = '';
+    _nicknameController.text = '';
+    _introductionController.text = '';
+    _activityAreaController.text = '';
+    _selectedDate = null;
+    _selectedImages = List.filled(6, null);
+    
+    setState(() {
+      // UI 업데이트
+    });
   }
 
   @override
@@ -219,14 +242,21 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
         }
       }
     }
-    
-    await authController.completeRegistrationWithProfile(
-      nickname: _nicknameController.text.trim(),
-      introduction: _introductionController.text.trim(),
-      height: int.parse(_heightController.text.trim()),
-      activityArea: _activityAreaController.text.trim(),
-      profileImages: sortedImages.isNotEmpty ? sortedImages : null, // 이미지가 없으면 null 전달
-    );
+
+    // 회원가입 데이터가 있는 경우와 없는 경우를 구분해서 처리
+    if (_registerData != null || authController.tempRegistrationData != null) {
+      // 회원가입 과정에서 온 경우 - 기존 로직 사용
+      await authController.completeRegistrationWithProfile(
+        nickname: _nicknameController.text.trim(),
+        introduction: _introductionController.text.trim(),
+        height: int.parse(_heightController.text.trim()),
+        activityArea: _activityAreaController.text.trim(),
+        profileImages: sortedImages.isNotEmpty ? sortedImages : null,
+      );
+    } else {
+      // 홈 화면에서 온 경우 - 새로운 프로필 생성
+      await _createNewProfile(authController, sortedImages);
+    }
 
     if (mounted) {
       if (authController.errorMessage != null) {
@@ -239,40 +269,135 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
     }
   }
 
-  Future<void> _skipProfile() async {
-    // 확인 다이얼로그 표시
-    final shouldSkip = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('프로필 생성 건너뛰기'),
-        content: const Text('프로필을 나중에 설정하고 바로 시작하시겠습니까?\n언제든지 마이페이지에서 프로필을 완성할 수 있습니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('계속 작성'),
+  // 새로운 프로필 생성 메서드 (이미 로그인된 사용자용)
+  Future<void> _createNewProfile(AuthController authController, List<XFile> sortedImages) async {
+    try {
+      // 기본 정보가 비어있는 경우 사용자에게 입력을 요구
+      if (_userIdController.text.isEmpty || 
+          _phoneController.text.isEmpty || 
+          _birthDateController.text.isEmpty || 
+          _selectedGender.isEmpty) {
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('기본 정보(아이디, 전화번호, 생년월일, 성별)를 모두 입력해주세요.'),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('나중에'),
-          ),
-        ],
-      ),
-    );
+        );
+        return;
+      }
 
-    if (shouldSkip == true) {
-      final authController = context.read<AuthController>();
-      
-      // 프로필 없이 계정만 생성
-      await authController.completeRegistrationWithoutProfile();
+      // 현재 Firebase Auth 사용자 정보 가져오기
+      final currentUser = authController.firebaseService.currentUser;
+      if (currentUser == null) {
+        throw Exception('로그인 상태가 아닙니다.');
+      }
 
-      if (mounted) {
-        if (authController.errorMessage != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(authController.errorMessage!)),
-          );
-        } else {
-          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+      // 이미지 업로드 처리
+      List<String> imageUrls = [];
+      if (sortedImages.isNotEmpty) {
+        try {
+          for (int i = 0; i < sortedImages.length; i++) {
+            final file = sortedImages[i];
+            final fileName = '${currentUser.uid}_profile_$i.jpg';
+
+            print('Firebase Storage 업로드 시작: $fileName');
+
+            // Firebase Storage에 업로드
+            final ref = FirebaseStorage.instance
+                .ref()
+                .child('profile_images')
+                .child(currentUser.uid)
+                .child(fileName);
+
+            // 플랫폼별 업로드 처리
+            late UploadTask uploadTask;
+            if (kIsWeb) {
+              // 웹에서는 XFile에서 bytes 사용
+              final bytes = await file.readAsBytes();
+              uploadTask = ref.putData(bytes);
+            } else {
+              // 모바일에서는 XFile을 File로 변환
+              final ioFile = File(file.path);
+              uploadTask = ref.putFile(ioFile);
+            }
+
+            final snapshot = await uploadTask;
+            final downloadUrl = await snapshot.ref.getDownloadURL();
+
+            print('Firebase Storage 업로드 성공: $downloadUrl');
+            imageUrls.add(downloadUrl);
+          }
+        } catch (e) {
+          print('이미지 업로드 실패: $e');
+          // 이미지 업로드 실패해도 계속 진행
+          authController.setError('이미지 업로드에 실패했습니다. 프로필은 생성되었으니 나중에 다시 업로드해주세요.');
         }
+      }
+
+      await authController.createCompleteUserProfile(
+        currentUser.uid,
+        currentUser.email ?? '',
+        _phoneController.text.trim(),
+        _birthDateController.text.trim(),
+        _selectedGender,
+        _nicknameController.text.trim(),
+        _introductionController.text.trim(),
+        int.parse(_heightController.text.trim()),
+        _activityAreaController.text.trim(),
+        imageUrls,
+      );
+      
+      // 프로필 생성 후 사용자 정보 새로고침
+      await authController.refreshCurrentUser();
+      
+    } catch (e) {
+      print('새 프로필 생성 실패: $e');
+      authController.setError('프로필 생성에 실패했습니다: $e');
+    }
+  }
+
+  Future<void> _skipProfile() async {
+    final authController = context.read<AuthController>();
+    
+    // 회원가입 데이터가 있는 경우와 없는 경우를 구분
+    if (_registerData != null || authController.tempRegistrationData != null) {
+      // 회원가입 과정에서 온 경우 - 확인 다이얼로그 표시 후 스킵 처리
+      final shouldSkip = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('프로필 생성 건너뛰기'),
+          content: const Text('프로필을 나중에 설정하고 바로 시작하시겠습니까?\n언제든지 마이페이지에서 프로필을 완성할 수 있습니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('계속 작성'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('나중에'),
+            ),
+          ],
+        ),
+          );
+
+      if (shouldSkip == true) {
+        // 프로필 없이 계정만 생성
+        await authController.completeRegistrationWithoutProfile();
+
+        if (mounted) {
+          if (authController.errorMessage != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(authController.errorMessage!)),
+            );
+          } else {
+            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+          }
+        }
+      }
+    } else {
+      // 홈 화면에서 온 경우 - 바로 홈으로 돌아가기
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       }
     }
   }
@@ -472,50 +597,142 @@ class _ProfileCreateViewState extends State<ProfileCreateView> {
                 ),
                 const SizedBox(height: 16),
 
-                // 성별 (읽기 전용)
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.grey[100],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.person_outline, color: AppTheme.textSecondary),
-                            const SizedBox(width: 8),
-                            const Text('성별'),
-                            const Spacer(),
-                            const Icon(Icons.lock, color: AppTheme.textSecondary),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
+                // 성별
+                if (_registerData != null) ...[
+                  // 회원가입에서 온 경우 - 읽기 전용
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.grey[100],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.person_outline, color: AppTheme.textSecondary),
+                              const SizedBox(width: 8),
+                              const Text('성별'),
+                              const Spacer(),
+                              const Icon(Icons.lock, color: AppTheme.textSecondary),
+                            ],
                           ),
-                          child: Text(
-                            _selectedGender == '남' ? '남성' : '여성',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontWeight: FontWeight.w500,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              _selectedGender.isEmpty 
+                                  ? '성별을 선택해주세요'
+                                  : (_selectedGender == '남' ? '남성' : '여성'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: _selectedGender.isEmpty ? AppTheme.gray400 : AppTheme.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ] else ...[
+                  // 홈에서 온 경우 - 선택 가능
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[400]!),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.person_outline, color: AppTheme.textSecondary),
+                              const SizedBox(width: 8),
+                              const Text('성별'),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedGender = '남';
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: _selectedGender == '남' 
+                                          ? AppTheme.primaryColor 
+                                          : Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '남성',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: _selectedGender == '남' 
+                                            ? Colors.white 
+                                            : Colors.black,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedGender = '여';
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: _selectedGender == '여' 
+                                          ? AppTheme.primaryColor 
+                                          : Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '여성',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: _selectedGender == '여' 
+                                            ? Colors.white 
+                                            : Colors.black,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
 
                 const SizedBox(height: 24),

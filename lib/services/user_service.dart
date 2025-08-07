@@ -20,10 +20,11 @@ class UserService {
       final doc = await _usersCollection.doc(userId).get();
       // print('UserService: 문서 존재 여부: ${doc.exists}');
       
-      // if (!doc.exists) {
-        // print('UserService: 문서가 존재하지 않습니다 - UID: $userId');
-        // return null;
-      // }
+      // 문서가 존재하지 않거나 데이터가 null인 경우 null 반환
+      if (!doc.exists || doc.data() == null) {
+        // print('UserService: 문서가 존재하지 않거나 데이터가 null입니다 - UID: $userId');
+        return null;
+      }
       
       // print('UserService: 문서 데이터: ${doc.data()}');
       final user = UserModel.fromFirestore(doc);

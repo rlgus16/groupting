@@ -56,28 +56,36 @@ class UserModel {
 
   // Firestore에서 데이터 가져오기
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data();
+    
+    // 데이터가 null이거나 Map이 아닌 경우 에러 방지
+    if (data == null) {
+      throw Exception('Firestore 문서 데이터가 null입니다');
+    }
+    
+    final dataMap = data as Map<String, dynamic>;
     return UserModel(
       uid: doc.id,
-      userId: data['userId'] ?? '',
-      phoneNumber: data['phoneNumber'] ?? '',
-      birthDate: data['birthDate'] ?? '',
-      gender: data['gender'] ?? '',
-      nickname: data['nickname'] ?? '',
-      introduction: data['introduction'] ?? '',
-      height: data['height'] ?? 0,
-      activityArea: data['activityArea'] ?? '',
-      profileImages: List<String>.from(data['profileImages'] ?? []),
-      currentGroupId: data['currentGroupId'],
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
-      isProfileComplete: data['isProfileComplete'] ?? false,
+      userId: dataMap['userId'] ?? '',
+      phoneNumber: dataMap['phoneNumber'] ?? '',
+      birthDate: dataMap['birthDate'] ?? '',
+      gender: dataMap['gender'] ?? '',
+      nickname: dataMap['nickname'] ?? '',
+      introduction: dataMap['introduction'] ?? '',
+      height: dataMap['height'] ?? 0,
+      activityArea: dataMap['activityArea'] ?? '',
+      profileImages: List<String>.from(dataMap['profileImages'] ?? []),
+      currentGroupId: dataMap['currentGroupId'],
+      createdAt: (dataMap['createdAt'] as Timestamp).toDate(),
+      updatedAt: (dataMap['updatedAt'] as Timestamp).toDate(),
+      isProfileComplete: dataMap['isProfileComplete'] ?? false,
     );
   }
 
   // Firestore에 저장할 데이터 형태로 변환
   Map<String, dynamic> toFirestore() {
     return {
+      'uid': uid, // Firestore 보안 규칙 호환성을 위해 uid 필드 추가
       'userId': userId,
       'phoneNumber': phoneNumber,
       'birthDate': birthDate,

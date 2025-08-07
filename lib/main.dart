@@ -36,7 +36,7 @@ void main() async {
 
   runApp(const MyApp());
 }
-
+// 추후 앱 명칭 및 라우팅 위치, 상태관리 전환 분리 권장.
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -92,10 +92,20 @@ class _AuthWrapperState extends State<AuthWrapper> {
     super.initState();
     // AuthController 초기화
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AuthController>().initialize();
+      final authController = context.read<AuthController>();
+      
+      // 로그아웃 콜백 설정
+      authController.onSignOutCallback = () {
+        print('AuthController 로그아웃 콜백 실행');
+        context.read<GroupController>().onSignOut();
+        context.read<ChatController>().onSignOut();
+      };
+      
+      authController.initialize();
     });
   }
 
+  // 메모메모..
   @override
   Widget build(BuildContext context) {
     return Consumer<AuthController>(
@@ -107,13 +117,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
           );
         }
 
-        // 로그아웃 감지 및 모든 컨트롤러 정리
+        // 로그아웃 감지 (정리는 AuthController 콜백에서 처리됨)
         if (_wasLoggedIn && !authController.isLoggedIn) {
-          print('로그아웃 감지: 모든 컨트롤러 정리');
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            context.read<GroupController>().onSignOut();
-            context.read<ChatController>().onSignOut();
-          });
+          print('로그아웃 감지됨 (정리는 콜백에서 완료)');
         }
         _wasLoggedIn = authController.isLoggedIn;
 
@@ -128,13 +134,26 @@ class _AuthWrapperState extends State<AuthWrapper> {
         }
 
         // 로그인은 되어있지만 사용자 정보가 없으면 회원가입 화면
+        // 단, "나중에 입력하기"로 스킵한 경우는 홈 화면으로 이동 가능
         if (authController.currentUserModel == null) {
-          return const RegisterView();
+          // Firebase Auth에는 로그인되어 있지만 Firestore에 프로필이 없는 경우
+          // "나중에 입력하기"로 스킵한 사용자일 가능성이 높으므로 홈 화면으로 이동
+          return const HomeView();
         }
 
-        // 프로필이 완성되지 않았으면 프로필 생성 화면
+        // 프로필이 완성되지 않았지만 기본 정보가 있으면 홈 화면으로 이동 가능
+        // (사용자가 "나중에 설정하기"를 선택한 경우)
         if (!authController.currentUserModel!.isProfileComplete) {
-          return const ProfileCreateView();
+          // 기본 정보 (전화번호, 성별, 생년월일)가 있으면 홈 화면 허용
+          final user = authController.currentUserModel!;
+          if (user.phoneNumber.isNotEmpty && 
+              user.gender.isNotEmpty && 
+              user.birthDate.isNotEmpty) {
+            return const HomeView();
+          } else {
+            // 기본 정보도 없으면 프로필 생성 화면으로
+            return const ProfileCreateView();
+          }
         }
 
         // 모든 조건을 만족하면 홈 화면

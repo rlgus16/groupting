@@ -270,7 +270,18 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                   Navigator.pop(context);
                   final confirmed = await _showLogoutDialog();
                   if (confirmed) {
-                    await authController.signOut();
+                    try {
+                      await authController.signOut();
+                      if (context.mounted) {
+                        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('로그아웃 중 오류가 발생했습니다: $e')),
+                        );
+                      }
+                    }
                   }
                 },
               ),
@@ -562,13 +573,19 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
           ),
         ],
       ),
-      body: Consumer<GroupController>(
-        builder: (context, groupController, _) {
+      body: Consumer2<GroupController, AuthController>(
+        builder: (context, groupController, authController, _) {
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // 프로필 미완성 알림 (최우선)
+                if (authController.currentUserModel == null) ...[
+                  _buildProfileIncompleteCard(),
+                  const SizedBox(height: 16),
+                ],
+                
                 // 현재 그룹 상태 카드
                 if (groupController.currentGroup != null) ...[
                   _buildGroupStatusCard(groupController),
@@ -583,6 +600,119 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildProfileIncompleteCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.orange.shade50, Colors.orange.shade100],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade600,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.edit_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '프로필 완성하기',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.orange.shade800,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '기본 정보는 등록 완료!',
+                        style: TextStyle(
+                          color: Colors.orange.shade600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '닉네임, 키, 소개글, 프로필 사진을 추가하면\n그룹 생성과 매칭 기능을 사용할 수 있어요!',
+              style: TextStyle(
+                color: Colors.orange.shade700,
+                fontSize: 14,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      // 카드를 숨기는 기능 (나중에 추가 가능)
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange.shade600,
+                      side: BorderSide(color: Colors.orange.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('나중에'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/profile-create');
+                    },
+                    icon: const Icon(Icons.arrow_forward, size: 18),
+                    label: const Text('지금 완성하기'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade600,
+                      foregroundColor: Colors.white,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -610,6 +740,17 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () async {
+                  // 프로필이 완성되지 않은 경우 프로필 완성 유도
+                  final authController = context.read<AuthController>();
+                  if (authController.currentUserModel == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('그룹을 만들려면 먼저 프로필을 완성해주세요.'),
+                      ),
+                    );
+                    return;
+                  }
+                  
                   final groupController = context.read<GroupController>();
                   await groupController.createGroup();
                 },

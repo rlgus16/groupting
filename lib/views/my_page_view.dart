@@ -26,8 +26,149 @@ class MyPageView extends StatelessWidget {
         builder: (context, authController, profileController, _) {
           final user = authController.currentUserModel;
 
+          // 사용자 문서가 없는 경우 (완전히 프로필이 없음)
           if (user == null) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.person_outline,
+                      size: 80,
+                      color: AppTheme.gray400,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      '프로필이 없습니다',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '프로필을 만들어 그룹에 참여해보세요!',
+                      style: TextStyle(color: AppTheme.textSecondary),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/profile-create');
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text('프로필 만들기'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // 로그아웃 버튼 추가
+                    OutlinedButton.icon(
+                      onPressed: () => _showLogoutDialog(context, authController),
+                      icon: const Icon(Icons.logout, size: 18),
+                      label: const Text('로그아웃'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.errorColor,
+                        side: BorderSide(color: AppTheme.errorColor),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // 사용자 문서는 있지만 프로필이 미완성인 경우
+          if (!user.isProfileComplete) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.person_outline,
+                      size: 80,
+                      color: Colors.orange.shade600,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      '프로필을 완성해주세요',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '기본 정보는 등록되었지만\n닉네임, 키, 소개 등을 추가로 입력해주세요.',
+                      style: TextStyle(color: AppTheme.textSecondary),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    // 기본 정보 요약 표시
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.gray100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            '등록된 기본 정보',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildBasicInfoRow('전화번호', user.phoneNumber),
+                          _buildBasicInfoRow('성별', user.gender == '남' ? '남성' : '여성'),
+                          if (user.birthDate.isNotEmpty)
+                            _buildBasicInfoRow('나이', '${user.age}세'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/profile-create');
+                      },
+                      icon: const Icon(Icons.edit),
+                      label: const Text('프로필 완성하기'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange.shade600,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // 로그아웃 버튼
+                    OutlinedButton.icon(
+                      onPressed: () => _showLogoutDialog(context, authController),
+                      icon: const Icon(Icons.logout, size: 18),
+                      label: const Text('로그아웃'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.errorColor,
+                        side: BorderSide(color: AppTheme.errorColor),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
 
           return SingleChildScrollView(
@@ -147,7 +288,7 @@ class MyPageView extends StatelessWidget {
                       const SizedBox(height: 16),
 
                       _buildInfoRow('전화번호', user.phoneNumber),
-                      _buildInfoRow('성별', user.gender),
+                      _buildInfoRow('성별', user.gender == '남' ? '남성' : '여성'),
                       _buildInfoRow('키', '${user.height}cm'),
                       _buildInfoRow('활동지역', user.activityArea),
 
@@ -277,6 +418,36 @@ class MyPageView extends StatelessWidget {
               style: const TextStyle(
                 color: AppTheme.textSecondary,
                 fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBasicInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 70,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textSecondary,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 13,
               ),
             ),
           ),

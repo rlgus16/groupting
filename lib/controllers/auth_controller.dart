@@ -99,17 +99,25 @@ class AuthController extends ChangeNotifier {
     try {
       _setLoading(true);
       _setError(null);
+      
+      print('로그아웃 시작');
 
+      // 먼저 로컬 상태 정리
+      _currentUserModel = null;
+      
       // 로그아웃 콜백 호출 (다른 컨트롤러들 정리)
       if (onSignOutCallback != null) {
+        print('로그아웃 콜백 호출');
         onSignOutCallback!();
       }
 
+      // Firebase 로그아웃
       await _firebaseService.signOut();
-      _currentUserModel = null;
+      print('Firebase 로그아웃 완료');
 
       _setLoading(false);
     } catch (e) {
+      print('로그아웃 실패: $e');
       _setError('로그아웃에 실패했습니다: $e');
       _setLoading(false);
     }
@@ -465,7 +473,7 @@ class AuthController extends ChangeNotifier {
         }
         
         // 완전한 사용자 정보와 함께 사용자 문서 생성
-        await _createCompleteUserProfile(
+        await createCompleteUserProfile(
           userCredential.user!.uid,
           email,
           _tempRegistrationData!['phoneNumber'],
@@ -586,7 +594,14 @@ class AuthController extends ChangeNotifier {
       // print('사용자 데이터 로드 시작: UID=$uid');
       final userService = UserService();
       _currentUserModel = await userService.getUserById(uid);
-      // print('사용자 데이터 로드 성공: ${_currentUserModel?.nickname}');
+      
+      // 프로필이 완성되지 않은 사용자의 경우 null일 수 있음
+      if (_currentUserModel == null) {
+        // print('사용자 프로필이 존재하지 않습니다. "나중에 입력하기"로 스킵한 사용자일 수 있습니다.');
+        // 이 경우에도 정상적으로 홈 화면에 진입할 수 있도록 함
+      } else {
+        // print('사용자 데이터 로드 성공: ${_currentUserModel!.nickname}');
+      }
     } catch (e) {
       // print('사용자 데이터 로드 실패: $e');
       _setError('사용자 정보를 로드하는데 실패했습니다: $e');
@@ -668,7 +683,7 @@ class AuthController extends ChangeNotifier {
   }
 
   // 완전한 프로필 정보와 함께 사용자 문서 생성
-  Future<void> _createCompleteUserProfile(
+  Future<void> createCompleteUserProfile(
     String uid,
     String email,
     String phoneNumber,
@@ -721,6 +736,9 @@ class AuthController extends ChangeNotifier {
 
   // 로그인 상태 확인
   bool get isLoggedIn => _firebaseService.currentUser != null;
+  
+  // FirebaseService getter (외부에서 접근 가능)
+  FirebaseService get firebaseService => _firebaseService;
 
   // 현재 사용자 정보 설정
   void setCurrentUser(UserModel? user) {
@@ -763,6 +781,11 @@ class AuthController extends ChangeNotifier {
     } catch (e) {
       _setError('사용자 정보 새로고침에 실패했습니다: $e');
     }
+  }
+
+  // 에러 설정 (public으로 노출)
+  void setError(String? error) {
+    _setError(error);
   }
 
   // 에러 클리어
