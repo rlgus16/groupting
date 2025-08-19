@@ -64,6 +64,7 @@ class _ChatViewState extends State<ChatView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true, // 키보드가 올라올 때 화면 크기 조정
       appBar: AppBar(
         title: Consumer<GroupController>(
           builder: (context, groupController, _) {
@@ -79,7 +80,8 @@ class _ChatViewState extends State<ChatView> {
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
       ),
-      body: Consumer2<GroupController, ChatController>(
+      body: SafeArea( // 전체 body를 SafeArea로 감싸기
+        child: Consumer2<GroupController, ChatController>(
         builder: (context, groupController, chatController, _) {
           return Column(
             children: [
@@ -138,59 +140,56 @@ class _ChatViewState extends State<ChatView> {
 
               // 메시지 입력 영역
               Container(
-                padding: EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 8,
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 8,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   border: Border(top: BorderSide(color: AppTheme.gray200)),
                 ),
-                child: SafeArea(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: chatController.messageController,
-                          decoration: InputDecoration(
-                            hintText: '메시지를 입력하세요',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide.none,
-                            ),
-                            filled: true,
-                            fillColor: AppTheme.gray100,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: chatController.messageController,
+                        decoration: InputDecoration(
+                          hintText: '메시지를 입력하세요',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
                           ),
-                          maxLines: null,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) async {
-                            await chatController.sendMessage();
-                          },
+                          filled: true,
+                          fillColor: AppTheme.gray100,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton.filled(
-                        onPressed: () async {
+                        maxLines: null,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) async {
                           await chatController.sendMessage();
                         },
-                        icon: const Icon(Icons.send),
-                        style: IconButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      onPressed: () async {
+                        await chatController.sendMessage();
+                      },
+                      icon: const Icon(Icons.send),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           );
         },
+        ),
       ),
     );
   }
@@ -468,20 +467,24 @@ class _ChatViewState extends State<ChatView> {
           ),
           if (!isMatched && memberCount == 1) ...[
             const SizedBox(height: 20),
-                         ElevatedButton.icon(
-               onPressed: () {
-                 Navigator.push(
-                   context,
-                   MaterialPageRoute(
-                     builder: (context) => const InviteFriendView(),
-                   ),
-                 );
-               },
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const InviteFriendView(),
+                  ),
+                );
+              },
               icon: const Icon(Icons.person_add),
               label: const Text('친구 초대하기'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryColor,
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
