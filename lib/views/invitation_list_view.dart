@@ -13,26 +13,70 @@ class InvitationListView extends StatefulWidget {
 }
 
 class _InvitationListViewState extends State<InvitationListView> {
+  // 개별 초대의 로딩 상태 관리
+  final Set<String> _processingInvitations = <String>{};
+
   Future<void> _handleInvitation(String invitationId, bool accept) async {
-    final groupController = context.read<GroupController>();
+    // 이미 처리 중이면 무시
+    if (_processingInvitations.contains(invitationId)) return;
+    
+    setState(() {
+      _processingInvitations.add(invitationId);
+    });
 
-    final success = accept
-        ? await groupController.acceptInvitation(invitationId)
-        : await groupController.rejectInvitation(invitationId);
+    try {
+      final groupController = context.read<GroupController>();
 
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(accept ? '초대를 수락했습니다.' : '초대를 거절했습니다.')),
-      );
+      debugPrint('UI: ${accept ? "수락" : "거절"} 처리 시작: $invitationId');
+      
+      final success = accept
+          ? await groupController.acceptInvitation(invitationId)
+          : await groupController.rejectInvitation(invitationId);
 
-      if (accept) {
-        // 초대 수락 시 홈으로 이동
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(accept ? '초대를 수락했습니다.' : '초대를 거절했습니다.'),
+              backgroundColor: accept ? Colors.green : Colors.orange,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+
+          if (accept) {
+            // 초대 수락 시 잠시 대기 후 홈으로 이동 (사용자에게 성공 메시지 보여주기 위해)
+            await Future.delayed(const Duration(milliseconds: 800));
+            if (mounted) {
+              Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+            }
+          }
+        } else if (groupController.errorMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(groupController.errorMessage!),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
-    } else if (mounted && groupController.errorMessage != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(groupController.errorMessage!)));
+    } catch (e) {
+      debugPrint('UI: 초대 처리 중 예외 발생: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('오류가 발생했습니다: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingInvitations.remove(invitationId);
+        });
+      }
     }
   }
 
@@ -164,20 +208,43 @@ class _InvitationListViewState extends State<InvitationListView> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: invitation.canRespond
-                                  ? () =>
-                                        _handleInvitation(invitation.id, false)
+                              onPressed: (invitation.canRespond && 
+                                         !_processingInvitations.contains(invitation.id))
+                                  ? () => _handleInvitation(invitation.id, false)
                                   : null,
-                              child: const Text('거절'),
+                              child: _processingInvitations.contains(invitation.id)
+                                  ? const SizedBox(
+                                      height: 16,
+                                      width: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          AppTheme.textSecondary,
+                                        ),
+                                      ),
+                                    )
+                                  : const Text('거절'),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: invitation.canRespond
+                              onPressed: (invitation.canRespond && 
+                                         !_processingInvitations.contains(invitation.id))
                                   ? () => _handleInvitation(invitation.id, true)
                                   : null,
-                              child: const Text('수락'),
+                              child: _processingInvitations.contains(invitation.id)
+                                  ? const SizedBox(
+                                      height: 16,
+                                      width: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white,
+                                        ),
+                                      ),
+                                    )
+                                  : const Text('수락'),
                             ),
                           ),
                         ],

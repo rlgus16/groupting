@@ -285,44 +285,102 @@ class GroupController extends ChangeNotifier {
     }
   }
 
-  // 초대 수락
+  // 초대 수락 (업데이트)
   Future<bool> acceptInvitation(String invitationId) async {
+    // 1. 업데이트: 즉시 UI에서 초대 제거
+    final invitationToAccept = _receivedInvitations.firstWhere(
+      (invitation) => invitation.id == invitationId,
+      orElse: () => throw Exception('초대를 찾을 수 없습니다'),
+    );
+    
+    // UI에서 즉시 제거
+    _receivedInvitations.removeWhere((invitation) => invitation.id == invitationId);
+    notifyListeners(); // 즉시 UI 업데이트
+    
     try {
       _setLoading(true);
       _setError(null);
 
+      debugPrint('초대 수락 시작: $invitationId');
+      
       final success = await _invitationService.respondToInvitation(
         invitationId,
         true,
       );
 
       if (success) {
+        debugPrint('초대 수락 성공 - 그룹 정보 새로고침');
+        // 강제로 그룹 정보 새로고침 (스트림 지연 방지)
         await loadCurrentGroup();
+        
+        // 잠시 후 한 번 더 새로고침 (Firestore 동기화 지연 대응)
+        Future.delayed(const Duration(seconds: 1), () {
+          if (_currentGroup != null) {
+            loadCurrentGroup();
+          }
+        });
+      } else {
+        // 실패 시 초대를 다시 목록에 추가 (롤백)
+        _receivedInvitations.add(invitationToAccept);
+        _receivedInvitations.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
 
       _setLoading(false);
       return success;
     } catch (e) {
+      debugPrint('초대 수락 실패: $e');
+      
+      // 실패 시 초대를 다시 목록에 추가 (롤백)
+      _receivedInvitations.add(invitationToAccept);
+      _receivedInvitations.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      notifyListeners(); // UI 롤백
+      
       _setError('초대 수락에 실패했습니다: $e');
       _setLoading(false);
       return false;
     }
   }
 
-  // 초대 거절
+  // 초대 거절 (업데이트)
   Future<bool> rejectInvitation(String invitationId) async {
+    // 1. 업데이트: 즉시 UI에서 초대 제거
+    final invitationToReject = _receivedInvitations.firstWhere(
+      (invitation) => invitation.id == invitationId,
+      orElse: () => throw Exception('초대를 찾을 수 없습니다'),
+    );
+    
+    // UI에서 즉시 제거
+    _receivedInvitations.removeWhere((invitation) => invitation.id == invitationId);
+    notifyListeners(); // 즉시 UI 업데이트
+    
     try {
       _setLoading(true);
       _setError(null);
 
+      debugPrint('초대 거절 시작: $invitationId');
+      
       final success = await _invitationService.respondToInvitation(
         invitationId,
         false,
       );
 
+      if (!success) {
+        // 실패 시 초대를 다시 목록에 추가 (롤백)
+        _receivedInvitations.add(invitationToReject);
+        _receivedInvitations.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        notifyListeners(); // UI 롤백
+      }
+
       _setLoading(false);
       return success;
     } catch (e) {
+      debugPrint('초대 거절 실패: $e');
+      
+      // 실패 시 초대를 다시 목록에 추가 (롤백)
+      _receivedInvitations.add(invitationToReject);
+      _receivedInvitations.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      notifyListeners(); // UI 롤백
+      
       _setError('초대 거절에 실패했습니다: $e');
       _setLoading(false);
       return false;
