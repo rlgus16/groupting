@@ -11,6 +11,7 @@ import 'dart:async';
 import '../services/firebase_service.dart';
 import '../services/user_service.dart';
 import '../services/group_service.dart';
+import '../services/realtime_chat_service.dart';
 import '../models/user_model.dart';
 
 class AuthController extends ChangeNotifier {
@@ -279,6 +280,7 @@ class AuthController extends ChangeNotifier {
       // 3. 사용자가 작성한 메시지들 정리 (시스템 메시지는 제외)
       // print('메시지 데이터 정리 중...');
       try {
+        // 3-1. Firestore 메시지 삭제
         final messagesRef = _firebaseService.getCollection('messages');
         final userMessages = await messagesRef
             .where('senderId', isEqualTo: userId)
@@ -287,6 +289,15 @@ class AuthController extends ChangeNotifier {
         
         for (final doc in userMessages.docs) {
           await doc.reference.delete();
+        }
+        
+        // 3-2. Realtime Database 채팅 메시지 삭제
+        try {
+          final realtimeChatService = RealtimeChatService();
+          await realtimeChatService.deleteUserMessages(userId);
+          // print('Realtime Database 메시지 삭제 완료');
+        } catch (realtimeError) {
+          // print('Realtime Database 메시지 삭제 실패 (계속 진행): $realtimeError');
         }
         
         // print('메시지 데이터 정리 완료');

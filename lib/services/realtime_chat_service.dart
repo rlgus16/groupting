@@ -180,6 +180,56 @@ class RealtimeChatService {
     }
   }
 
+  // 사용자가 보낸 모든 메시지 삭제 (계정 삭제 시)
+  Future<void> deleteUserMessages(String userId) async {
+    try {
+      // 모든 채팅방을 순회하며 해당 사용자의 메시지 찾기
+      final chatsSnapshot = await _database.child('chats').get();
+      
+      if (!chatsSnapshot.exists) return;
+      
+      final chatsData = Map<String, dynamic>.from(chatsSnapshot.value as Map);
+      
+      for (final groupId in chatsData.keys) {
+        await deleteUserMessagesFromGroup(groupId, userId);
+      }
+    } catch (e) {
+      throw Exception('사용자 메시지 삭제에 실패했습니다: $e');
+    }
+  }
+
+  // 특정 그룹에서 사용자가 보낸 메시지 삭제
+  Future<void> deleteUserMessagesFromGroup(String groupId, String userId) async {
+    try {
+      final groupChatRef = _database.child('chats').child(groupId);
+      final messagesSnapshot = await groupChatRef.get();
+      
+      if (!messagesSnapshot.exists) return;
+      
+      final messagesData = Map<String, dynamic>.from(messagesSnapshot.value as Map);
+      
+      for (final entry in messagesData.entries) {
+        final messageKey = entry.key;
+        final messageValue = entry.value;
+        
+        // 메타데이터(created_at, last_updated) 건너뛰기
+        if (messageKey == 'created_at' || messageKey == 'last_updated') continue;
+        
+        if (messageValue is Map) {
+          final messageData = Map<String, dynamic>.from(messageValue as Map);
+          
+          // 해당 사용자가 보낸 메시지이고 시스템 메시지가 아닌 경우 삭제
+          if (messageData['senderId'] == userId && 
+              messageData['type'] != 'system') {
+            await groupChatRef.child(messageKey).remove();
+          }
+        }
+      }
+    } catch (e) {
+      throw Exception('그룹 메시지 삭제에 실패했습니다: $e');
+    }
+  }
+
   // 온라인 사용자 상태 관리
   Future<void> setUserOnline(String groupId, String userId) async {
     try {
