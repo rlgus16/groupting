@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserModel {
   final String uid;
-  final String userId; // 로그인 아이디
-  final String email; // 비밀번호 찾기 등에 사용할 이메일
+  final String userId; // 사용자 식별자 (이메일과 동일)
+  final String email; // 로그인 및 비밀번호 찾기에 사용할 이메일
   final String phoneNumber;
   final String birthDate; // YYYYMMDD format
   final String gender; // '남' or '여'

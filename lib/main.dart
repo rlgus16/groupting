@@ -135,12 +135,24 @@ class _AuthWrapperState extends State<AuthWrapper> {
           
           // FCM 토큰 정리
           FCMService().clearToken();
+          
+          // AuthWrapper 상태 즉시 업데이트
+          if (mounted) {
+            setState(() {
+              debugPrint('로그아웃 콜백에서 AuthWrapper 상태 업데이트');
+              // 상태 업데이트를 통해 위젯 재빌드 강제
+            });
+          }
         } catch (e) {
           debugPrint('로그아웃 콜백 실행 중 오류: $e');
         }
       };
       
       authController.initialize();
+      
+      // 초기 로그인 상태 설정
+      _wasLoggedIn = authController.isLoggedIn;
+      debugPrint('초기 로그인 상태 설정: _wasLoggedIn=$_wasLoggedIn');
       
       // FCM 초기화
       FCMService().initialize();
@@ -169,6 +181,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
           );
         }
 
+        // 현재 로그인 상태를 로깅
+        debugPrint('AuthWrapper 빌드: _wasLoggedIn=$_wasLoggedIn, isLoggedIn=${authController.isLoggedIn}');
+
         // 로그아웃 감지 시 즉시 LoginView 반환 (정리는 AuthController 콜백에서 처리됨)
         if (_wasLoggedIn && !authController.isLoggedIn) {
           debugPrint('로그아웃 감지됨 - 즉시 LoginView로 전환');
@@ -190,7 +205,18 @@ class _AuthWrapperState extends State<AuthWrapper> {
           });
         }
         
+        // 현재 상태를 기록 (다음 빌드에서 비교하기 위해)
+        final previousWasLoggedIn = _wasLoggedIn;
         _wasLoggedIn = authController.isLoggedIn;
+        
+        // 로그아웃이 감지된 경우 즉시 LoginView 반환 (추가 안전장치)
+        if (previousWasLoggedIn && !authController.isLoggedIn) {
+          debugPrint('추가 로그아웃 감지 - 즉시 LoginView로 전환');
+          _controllersInitialized = false;
+          _groupController = null;
+          _chatController = null;
+          return const LoginView();
+        }
 
         // 임시 회원가입 데이터가 있으면 프로필 생성 화면으로
         if (authController.tempRegistrationData != null) {

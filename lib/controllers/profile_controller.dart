@@ -119,8 +119,6 @@ class ProfileController extends ChangeNotifier {
 
   // 프로필 생성 (회원가입 시)
   Future<bool> createProfile({
-    // String? userId,
-    // String? phoneNumber,
     required String phoneNumber,
     required String nickname,
     required String birthDate,
@@ -150,7 +148,6 @@ class ProfileController extends ChangeNotifier {
             // 파일 유효성 검사 및 압축
             final validatedFile = await _validateAndCompressImageFile(file);
             if (validatedFile == null) {
-              // print('파일 유효성 검사 실패 또는 압축 실패: ${file.name}');
               continue; // 유효하지 않은 파일은 스킵
             }
             
@@ -168,7 +165,6 @@ class ProfileController extends ChangeNotifier {
             }
           }
         } catch (e) {
-          // print('Firebase Storage 업로드 실패: $e');
           // Firebase Storage 실패 시 빈 배열로 처리 (나중에 다시 업로드할 수 있도록)
           imageUrls.clear();
           _setError('이미지 업로드에 실패했습니다. 프로필은 생성되었으니 나중에 다시 업로드해주세요.');
@@ -341,20 +337,17 @@ class ProfileController extends ChangeNotifier {
       final hasValidMimeType = mimeType.isEmpty || mimeType.startsWith('image/');
       
       if (!hasValidExtension || !hasValidMimeType) {
-        // print('이미지 파일이 아닙니다: $fileName ($mimeType)');
         return null;
       }
 
       // 파일 크기 검사
       final bytes = await file.readAsBytes();
       if (bytes.isEmpty) {
-        // print('빈 파일입니다');
         return null;
       }
 
       // 바이트 헤더로 이미지 파일 검증 (추가 안전장치)
       if (!_isValidImageByHeader(bytes)) {
-        // print('올바른 이미지 파일이 아닙니다');
         return null;
       }
 
@@ -364,11 +357,9 @@ class ProfileController extends ChangeNotifier {
       }
 
       // 5MB 초과 시 압축 처리
-      // print('파일 크기가 5MB를 초과합니다 (${(bytes.length / 1024 / 1024).toStringAsFixed(2)}MB). 압축을 진행합니다.');
       
       final compressedBytes = await _compressImage(bytes);
       if (compressedBytes == null) {
-        // print('이미지 압축에 실패했습니다');
         return null;
       }
 
@@ -378,12 +369,9 @@ class ProfileController extends ChangeNotifier {
         name: file.name,
         mimeType: 'image/jpeg', // 압축 후 JPEG 형식으로 통일
       );
-
-      // print('이미지 압축 완료: ${(bytes.length / 1024 / 1024).toStringAsFixed(2)}MB → ${(compressedBytes.length / 1024 / 1024).toStringAsFixed(2)}MB');
       
       return compressedFile;
     } catch (e) {
-      // print('파일 유효성 검사 및 압축 실패: $e');
       return null;
     }
   }
@@ -393,8 +381,7 @@ class ProfileController extends ChangeNotifier {
     try {
       // 이미지 디코딩
       final originalImage = img.decodeImage(originalBytes);
-      if (originalImage == null) {
-        // print('이미지 디코딩 실패');
+      if (originalImage == null) {  
         return null;
       }
 
@@ -432,7 +419,6 @@ class ProfileController extends ChangeNotifier {
 
         // 목표 크기 이하이면 완료
         if (compressedBytes.length <= targetSize) {
-          // print('압축 성공: 품질 $quality%, 크기 ${(compressedBytes.length / 1024 / 1024).toStringAsFixed(2)}MB');
           return compressedBytes;
         }
 
@@ -456,13 +442,10 @@ class ProfileController extends ChangeNotifier {
         compressedBytes = Uint8List.fromList(
           img.encodeJpg(finalImage, quality: 60)
         );
-
-        // print('강제 압축 완료: 크기 ${(compressedBytes.length / 1024 / 1024).toStringAsFixed(2)}MB');
       }
 
       return compressedBytes;
     } catch (e) {
-      // print('이미지 압축 중 오류 발생: $e');
       return null;
     }
   }
@@ -595,7 +578,6 @@ class ProfileController extends ChangeNotifier {
         );
 
         await _userService.updateUser(updatedUser);
-        // print('프로필 이미지 정리 완료: ${currentUserModel.profileImages.length} → ${validImages.length}');
       }
 
       _setLoading(false);

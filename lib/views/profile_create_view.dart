@@ -308,30 +308,112 @@ class _ProfileCreateViewState extends State<ProfileCreateView> with WidgetsBindi
       // 회원가입에서 온 경우 회원가입 페이지로 돌아가기
       Navigator.pushReplacementNamed(context, '/register');
     } else {
-      // AuthWrapper에서 온 경우 로그아웃 확인
+      // AuthWrapper에서 온 경우 "나중에 설정하기" 옵션 제공
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('프로필 생성 취소'),
-          content: const Text('프로필 생성을 취소하고 로그아웃하시겠습니까?'),
+          title: const Text('프로필 생성'),
+          content: const Text('프로필을 나중에 설정하고 바로 시작하시겠습니까?\n언제든지 마이페이지에서 프로필을 완성할 수 있습니다.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('취소'),
+              child: const Text('계속 작성'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                
+                // 프로필 생성을 건너뛰고 홈 화면으로 이동
+                final authController = context.read<AuthController>();
+                
+                // 회원가입 데이터가 있으면 기본 정보만으로 계정 생성
+                if (authController.tempRegistrationData != null) {
+                  await authController.completeRegistrationWithoutProfile();
+                  
+                  if (mounted) {
+                    if (authController.errorMessage != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(authController.errorMessage!)),
+                      );
+                    } else {
+                      // 홈 화면으로 이동
+                      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+                    }
+                  }
+                } else {
+                  // 이미 계정이 있는 경우 바로 홈 화면으로
+                  if (mounted) {
+                    Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+                  }
+                }
+              },
+              child: const Text('나중에 설정'),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                final authController = context.read<AuthController>();
-                authController.clearTemporaryData();
-                authController.signOut();
+                // 로그아웃 확인 다이얼로그
+                _showLogoutConfirmDialog();
               },
-              child: const Text('로그아웃'),
+              child: const Text('로그아웃', style: TextStyle(color: Colors.red)),
             ),
           ],
         ),
       );
     }
+  }
+
+  // 로그아웃 확인 다이얼로그
+  void _showLogoutConfirmDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('로그아웃 확인'),
+        content: const Text('정말 로그아웃하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () async {
+              // 다이얼로그 닫기
+              Navigator.of(context).pop();
+              
+              try {
+                final authController = context.read<AuthController>();
+                debugPrint('프로필 생성 화면에서 로그아웃 시작');
+                
+                // 임시 데이터 정리
+                authController.clearTemporaryData();
+                
+                // 로그아웃 실행
+                await authController.signOut();
+                
+                debugPrint('프로필 생성 화면에서 로그아웃 완료');
+                
+                // 로그인 화면으로 직접 이동 (AuthWrapper를 거치지 않고)
+                if (mounted) {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context, 
+                    '/login', 
+                    (route) => false,
+                  );
+                }
+              } catch (e) {
+                debugPrint('로그아웃 중 오류: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('로그아웃 중 오류가 발생했습니다: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('로그아웃', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -783,7 +865,14 @@ class _ProfileCreateViewState extends State<ProfileCreateView> with WidgetsBindi
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false, // 시스템 뒤로가기 버튼 처리를 커스터마이즈
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _handleBackPress();
+        }
+      },
+      child: Scaffold(
         backgroundColor: AppTheme.backgroundColor,
         appBar: AppBar(
           title: const Text('프로필 생성'),
@@ -912,10 +1001,10 @@ class _ProfileCreateViewState extends State<ProfileCreateView> with WidgetsBindi
                 TextFormField(
                   controller: _userIdController,
                   decoration: const InputDecoration(
-                    labelText: '아이디 (로그인 시 사용)',
+                    labelText: '아이디 (이메일과 동일)',
                     prefixIcon: Icon(Icons.person),
                     suffixIcon: Icon(Icons.lock, color: AppTheme.textSecondary),
-                    helperText: '회원가입 시 입력한 아이디 (변경 불가)',
+                    helperText: '이메일 주소와 동일 (변경 불가)',
                     enabled: false,
                   ),
                   readOnly: true,
@@ -1280,11 +1369,12 @@ class _ProfileCreateViewState extends State<ProfileCreateView> with WidgetsBindi
                       );
                     }
                     return const SizedBox.shrink();
-                  },
-                ),
-              ],
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
+         ),
         ),
       ),
     );

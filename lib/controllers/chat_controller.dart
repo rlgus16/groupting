@@ -231,27 +231,23 @@ class ChatController extends ChangeNotifier {
   // 그룹 상태 실시간 감지
   void _startGroupStatusListener(String groupId) {
     try {
-      // print('ChatController: 그룹 상태 실시간 감지 시작');
-      
       _groupSubscription = _groupService.getGroupStream(groupId).listen(
         (group) {
           if (group != null) {
-            // print('ChatController: 그룹 상태 변경 감지 - 멤버수: ${group.memberCount}');
             
             // 그룹 멤버 변경 감지 시 멤버 목록 다시 로드
             _loadGroupMembers();
           } else {
-            // print('ChatController: 그룹이 삭제되었거나 존재하지 않음');
             // 그룹이 삭제된 경우 채팅 종료
             clearData();
           }
         },
         onError: (error) {
-          // print('ChatController: 그룹 상태 감지 오류 - $error');
+          // ChatController: 그룹 상태 감지 오류 - $error
         },
       );
     } catch (e) {
-      // print('ChatController: 그룹 상태 리스너 시작 실패 - $e');
+      // ChatController: 그룹 상태 리스너 시작 실패 - $e
     }
   }
 
@@ -267,40 +263,27 @@ class ChatController extends ChangeNotifier {
       );
       if (currentGroup == null) return;
 
-      // print(
-      //   'ChatController: 현재 그룹 - ${currentGroup.id}, 매칭 상태: ${currentGroup.status}',
-      // );
-
       // 매칭 상태에 따라 다른 멤버 로드
       if (currentGroup.status == GroupStatus.matched) {
         // 매칭된 경우: 모든 그룹 멤버 로드 (자신 그룹 + 상대방 그룹)
         final allMembers = await _groupService.getGroupMembers(currentGroup.id);
         _matchedGroupMembers = allMembers;
-        // print('ChatController: 매칭된 그룹 멤버 ${_matchedGroupMembers.length}명 로드');
-        for (final member in _matchedGroupMembers) {
-          // print('- ${member.nickname}');
-        }
       } else {
         // 매칭 전: 현재 그룹 멤버만 로드
         final groupMembers = await Future.wait(
           currentGroup.memberIds.map((id) => _userService.getUserById(id)),
         );
         _matchedGroupMembers = groupMembers.whereType<UserModel>().toList();
-        // print('ChatController: 현재 그룹 멤버 ${_matchedGroupMembers.length}명 로드');
-        for (final member in _matchedGroupMembers) {
-          // print('- ${member.nickname}');
-        }
       }
-      
       notifyListeners();
     } catch (e) {
-      // print('ChatController: 그룹 멤버 로드 실패 - $e');
+      debugPrint('ChatController: 그룹 멤버 로드 실패 - $e');
     }
   }
 
   // 로그아웃 시 모든 스트림 정리
   void onSignOut() {
-    // print('로그아웃: ChatController 모든 스트림과 데이터 정리');
+    debugPrint('로그아웃: ChatController 모든 스트림과 데이터 정리');
     stopMessageStream();
     _messages.clear();
     _matchedGroupMembers.clear();

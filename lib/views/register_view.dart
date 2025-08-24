@@ -13,7 +13,6 @@ class RegisterView extends StatefulWidget {
 
 class _RegisterViewState extends State<RegisterView> {
   final _formKey = GlobalKey<FormState>();
-  final _idController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -26,9 +25,7 @@ class _RegisterViewState extends State<RegisterView> {
   
   // 중복 검증 상태
   bool _isCheckingEmail = false;
-  bool _isCheckingUserId = false;
   String? _emailValidationMessage;
-  String? _userIdValidationMessage;
 
   @override
   void initState() {
@@ -41,7 +38,6 @@ class _RegisterViewState extends State<RegisterView> {
 
   @override
   void dispose() {
-    _idController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -57,7 +53,6 @@ class _RegisterViewState extends State<RegisterView> {
     if (tempData != null) {
       // print('임시 저장된 회원가입 데이터 복원: $tempData');
       setState(() {
-        _idController.text = tempData['userId'] ?? '';
         _emailController.text = tempData['email'] ?? '';
         _phoneController.text = tempData['phoneNumber'] ?? '';
         _birthDateController.text = tempData['birthDate'] ?? '';
@@ -102,41 +97,6 @@ class _RegisterViewState extends State<RegisterView> {
     }
   }
 
-  // 아이디 중복 검증 (실시간)
-  Future<void> _checkUserIdDuplicate(String userId) async {
-    if (userId.isEmpty || userId.length < 4) {
-      setState(() {
-        _userIdValidationMessage = null;
-        _isCheckingUserId = false;
-      });
-      return;
-    }
-
-    setState(() {
-      _isCheckingUserId = true;
-      _userIdValidationMessage = null;
-    });
-
-    try {
-      final authController = context.read<AuthController>();
-      final isDuplicate = await authController.isUserIdDuplicate(userId);
-      
-      if (mounted) {
-        setState(() {
-          _isCheckingUserId = false;
-          _userIdValidationMessage = isDuplicate ? '이미 사용 중인 아이디입니다.' : '사용 가능한 아이디입니다.';
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isCheckingUserId = false;
-          _userIdValidationMessage = '아이디 확인 중 오류가 발생했습니다.';
-        });
-      }
-    }
-  }
-
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -148,13 +108,12 @@ class _RegisterViewState extends State<RegisterView> {
     }
 
     // 필수 데이터 검증 강화
-    final userId = _idController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final phoneNumber = _phoneController.text.trim();
     final birthDate = _birthDateController.text.trim();
     
-    if (userId.isEmpty || email.isEmpty || password.isEmpty || 
+    if (email.isEmpty || password.isEmpty || 
         phoneNumber.isEmpty || birthDate.isEmpty || _selectedGender.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('모든 필수 정보를 입력해주세요.')),
@@ -175,18 +134,6 @@ class _RegisterViewState extends State<RegisterView> {
       }
     }
 
-    if (_userIdValidationMessage == null && userId.isNotEmpty) {
-      // 아이디 중복 재검증
-      final authController = context.read<AuthController>();
-      final isUserIdDuplicate = await authController.isUserIdDuplicate(userId);
-      if (isUserIdDuplicate) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('이미 사용 중인 아이디입니다. 다른 아이디를 사용해주세요.')),
-        );
-        return;
-      }
-    }
-
     // 중복 검증 확인
     if (_emailValidationMessage == '이미 사용 중인 이메일입니다.') {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -194,14 +141,6 @@ class _RegisterViewState extends State<RegisterView> {
       );
       return;
     }
-
-    if (_userIdValidationMessage == '이미 사용 중인 아이디입니다.') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이미 사용 중인 아이디입니다. 다른 아이디를 사용해주세요.')),
-      );
-      return;
-    }
-
     final authController = context.read<AuthController>();
     
     // 이전 에러 메시지 클리어
@@ -209,6 +148,8 @@ class _RegisterViewState extends State<RegisterView> {
 
     try {
       // 회원가입 데이터를 임시 저장 (Firebase 계정은 생성하지 않음)
+      // 아이디는 이메일 전체로 설정
+      final userId = email; // 이메일 전체를 아이디로 사용
       authController.saveTemporaryRegistrationData(
         userId: userId,
         email: email,
@@ -277,7 +218,7 @@ class _RegisterViewState extends State<RegisterView> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '그룹팅에 오신 것을 환영합니다!\n기본 정보를 입력해주세요.',
+                          '그룹팅에 오신 것을 환영합니다!\n이메일로 간편하게 가입해보세요.',
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(color: AppTheme.textPrimary),
                           textAlign: TextAlign.center,
@@ -304,67 +245,6 @@ class _RegisterViewState extends State<RegisterView> {
                   ),
                   const SizedBox(height: 32),
 
-                  // 아이디 입력 (자물쇠 표시)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        controller: _idController,
-                        decoration: InputDecoration(
-                          labelText: '아이디',
-                          prefixIcon: const Icon(Icons.person),
-                          suffixIcon: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_isCheckingUserId)
-                                const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                              const Icon(Icons.lock, color: AppTheme.textSecondary),
-                            ],
-                          ),
-                          helperText: '4자 이상, 영문과 숫자만 사용 가능 (로그인 시 사용)',
-                        ),
-                        onChanged: (value) {
-                          // 디바운싱을 위해 타이머 사용
-                          Future.delayed(const Duration(milliseconds: 500), () {
-                            if (_idController.text == value) {
-                              _checkUserIdDuplicate(value);
-                            }
-                          });
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return '아이디를 입력해주세요.';
-                          }
-                          if (value.length < 4) {
-                            return '아이디는 4자 이상이어야 합니다.';
-                          }
-                          if (!RegExp(r'^[a-zA-Z0-9]+$').hasMatch(value)) {
-                            return '영문과 숫자만 사용할 수 있습니다.';
-                          }
-                          return null;
-                        },
-                      ),
-                      if (_userIdValidationMessage != null)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 12, top: 4),
-                          child: Text(
-                            _userIdValidationMessage!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _userIdValidationMessage == '사용 가능한 아이디입니다.'
-                                  ? Colors.green
-                                  : Colors.red,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
                   // 이메일 입력 (자물쇠 표시)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -387,7 +267,7 @@ class _RegisterViewState extends State<RegisterView> {
                               const Icon(Icons.lock, color: AppTheme.textSecondary),
                             ],
                           ),
-                          helperText: '비밀번호 찾기 등에 사용할 이메일',
+                          helperText: '로그인 및 비밀번호 찾기에 사용할 이메일',
                         ),
                         onChanged: (value) {
                           // 디바운싱을 위해 타이머 사용
