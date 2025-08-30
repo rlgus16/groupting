@@ -330,7 +330,7 @@ class GroupService {
         }
       }
     } catch (e) {
-      // print('매칭 처리 실패: $e');
+      // 매칭 처리 실패: $e
     }
   }
 

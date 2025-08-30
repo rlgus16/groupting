@@ -215,9 +215,32 @@ class GroupController extends ChangeNotifier {
       _setLoading(false);
       return true;
     } catch (e) {
-      _setError('초대 전송에 실패했습니다: $e');
+      _setError(_getFriendlyErrorMessage(e.toString()));
       _setLoading(false);
       return false;
+    }
+  }
+
+  // 사용자 친화적인 에러 메시지 변환
+  String _getFriendlyErrorMessage(String error) {
+    if (error.contains('해당 사용자는 이미 다른 그룹에 속해있습니다')) {
+      return '이미 다른 그룹에 참여 중인 친구예요';
+    } else if (error.contains('해당 닉네임의 사용자를 찾을 수 없습니다')) {
+      return '존재하지 않는 닉네임이에요';
+    } else if (error.contains('자기 자신에게는 초대를 보낼 수 없습니다')) {
+      return '본인은 초대할 수 없어요';
+    } else if (error.contains('그룹 인원이 가득 찼습니다')) {
+      return '그룹 인원이 가득 찼어요 (최대 5명)';
+    } else if (error.contains('그룹 방장만 초대를 보낼 수 있습니다')) {
+      return '방장만 친구를 초대할 수 있어요';
+    } else if (error.contains('이미 해당 사용자에게 초대를 보냈습니다')) {
+      return '이미 초대를 보낸 친구예요';
+    } else if (error.contains('로그인이 필요합니다')) {
+      return '로그인이 필요해요';
+    } else if (error.contains('그룹을 찾을 수 없습니다')) {
+      return '그룹 정보를 찾을 수 없어요';
+    } else {
+      return '초대 전송에 실패했어요. 잠시 후 다시 시도해주세요.';
     }
   }
 

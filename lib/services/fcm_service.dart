@@ -1,9 +1,13 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'firebase_service.dart';
 import 'user_service.dart';
 import '../main.dart' as main_file;
@@ -37,6 +41,46 @@ class FCMService {
   }
 
   String? get currentChatRoomId => _currentChatRoomId;
+
+  // 네트워크 이미지를 로컬로 다운로드하여 저장
+  Future<String?> _downloadImageToLocal(String imageUrl, String fileName) async {
+    try {
+      debugPrint('이미지 다운로드 시작: $imageUrl');
+      
+      // HTTP 요청으로 이미지 다운로드
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode != 200) {
+        debugPrint('이미지 다운로드 실패: HTTP ${response.statusCode}');
+        return null;
+      }
+
+      // 임시 디렉터리 경로 가져오기
+      final tempDir = await getTemporaryDirectory();
+      final filePath = '${tempDir.path}/notification_images/$fileName';
+      
+      // 디렉터리 생성 (없으면)
+      final file = File(filePath);
+      await file.parent.create(recursive: true);
+      
+      // 이미지 파일로 저장
+      await file.writeAsBytes(response.bodyBytes);
+      
+      debugPrint('이미지 로컬 저장 완료: $filePath');
+      return filePath;
+      
+    } catch (e) {
+      debugPrint('이미지 다운로드 오류: $e');
+      return null;
+    }
+  }
+
+  // 파일 경로에서 안드로이드 비트맵 생성
+  FilePathAndroidBitmap? _createFilePathBitmap(String? filePath) {
+    if (filePath == null || !File(filePath).existsSync()) {
+      return null;
+    }
+    return FilePathAndroidBitmap(filePath);
+  }
 
     // FCM 초기화
   Future<void> initialize() async {
@@ -138,50 +182,110 @@ class FCMService {
     }
   }
 
-  // Android 알림 채널 설정 (기본 FCM 사용)
+  // Android 알림 채널 설정 (다중 채널 지원)
   Future<void> _setupNotificationChannels() async {
     try {
-      // Android 알림 채널 생성
-      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      // 기본 알림 채널
+      const AndroidNotificationChannel defaultChannel = AndroidNotificationChannel(
         'groupting_default', // id
         '그룹팅 알림', // title
-        description: '그룹팅 앱의 모든 알림',
-        importance: Importance.max,
+        description: '그룹팅 앱의 기본 알림',
+        importance: Importance.high,
       );
 
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
+      // 초대 전용 알림 채널 (최고 우선순위)
+      const AndroidNotificationChannel invitationChannel = AndroidNotificationChannel(
+        'groupting_invitation', // id
+        '그룹 초대 알림', // title
+        description: '친구들의 그룹 초대 알림을 받습니다',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+        showBadge: true,
+      );
 
-      debugPrint('Android 알림 채널 설정 완료');
+      // 채팅 메시지 전용 알림 채널
+      const AndroidNotificationChannel messageChannel = AndroidNotificationChannel(
+        'groupting_message', // id
+        '채팅 메시지 알림', // title
+        description: '새로운 채팅 메시지 알림을 받습니다',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+      );
+
+      final androidImpl = _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidImpl != null) {
+        // 각 채널 생성
+        await androidImpl.createNotificationChannel(defaultChannel);
+        await androidImpl.createNotificationChannel(invitationChannel);
+        await androidImpl.createNotificationChannel(messageChannel);
+        
+        debugPrint('알림 채널 설정 완료');
+        debugPrint('기본 채널: ${defaultChannel.id}');
+        debugPrint('초대 채널: ${invitationChannel.id}');
+        debugPrint('메시지 채널: ${messageChannel.id}');
+      }
     } catch (e) {
       debugPrint('알림 채널 설정 오류: $e');
     }
   }
 
-  // 알림 권한 요청
+  // 알림 권한 요청 및 상태 확인
   Future<void> _requestPermission() async {
     try {
-      final settings = await _messaging.requestPermission(
-        alert: true,
-        announcement: false,
-        badge: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
-      );
-
-
-      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-        // 사용자가 알림 권한을 허용
-      } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
-        // 사용자가 임시 알림 권한을 허용
-      } else {
-        // 사용자가 알림 권한을 거부
+      // 현재 권한 상태 먼저 확인
+      final currentSettings = await _messaging.getNotificationSettings();
+      debugPrint('현재 알림 권한 상태: ${currentSettings.authorizationStatus}');
+      debugPrint('Alert 권한: ${currentSettings.alert}');
+      debugPrint('Badge 권한: ${currentSettings.badge}');  
+      debugPrint('Sound 권한: ${currentSettings.sound}');
+      
+      // 권한이 없거나 거부된 경우 요청
+      if (currentSettings.authorizationStatus == AuthorizationStatus.notDetermined ||
+          currentSettings.authorizationStatus == AuthorizationStatus.denied) {
+        debugPrint('알림 권한 요청 시작...');
+        
+        final settings = await _messaging.requestPermission(
+          alert: true,
+          announcement: false,
+          badge: true,
+          carPlay: false,
+          criticalAlert: false,
+          provisional: false,
+          sound: true,
+        );
+        
+        debugPrint('알림 권한 요청 결과: ${settings.authorizationStatus}');
+        
+        if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+          debugPrint('알림 권한 승인됨');
+        } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
+          debugPrint('임시 알림 권한 승인됨');
+        } else {
+          debugPrint('알림 권한 거부됨 - 알림이 표시되지 않습니다!');
+        }
+      } else if (currentSettings.authorizationStatus == AuthorizationStatus.authorized) {
+        debugPrint('알림 권한이 이미 승인되어 있음');
       }
+
+      // Android 13+ 추가 권한 확인
+      if (Platform.isAndroid) {
+        debugPrint('Android 플랫폼 - 추가 권한 상태 확인');
+        try {
+          await _localNotifications
+              .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+              ?.requestNotificationsPermission();
+          debugPrint('Android 로컬 알림 권한 요청 완료');
+        } catch (e) {
+          debugPrint('Android 로컬 알림 권한 요청 실패: $e');
+        }
+      }
+      
     } catch (e) {
-      // FCM 권한 요청 오류
+      debugPrint('알림 권한 처리 중 오류: $e');
     }
   }
 
@@ -235,15 +339,28 @@ class FCMService {
     }
   }
 
-  // 포그라운드 메시지 처리
+  // 포그라운드 메시지 처리 (상세 로그)
   void _handleForegroundMessage(RemoteMessage message) {
-    debugPrint('포그라운드 FCM 메시지 수신: ${message.notification?.title}');
-    debugPrint('메시지 내용: ${message.notification?.body}');
-    debugPrint('데이터: ${message.data}');
+    debugPrint('=== 포그라운드 FCM 메시지 수신 ===');
+    debugPrint('제목: ${message.notification?.title}');
+    debugPrint('내용: ${message.notification?.body}');
+    debugPrint('전체 데이터: ${message.data}');
+    debugPrint('메시지 ID: ${message.messageId}');
+    debugPrint('전송 시간: ${message.sentTime}');
+    
+    final messageType = message.data['type'];
+    debugPrint('메시지 타입: $messageType');
+    
+    // 초대 알림 특별 처리
+    if (messageType == 'new_invitation') {
+      debugPrint('초대 알림 감지 - 특별 처리 시작');
+      _handleInvitationForegroundMessage(message);
+      return;
+    }
     
     // 메시지 타입이 new_message인 경우에만 채팅방 확인
-    final messageType = message.data['type'];
     final messageChatRoomId = message.data['chatroomId'];
+    debugPrint('채팅방 ID: $messageChatRoomId (현재 활성: $_currentChatRoomId)');
     
     if (messageType == 'new_message' && messageChatRoomId != null) {
       // 현재 활성 채팅방과 같은 채팅방의 메시지인지 확인
@@ -251,12 +368,123 @@ class FCMService {
         debugPrint('현재 활성 채팅방($messageChatRoomId)의 메시지이므로 알림 표시하지 않음');
         return; // 알림 표시하지 않음
       } else {
-        debugPrint('다른 채팅방($messageChatRoomId)의 메시지 (현재: $_currentChatRoomId)');
+        debugPrint('다른 채팅방($messageChatRoomId)의 메시지 - 알림 표시 예정');
       }
     }
     
     // 포그라운드에서 로컬 알림 표시
+    debugPrint('로컬 알림 표시 시작...');
     _showLocalNotification(message);
+  }
+
+  // 초대 알림 포그라운드 처리
+  void _handleInvitationForegroundMessage(RemoteMessage message) {
+    debugPrint('초대 알림 포그라운드 처리 시작');
+    
+    final data = message.data;
+    final showAsLocalNotification = data['showAsLocalNotification'] == 'true';
+    
+    if (showAsLocalNotification) {
+      // 로컬 알림 표시 (더 풍부한 초대 알림)
+      _showInvitationLocalNotification(message);
+    } else {
+      // 기본 로컬 알림 표시
+      _showLocalNotification(message);
+    }
+  }
+
+  // 초대 전용 로컬 알림 표시 (프로필 이미지 포함)
+  Future<void> _showInvitationLocalNotification(RemoteMessage message) async {
+    try {
+      final data = message.data;
+      final title = data['localNotificationTitle'] ?? message.notification?.title ?? '새로운 초대';
+      final body = data['localNotificationBody'] ?? message.notification?.body ?? '초대가 도착했습니다';
+      final fromUserNickname = data['fromUserNickname'] ?? '알 수 없는 사용자';
+      final groupMemberCount = data['groupMemberCount'] ?? '1';
+      final fromUserProfileImage = data['fromUserProfileImage'];
+      final invitationId = data['invitationId'] ?? '';
+      
+      debugPrint('초대 로컬 알림 표시 시작: $title');
+      debugPrint('초대한 사람: $fromUserNickname');
+      debugPrint('그룹 인원: ${groupMemberCount}명');
+      
+      // 프로필 이미지가 있으면 다운로드
+      FilePathAndroidBitmap? profileBitmap;
+      if (fromUserProfileImage != null && fromUserProfileImage.isNotEmpty) {
+        debugPrint('프로필 이미지 다운로드 중: $fromUserProfileImage');
+        try {
+          final localImagePath = await _downloadImageToLocal(
+            fromUserProfileImage, 
+            'profile_${invitationId.substring(0, 8)}.jpg'
+          );
+          profileBitmap = _createFilePathBitmap(localImagePath);
+          if (profileBitmap != null) {
+            debugPrint('프로필 이미지 로드 완료');
+          }
+        } catch (e) {
+          debugPrint('프로필 이미지 로드 실패: $e');
+        }
+      }
+      
+      // 플러터 로컬 알림 플러그인 설정
+      await _localNotifications.show(
+        DateTime.now().millisecondsSinceEpoch.remainder(100000), // 고유 ID
+        title,
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'groupting_invitation',
+            '그룹 초대 알림',
+            channelDescription: '친구들의 그룹 초대 알림을 받습니다',
+            importance: Importance.max,
+            priority: Priority.max,
+            showWhen: true,
+            enableVibration: true,
+            playSound: true,
+            sound: const RawResourceAndroidNotificationSound('notification'),
+            color: const Color(0xFF4CAF50), // 초대 알림 색상
+            largeIcon: profileBitmap, // 다운로드된 프로필 이미지 사용
+            styleInformation: BigTextStyleInformation(
+              body,
+              contentTitle: title,
+              summaryText: '그룹팅 초대',
+            ),
+            actions: [
+              const AndroidNotificationAction(
+                'accept_invitation',
+                '수락하기',
+                icon: DrawableResourceAndroidBitmap('ic_check'),
+                contextual: false,
+              ),
+              const AndroidNotificationAction(
+                'view_invitation', 
+                '확인하기',
+                icon: DrawableResourceAndroidBitmap('ic_visibility'),
+                contextual: true,
+              ),
+            ],
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            sound: 'default',
+            categoryIdentifier: 'INVITATION_CATEGORY',
+            threadIdentifier: 'invitation_$invitationId',
+            // iOS는 이미지 첨부 처리 복잡하여 제외 (Android만 지원)
+            attachments: null,
+          ),
+        ),
+        payload: invitationId,
+      );
+
+      debugPrint('초대 로컬 알림 표시 완료');
+
+    } catch (e) {
+      debugPrint('초대 로컬 알림 표시 실패: $e');
+      // 실패 시 기본 로컬 알림으로 대체
+      _showLocalNotification(message);
+    }
   }
 
   // 포그라운드에서 로컬 알림 표시
@@ -344,34 +572,69 @@ class FCMService {
   // 로컬 알림을 눌렀을 때 처리
   void _handleLocalNotificationTap(NotificationResponse notificationResponse) {
     try {
-      debugPrint('로컬 알림 클릭됨');
+      debugPrint('로컬 알림 클릭됨: ${notificationResponse.actionId}');
+      debugPrint('페이로드: ${notificationResponse.payload}');
+      
+      // 액션 버튼 클릭 처리 (초대 알림)
+      if (notificationResponse.actionId != null) {
+        _handleNotificationAction(notificationResponse.actionId!, notificationResponse.payload);
+        return;
+      }
       
       if (notificationResponse.payload != null && 
           notificationResponse.payload!.isNotEmpty) {
-        // payload에서 데이터 파싱
-        final decodedPayload = Uri.decodeComponent(notificationResponse.payload!);
-        debugPrint('알림 payload: $decodedPayload');
+        final payload = notificationResponse.payload!;
+        debugPrint('로컬 알림에서 페이로드: $payload');
         
-        // 간단한 데이터 파싱 (실제로는 JSON 파싱을 사용하는 것이 좋습니다)
-        if (decodedPayload.contains('chatroomId')) {
-          // chatroomId 추출
-          final match = RegExp(r'chatroomId:\s*([^,}]+)').firstMatch(decodedPayload);
-          if (match != null) {
-            final chatroomId = match.group(1)?.trim();
-            if (chatroomId != null && chatroomId.isNotEmpty) {
-              _navigateToChat(chatroomId);
-            }
-          }
+        // 초대 ID인 경우 (일반적으로 길이가 20자 이상)
+        if (payload.length > 15 && !payload.contains('_')) {
+          debugPrint('초대 알림 클릭 -> 초대 목록 이동: $payload');
+          _navigateToInvitations();
+        } else {
+          // 채팅방 ID인 경우
+          debugPrint('채팅 알림 클릭 -> 채팅방 이동: $payload');
+          _navigateToChat(payload);
         }
+      } else {
+        debugPrint('알림 payload가 없음, 홈 화면으로 이동');
+        _navigateToHome();
       }
     } catch (e) {
       debugPrint('로컬 알림 탭 처리 오류: $e');
+      _navigateToHome();
     }
   }
 
-  // 알림을 탭해서 앱이 열렸을 때 처리
+  // 알림 액션 버튼 처리
+  void _handleNotificationAction(String actionId, String? payload) {
+    debugPrint('🎬 알림 액션 처리: $actionId');
+    
+    switch (actionId) {
+      case 'accept_invitation':
+        // 초대 수락 액션 - 초대 목록으로 이동 후 자동 수락 처리 가능
+        debugPrint('초대 수락 액션');
+        _navigateToInvitations();
+        break;
+      case 'view_invitation':
+        // 초대 확인 액션 - 초대 목록으로 이동
+        debugPrint('초대 확인 액션');
+        _navigateToInvitations();
+        break;
+      default:
+        debugPrint('알 수 없는 액션: $actionId');
+        _navigateToHome();
+    }
+  }
+
+  // 알림을 탭해서 앱이 열렸을 때 처리 (백그라운드 -> 포그라운드)
   void _handleMessageOpenedApp(RemoteMessage message) {
-    _navigateToScreen(message);
+    debugPrint('백그라운드 알림 클릭 - 앱 포그라운드 전환');
+    debugPrint('알림 데이터: ${message.data}');
+    
+    // 약간의 지연 후 네비게이션 (UI가 안정화된 후)
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _navigateToScreen(message);
+    });
   }
 
   // 앱이 종료된 상태에서 알림으로 열렸을 때 처리
@@ -394,19 +657,26 @@ class FCMService {
     final data = message.data;
     final type = data['type'];
 
+    debugPrint('알림 타입별 화면 이동 처리: $type');
+    debugPrint('알림 전체 데이터: $data');
+
     try {
       switch (type) {
         case 'new_message':
           // 채팅 화면으로 이동
           final chatroomId = data['chatroomId'];
           if (chatroomId != null && chatroomId.isNotEmpty) {
-            debugPrint('FCM 알림으로 채팅방 이동: $chatroomId');
+            debugPrint('새 메시지 알림으로 채팅방 이동: $chatroomId');
             _navigateToChat(chatroomId);
+          } else {
+            debugPrint('채팅방 ID가 없음, 홈 화면으로 이동');
+            _navigateToHome();
           }
           break;
 
         case 'new_invitation':
-          // 초대 목록 화면으로 이동
+          // 초대 목록 화면으로 이동 (홈에서 확인 가능)
+          debugPrint('새 초대 알림으로 홈 화면 이동');
           _navigateToInvitations();
           break;
 
@@ -417,17 +687,20 @@ class FCMService {
             debugPrint('매칭 완료 알림으로 채팅방 이동: $chatRoomId');
             _navigateToChat(chatRoomId);
           } else {
-            // chatRoomId가 없으면 홈 화면으로
+            debugPrint('매칭 완료 알림에 채팅방 ID가 없음, 홈 화면으로 이동');
             _navigateToHome();
           }
           break;
 
         default:
-          debugPrint('알 수 없는 알림 타입: $type');
+          debugPrint('알 수 없는 알림 타입: $type, 홈 화면으로 이동');
           _navigateToHome();
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('화면 이동 처리 오류: $e');
+      debugPrint('스택트레이스: $stackTrace');
+      // 오류 시 홈 화면으로라도 이동
+      _navigateToHome();
     }
   }
 

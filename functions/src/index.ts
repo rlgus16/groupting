@@ -409,7 +409,7 @@ export const sendMatchingNotification = functions.firestore
     }
   });
 
-// 초대 받았을 때 알림 발송 - 개선된 버전
+// 초대 받았을 때 알림 발송 - 로컬/백그라운드 알림 통합 버전
 export const sendInvitationNotification = functions.firestore
   .document("invitations/{invitationId}")
   .onCreate(async (snapshot, context) => {
@@ -441,11 +441,13 @@ export const sendInvitationNotification = functions.firestore
 
       // 초대한 사용자 정보 가져오기 (더 상세한 알림을 위해)
       let fromUserNickname = invitationData.fromUserNickname || "사용자";
+      let fromUserProfileImage = "";
       try {
         const fromUserDoc = await db.collection("users").doc(invitationData.fromUserId).get();
         if (fromUserDoc.exists) {
           const fromUserData = fromUserDoc.data();
           fromUserNickname = fromUserData?.nickname || fromUserNickname;
+          fromUserProfileImage = fromUserData?.mainProfileImage || "";
         }
       } catch (e) {
         console.log(`초대한 사용자 정보 로드 실패: ${e}`);
@@ -467,30 +469,51 @@ export const sendInvitationNotification = functions.firestore
         console.log(`그룹 정보 로드 실패: ${e}`);
       }
 
-      // 개인화된 알림 메시지 생성
+      // 개인화된 알림 메시지 생성 - 간결하고 매력적으로
+      let notificationTitle = "새로운 그룹 초대 도착!";
       let notificationBody: string;
-      if (groupMemberCount > 0) {
-        notificationBody = `${fromUserNickname}님이 "${groupName}"(${groupMemberCount}명)에 초대했습니다!`;
+      
+      if (groupMemberCount > 1) {
+        notificationBody = `${fromUserNickname}님이 ${groupMemberCount}명의 그룹에 초대했어요`;
       } else {
-        notificationBody = `${fromUserNickname}님이 그룹에 초대했습니다! 🎊`;
+        notificationBody = `${fromUserNickname}님이 그룹에 초대했어요`;
       }
 
-      // 초대 메시지가 있다면 추가
+      // 초대 메시지가 있다면 추가 (간결하게)
       if (invitationData.message && invitationData.message.trim()) {
-        notificationBody += `\n"${invitationData.message}"`;
+        const shortMessage = invitationData.message.length > 30 
+          ? invitationData.message.substring(0, 27) + "..." 
+          : invitationData.message;
+        notificationBody += `\n"${shortMessage}"`;
       }
 
-      // FCM 메시지 생성
+      // 로컬 알림용 추가 데이터
+      const localNotificationData = {
+        showAsLocalNotification: "true", // 플러터에서 포그라운드 시 로컬 알림 표시 플래그
+        localNotificationTitle: notificationTitle,
+        localNotificationBody: notificationBody,
+        localNotificationIcon: fromUserProfileImage || "default_profile",
+        actionButtons: JSON.stringify([
+          { id: "accept", title: "수락하기", action: "accept_invitation" },
+          { id: "view", title: "확인하기", action: "view_invitation" }
+        ])
+      };
+
+      // FCM 메시지 생성 - 로컬/백그라운드 알림 통합
       const message = {
+        // 백그라운드 알림용 (앱이 비활성 상태일 때)
         notification: {
-          title: "새로운 그룹 초대!",
+          title: notificationTitle,
           body: notificationBody,
-          icon: "/icon-192.png", // 나중에 올바르게 아이콘 이미지를 여기에 추가해서 알림 보내도록 구현하면 됩니다.
+          image: fromUserProfileImage || undefined, // 프로필 이미지가 있으면 포함
         },
+        // 데이터 페이로드 (포그라운드 로컬 알림용 + 앱 네비게이션용)
         data: {
+          ...localNotificationData,
           invitationId: invitationId,
           fromUserId: invitationData.fromUserId,
           fromUserNickname: fromUserNickname,
+          fromUserProfileImage: fromUserProfileImage,
           toUserId: invitationData.toUserId,
           groupId: invitationData.groupId || "",
           groupName: groupName,
@@ -498,31 +521,53 @@ export const sendInvitationNotification = functions.firestore
           message: invitationData.message || "",
           type: "new_invitation",
           timestamp: Date.now().toString(),
+          notificationPriority: "high", // 높은 우선순위
         },
+        // Android 특화 설정
         android: {
           notification: {
             channelId: "groupting_default",
             sound: "default",
-            priority: "high" as const,
+            priority: "max" as const, // 최고 우선순위
             defaultSound: true,
             defaultVibrateTimings: true,
             clickAction: "FLUTTER_NOTIFICATION_CLICK",
             color: "#4CAF50", // 초대 알림 색상 (녹색)
+            icon: "ic_notification", // 커스텀 아이콘
+            tag: `invitation_${invitationId}`, // 중복 방지
+            visibility: "public" as const,
+            localOnly: false,
+            sticky: false,
           },
           data: {
             click_action: "FLUTTER_NOTIFICATION_CLICK",
-          }
+          },
+          // 높은 우선순위로 즉시 전달
+          priority: "high" as const,
+          ttl: 86400000, // 24시간 유효
         },
+        // iOS 특화 설정
         apns: {
+          headers: {
+            "apns-priority": "10", // 최고 우선순위
+            "apns-push-type": "alert",
+          },
           payload: {
             aps: {
-              sound: "default",
+              alert: {
+                title: notificationTitle,
+                body: notificationBody,
+                sound: "default",
+              },
               badge: 1,
               category: "INVITATION_CATEGORY",
               "mutable-content": 1,
+              "content-available": 1, // 백그라운드 앱 업데이트
+              sound: "default",
             },
           },
         },
+        // FCM 옵션은 제거 (TypeScript 타입 호환성)
         token: userData.fcmToken,
       };
 
@@ -531,10 +576,36 @@ export const sendInvitationNotification = functions.firestore
       const response = await messaging.send(message);
       console.log(`초대 알림 발송 완료: ${response}`);
 
+      // 통계 로깅
+      await db.collection("notification_stats").add({
+        type: "invitation",
+        fromUserId: invitationData.fromUserId,
+        toUserId: invitationData.toUserId,
+        invitationId: invitationId,
+        groupId: invitationData.groupId,
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        success: true,
+        fcmResponse: response,
+      });
+
       console.log(`초대 알림 발송 성공: ${userData.nickname}님에게 ${fromUserNickname}님의 초대 알림 전달`);
       
     } catch (error) {
       console.error("초대 알림 발송 중 치명적 오류:", error);
+      
+      // 에러 로깅
+      try {
+        await db.collection("notification_errors").add({
+          type: "invitation",
+          invitationId: context.params.invitationId,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (logError) {
+        console.error("에러 로깅 실패:", logError);
+      }
+
       if (error instanceof Error) {
         console.error("에러 메시지:", error.message);
         console.error("에러 스택:", error.stack);

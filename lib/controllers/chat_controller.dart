@@ -138,7 +138,7 @@ class ChatController extends ChangeNotifier {
 
 
   // 정리
-  void clearData() {
+  void clearData({bool fromDispose = false}) {
     try {
       _messages.clear();
       _matchedGroupMembers.clear();
@@ -153,12 +153,17 @@ class ChatController extends ChangeNotifier {
 
       _currentGroupId = null;
       
-      // 즉시 UI 업데이트
-      if (!_disposed) {
-        notifyListeners();
+      // dispose 중이 아닐 때만 UI 업데이트
+      if (!_disposed && !fromDispose) {
+        // 위젯 트리가 안정된 후 UI 업데이트
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_disposed) {
+            notifyListeners();
+          }
+        });
       }
     } catch (e) {
-      // ChatController clearData 중 에러
+      debugPrint('ChatController clearData 중 에러: $e');
     }
   }
 

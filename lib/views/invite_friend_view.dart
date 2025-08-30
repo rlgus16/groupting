@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../controllers/group_controller.dart';
 import '../models/invitation_model.dart';
 import '../utils/app_theme.dart';
+import '../widgets/custom_toast.dart';
 
 class InviteFriendView extends StatefulWidget {
   const InviteFriendView({super.key});
@@ -35,14 +36,14 @@ class _InviteFriendViewState extends State<InviteFriendView> {
     );
 
     if (success && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('초대를 보냈습니다.')));
-      Navigator.pop(context);
+      CustomToast.showSuccess(context, '초대를 보냈어요!');
+      // 입력 필드 초기화
+      _nicknameController.clear();
+      _messageController.clear();
+      // 포커스 해제
+      FocusScope.of(context).unfocus();
     } else if (mounted && groupController.errorMessage != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(groupController.errorMessage!)));
+      CustomToast.showError(context, groupController.errorMessage!);
     }
   }
 

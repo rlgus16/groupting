@@ -217,11 +217,9 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
           chatRoomId = currentGroupId.compareTo(matchedGroupId) < 0
               ? '${currentGroupId}_${matchedGroupId}'
               : '${matchedGroupId}_${currentGroupId}';
-          // print('매칭된 그룹 통합 채팅방 ID: $chatRoomId');
         } else {
           // 매칭되지 않은 경우 기존 그룹 ID 사용
           chatRoomId = groupController.currentGroup!.id;
-          // print('일반 그룹 채팅방 ID: $chatRoomId');
         }
 
         Navigator.push(
@@ -688,14 +686,15 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
       appBar: AppBar(
         title: const Text('그룹팅'),
         actions: [
-          // 초대 알림
+          // 초대 알림 (상시 표시)
           Consumer<GroupController>(
             builder: (context, groupController, _) {
-              if (groupController.receivedInvitations.isNotEmpty) {
-                return IconButton(
-                  icon: Stack(
-                    children: [
-                      const Icon(Icons.notifications_outlined),
+              return IconButton(
+                icon: Stack(
+                  children: [
+                    const Icon(Icons.notifications_outlined),
+                    // 초대가 있을 때만 빨간 점 표시
+                    if (groupController.receivedInvitations.isNotEmpty)
                       Positioned(
                         right: 0,
                         top: 0,
@@ -708,55 +707,19 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const InvitationListView(),
-                      ),
-                    );
-                  },
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-
-          // 새로고침 버튼
-          Consumer<GroupController>(
-            builder: (context, groupController, _) {
-              return IconButton(
-                icon: groupController.isLoading
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.refresh),
-                onPressed: groupController.isLoading
-                    ? null
-                    : () async {
-                        await groupController.refreshData();
-                        if (mounted) {
-                          try {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('데이터를 새로고침했습니다'),
-                                duration: Duration(seconds: 1),
-                              ),
-                            );
-                          } catch (e) {
-                            // 위젯이 이미 dispose된 경우 무시
-                          }
-                        }
-                      },
-                tooltip: '새로고침',
+                  ],
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const InvitationListView(),
+                    ),
+                  );
+                },
               );
             },
           ),
-
           // 더보기 메뉴
           IconButton(
             icon: const Icon(Icons.more_vert),
@@ -1190,11 +1153,9 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                   chatRoomId = currentGroupId.compareTo(matchedGroupId) < 0
                       ? '${currentGroupId}_${matchedGroupId}'
                       : '${matchedGroupId}_${currentGroupId}';
-                  // print('매칭된 그룹 통합 채팅방 ID: $chatRoomId');
                 } else {
                   // 매칭되지 않은 경우 그룹 ID 사용
                   chatRoomId = groupController.currentGroup!.id;
-                  // print('그룹 채팅방 ID: $chatRoomId');
                 }
 
                 Navigator.push(

@@ -146,7 +146,7 @@ class _ProfileCreateViewState extends State<ProfileCreateView> with WidgetsBindi
             int.parse(birthStr.substring(6, 8)),
           );
         } catch (e) {
-          // print('생년월일 파싱 오류: $e');
+          // 생년월일 파싱 오류: $e
         }
       }
       
@@ -712,7 +712,6 @@ class _ProfileCreateViewState extends State<ProfileCreateView> with WidgetsBindi
         ).showSnackBar(const SnackBar(content: Text('최대 6장까지 선택할 수 있습니다.')));
       }
     } catch (e) {
-      // print('이미지 선택 오류: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('이미지 선택 중 오류가 발생했습니다.')),
@@ -740,7 +739,6 @@ class _ProfileCreateViewState extends State<ProfileCreateView> with WidgetsBindi
         }
       }
     } catch (e) {
-      // print('이미지 선택 오류: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('이미지 선택 중 오류가 발생했습니다.')),
@@ -883,7 +881,6 @@ class _ProfileCreateViewState extends State<ProfileCreateView> with WidgetsBindi
       await authController.refreshCurrentUser();
       
     } catch (e) {
-      // print('새 프로필 생성 실패: $e');
       authController.setError('프로필 생성에 실패했습니다: $e');
     }
   }

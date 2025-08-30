@@ -100,7 +100,6 @@ class UserService {
       } catch (e) {
         // PERMISSION_DENIED 에러인 경우 빠른 재시도
         if (e.toString().contains('PERMISSION_DENIED') && attempt < maxRetries) {
-          print('🔥 UserService: PERMISSION_DENIED 에러 - 재시도 ($attempt/$maxRetries)');
           await Future.delayed(const Duration(milliseconds: 500));
           continue;
         }

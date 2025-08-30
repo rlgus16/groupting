@@ -60,7 +60,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
         return imageUrl.startsWith('http://') || imageUrl.startsWith('https://');
       }).toList();
       
-      // print('기존 프로필 이미지들: $_originalImages');
+      // 기존 프로필 이미지들: $_originalImages
 
     }
   }
@@ -81,7 +81,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
         }
       }
     } catch (e) {
-      // print('이미지 정리 중 오류: $e');
+      // 이미지 정리 중 오류: $e
     }
   }
 
@@ -144,7 +144,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
         });
       }
     } catch (e) {
-      // print('이미지 선택 오류: $e');
+      // 이미지 선택 오류: $e
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('이미지 선택 중 오류가 발생했습니다.')),
@@ -573,12 +573,10 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     List<String> uploadedUrls = [];
     if (newImages.isNotEmpty) {
       try {
-        // print('새 이미지 업로드 시작: ${newImages.length}개');
+        // 새 이미지 업로드 시작: ${newImages.length}개
         for (int i = 0; i < newImages.length; i++) {
           final file = newImages[i];
           final fileName = '${user.uid}_profile_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-
-          // print('Firebase Storage 업로드 시작: $fileName');
 
           // Firebase Storage에 업로드
           final ref = FirebaseStorage.instance
@@ -602,12 +600,9 @@ class _ProfileEditViewState extends State<ProfileEditView> {
           final snapshot = await uploadTask;
           final downloadUrl = await snapshot.ref.getDownloadURL();
 
-          // print('Firebase Storage 업로드 성공: $downloadUrl');
           uploadedUrls.add(downloadUrl);
         }
-        // print('새 이미지 업로드 완료: $uploadedUrls');
       } catch (e) {
-        // print('Firebase Storage 업로드 실패: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('이미지 업로드에 실패했습니다.')),
@@ -645,9 +640,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     } else {
       finalImages.addAll(tempImages);
     }
-
-    // print('최종 이미지 목록: $finalImages');
-    // print('이미지 변경 여부: $hasImageChanges');
 
     final success = await profileController.updateProfile(
       nickname: _nicknameController.text.trim(),

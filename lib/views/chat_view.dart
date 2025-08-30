@@ -34,7 +34,7 @@ class _ChatViewState extends State<ChatView> {
           _chatController = chatController;
           chatController.startMessageStream(widget.groupId);
         } catch (e) {
-          // print('ChatView initState 에러: $e');
+          // ChatView initState 에러: $e
         }
       }
     });
@@ -48,7 +48,7 @@ class _ChatViewState extends State<ChatView> {
       try {
         _chatController = context.read<ChatController>();
       } catch (e) {
-        // print('ChatController 참조 저장 실패: $e');
+        // ChatController 참조 저장 실패: $e
       }
     }
   }
@@ -58,11 +58,11 @@ class _ChatViewState extends State<ChatView> {
     // FCM 서비스에서 현재 채팅방 해제
     FCMService().clearCurrentChatRoom();
     
-    // 안전하게 ChatController 정리
+    // 안전하게 ChatController 정리 (dispose 중임을 알림)
     try {
-      _chatController?.clearData();
+      _chatController?.clearData(fromDispose: true);
     } catch (e) {
-      // print('ChatController 정리 중 에러: $e');
+      debugPrint('ChatController 정리 중 에러: $e');
     }
     _chatController = null;
     super.dispose();

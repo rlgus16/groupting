@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../controllers/group_controller.dart';
 import '../utils/app_theme.dart';
 import '../widgets/member_avatar.dart';
+import '../widgets/custom_toast.dart';
 
 class InvitationListView extends StatefulWidget {
   const InvitationListView({super.key});
@@ -35,41 +36,24 @@ class _InvitationListViewState extends State<InvitationListView> {
 
       if (mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(accept ? '초대를 수락했습니다.' : '초대를 거절했습니다.'),
-              backgroundColor: accept ? Colors.green : Colors.orange,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-
           if (accept) {
+            CustomToast.showSuccess(context, '그룹에 참여했어요!');
             // 초대 수락 시 잠시 대기 후 홈으로 이동 (사용자에게 성공 메시지 보여주기 위해)
-            await Future.delayed(const Duration(milliseconds: 800));
+            await Future.delayed(const Duration(milliseconds: 1200));
             if (mounted) {
               Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
             }
+          } else {
+            CustomToast.showInfo(context, '초대를 거절했어요');
           }
         } else if (groupController.errorMessage != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(groupController.errorMessage!),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
+          CustomToast.showError(context, groupController.errorMessage!);
         }
       }
     } catch (e) {
       debugPrint('UI: 초대 처리 중 예외 발생: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('오류가 발생했습니다: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        CustomToast.showError(context, '처리 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.');
       }
     } finally {
       if (mounted) {

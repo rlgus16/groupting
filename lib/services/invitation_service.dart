@@ -21,7 +21,6 @@ class InvitationService {
 
   // 사용자가 받은 초대 목록 스트림
   Stream<List<InvitationModel>> getReceivedInvitationsStream(String userId) {
-    // print('받은 초대 스트림 시작: $userId');
 
     return _invitationsCollection
         .where('toUserId', isEqualTo: userId)
@@ -33,7 +32,6 @@ class InvitationService {
         // .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-          // print('받은 초대 문서 수: ${snapshot.docs.length}');
 
           final invitations = snapshot.docs
               .map((doc) => InvitationModel.fromFirestore(doc))
@@ -42,8 +40,6 @@ class InvitationService {
 
           // 메모리에서 정렬 (createdAt 기준 내림차순)
           invitations.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-          print('유효한 받은 초대 수: ${invitations.length}');
 
           return invitations;
         });
@@ -75,7 +71,6 @@ class InvitationService {
     String? message,
   }) async {
     try {
-      // print('초대 전송 시작: $toUserNickname, groupId: $groupId');
 
       final currentUser = _firebaseService.currentUser;
       if (currentUser == null) {
@@ -230,7 +225,6 @@ class InvitationService {
       // 현재 사용자 정보 확인
       final currentUserInfo = await _userService.getUserById(currentUser.uid);
       if (currentUserInfo == null) {
-        print('초대 수락 실패: 사용자 정보 없음');
         throw Exception('사용자 정보를 찾을 수 없습니다.');
       }
 
@@ -249,7 +243,6 @@ class InvitationService {
       });
 
       // 2. 그룹에 멤버 추가
-      // print('그룹 멤버 추가 시작...');
       final groupDoc = await _firebaseService
           .getDocument('groups/${invitation.groupId}')
           .get();
@@ -260,37 +253,27 @@ class InvitationService {
         );
         final updatedMemberIds = [...currentMemberIds, currentUser.uid];
 
-        // print('그룹 멤버 업데이트 - 기존=$currentMemberIds, 새로운=$updatedMemberIds');
-
         await groupDoc.reference.update({
           'memberIds': updatedMemberIds,
           'updatedAt': Timestamp.fromDate(DateTime.now()),
         });
-        // print('그룹 멤버 업데이트 완료');
       } else {
-        // print('그룹 문서가 존재하지 않음');
         throw Exception('그룹을 찾을 수 없습니다.');
       }
 
       // 3. 사용자의 현재 그룹 ID 업데이트
-      // print('사용자 그룹 ID 업데이트 시작...');
       await _userService.usersCollection.doc(currentUser.uid).update({
         'currentGroupId': invitation.groupId,
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       });
-      // print('사용자 그룹 ID 업데이트 완료');
 
       // 시스템 메시지 전송
-      // print('시스템 메시지 전송');
       await _messageService.sendSystemMessage(
         groupId: invitation.groupId,
         content: '${currentUserInfo.nickname}님이 그룹에 참여했습니다.',
         metadata: {'type': 'member_joined', 'userId': currentUser.uid},
       );
-
-      // print('초대 수락 성공');
     } catch (e) {
-      // print('초대 수락 실패: $e');
       throw Exception('초대 수락에 실패했습니다: $e');
     }
   }
@@ -376,7 +359,6 @@ class InvitationService {
         await batch.commit();
       }
     } catch (e) {
-      // print('만료된 초대 정리 실패: $e');
     }
   }
 
