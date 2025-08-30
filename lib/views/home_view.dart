@@ -53,10 +53,10 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
     _loadProfileCardVisibility();
 
     // 그룹 컨트롤러 초기화
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
         _groupController = context.read<GroupController>();
-        _groupController!.initialize();
+        await _groupController!.initialize();
 
         // 매칭 완료 콜백 설정
         _groupController!.onMatchingCompleted = _onMatchingCompleted;
@@ -798,21 +798,35 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
       ),
       body: Consumer2<GroupController, AuthController>(
         builder: (context, groupController, authController, _) {
+          // 로그인 상태 실시간 체크 (회원탈퇴 후 즉시 리다이렉트)
+          if (!authController.isLoggedIn) {
+            debugPrint('홈 화면 - 로그인 상태 해제 감지, 로그인 화면으로 이동');
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/login',
+                  (route) => false,
+                );
+              }
+            });
+            // 로그인 화면 이동 중 빈 화면 표시
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('로그인 화면으로 이동 중...'),
+                ],
+              ),
+            );
+          }
+
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // === 기존 조건문 (주석 처리) ===
-                /*
-                if (!_isProfileCardHidden && 
-                    (authController.currentUserModel == null || 
-                     (authController.currentUserModel != null && 
-                      !authController.currentUserModel!.isProfileComplete))) ...[
-                  _buildProfileIncompleteCard(),
-                  const SizedBox(height: 16),
-                ],
-                */
                 
                 // === 새로운 조건문: 더 정확한 프로필 완성 상태 체크 ===
                 if (!_isProfileCardHidden && _shouldShowProfileCard(authController)) ...[
@@ -820,8 +834,12 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                   const SizedBox(height: 16),
                 ],
                 
-                // 현재 그룹 상태 카드
-                if (groupController.currentGroup != null) ...[
+                // 현재 그룹 상태 처리 (로딩/에러/정상 상태 구분)
+                if (groupController.isLoading) ...[
+                  _buildLoadingCard(),
+                ] else if (groupController.errorMessage != null) ...[
+                  _buildErrorCard(groupController),
+                ] else if (groupController.currentGroup != null) ...[
                   _buildGroupStatusCard(groupController),
                   const SizedBox(height: 16),
                   _buildGroupMembersSection(groupController),
@@ -843,15 +861,6 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
       builder: (context, authController, _) {
         final user = authController.currentUserModel;
         final firebaseUser = authController.firebaseService.currentUser;
-        
-        // === 기존 로직 (주석 처리) ===
-        /*
-        final hasBasicInfo = user != null && 
-            firebaseUser?.email?.isNotEmpty == true &&
-            user.phoneNumber.isNotEmpty && 
-            user.birthDate.isNotEmpty && 
-            user.gender.isNotEmpty;
-        */
         
         // === 새로운 로직: 더 정확한 사용자 상태 판단 ===
         final hasBasicInfo = user != null && 
@@ -981,6 +990,109 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
       ),
         );
       },
+    );
+  }
+
+  // 로딩 상태 카드
+  Widget _buildLoadingCard() {
+    return Center(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                '그룹 정보 로딩 중...',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '잠시만 기다려주세요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 에러 상태 카드
+  Widget _buildErrorCard(GroupController groupController) {
+    final isNetworkError = groupController.errorMessage?.contains('firestore') == true ||
+                          groupController.errorMessage?.contains('network') == true ||
+                          groupController.errorMessage?.contains('connection') == true ||
+                          groupController.errorMessage?.contains('resolve host') == true;
+
+    return Center(
+      child: Card(
+        color: Colors.red.shade50,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isNetworkError ? Icons.wifi_off : Icons.error_outline,
+                size: 64,
+                color: Colors.red,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isNetworkError ? '네트워크 연결 오류' : '데이터 로드 실패',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.red.shade700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isNetworkError
+                    ? '인터넷 연결을 확인하고 다시 시도해주세요.'
+                    : groupController.errorMessage ?? '알 수 없는 오류가 발생했습니다.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.red.shade600),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await groupController.refreshData();
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('다시 시도'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  if (isNetworkError) ...[
+                    const SizedBox(width: 12),
+                    TextButton.icon(
+                      onPressed: () {
+                        // 네트워크 설정으로 이동하거나 오프라인 모드 안내
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Wi-Fi나 모바일 데이터 연결을 확인해주세요.'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.settings),
+                      label: const Text('연결 확인'),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

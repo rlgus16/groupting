@@ -229,17 +229,23 @@ class AuthController extends ChangeNotifier {
       }
 
       final userId = currentUser.uid;
+      debugPrint('계정 삭제 시작: $userId');
 
       // Firebase Functions의 deleteUserAccount 함수 호출
       final HttpsCallable callable = _functions.httpsCallable('deleteUserAccount');
       
       try {
+        debugPrint('Firebase Functions 호출 중...');
         final HttpsCallableResult result = await callable.call({
           'userId': userId,
         });
 
+        debugPrint('Functions 응답: ${result.data}');
+
         // 함수 호출 성공 시 로컬 상태 정리
         if (result.data['success'] == true) {
+          debugPrint('계정 삭제 성공 - UI 상태 업데이트 시작');
+          
           // 로그아웃 콜백 호출 (다른 컨트롤러들 정리)
           if (onSignOutCallback != null) {
             onSignOutCallback!();
@@ -251,8 +257,14 @@ class AuthController extends ChangeNotifier {
           _tempProfileData = null;
 
           _setLoading(false);
+          
+          // UI 즉시 업데이트를 위해 notifyListeners 호출
+          notifyListeners();
+          
+          debugPrint('계정 삭제 완료 - UI 업데이트 완료');
           return true;
         } else {
+          debugPrint('계정 삭제 실패: ${result.data['message']}');
           _setError(result.data['message'] ?? '계정 삭제에 실패했습니다.');
           _setLoading(false);
           return false;
@@ -279,7 +291,7 @@ class AuthController extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      debugPrint('🔥 계정 삭제 중 예상치 못한 오류: $e');
+      debugPrint('계정 삭제 중 예상치 못한 오류: $e');
       
       String errorMessage;
       if (e is FirebaseAuthException) {

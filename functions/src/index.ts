@@ -712,15 +712,22 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
     await batch1.commit();
     console.log(`초대 데이터 삭제 완료: 보낸 ${sentInvitations.size}개, 받은 ${receivedInvitations.size}개`);
 
-    // 4. 메시지 데이터 삭제
+    // 4. 메시지 데이터 삭제 (시스템 메시지 제외)
     const userMessages = await db.collection("messages")
-      .where("senderId", "==", userIdToDelete)
-      .where("type", "!=", "system").get();
+      .where("senderId", "==", userIdToDelete).get();
     
     const batch2 = db.batch();
-    userMessages.docs.forEach((doc) => batch2.delete(doc.ref));
+    let deletedMessageCount = 0;
+    userMessages.docs.forEach((doc) => {
+      const messageData = doc.data();
+      // 시스템 메시지가 아닌 경우에만 삭제
+      if (messageData.type !== "system") {
+        batch2.delete(doc.ref);
+        deletedMessageCount++;
+      }
+    });
     await batch2.commit();
-    console.log(`메시지 데이터 삭제 완료: ${userMessages.size}개`);
+    console.log(`메시지 데이터 삭제 완료: ${deletedMessageCount}개`);
 
     // 5. 닉네임 선점 데이터 삭제
     if (userData?.nickname) {

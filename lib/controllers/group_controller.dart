@@ -517,31 +517,18 @@ class GroupController extends ChangeNotifier {
     }
   }
 
-  // 초기화
-  void initialize() {
-    loadCurrentGroup();
-    _loadReceivedInvitations();
-    _loadSentInvitations();
-  }
-
-  // 수동 새로고침
-  Future<void> refreshData() async {
+  // 초기화 (에러 상태 포함)
+  Future<void> initialize() async {
     try {
-      await loadCurrentGroup();
-      await _loadReceivedInvitations();
-      await _loadSentInvitations();
+      _setError(null);
+      debugPrint('GroupController: 초기화 시작');
+      
+      await refreshData();
+      
+      debugPrint('GroupController: 초기화 완료');
     } catch (e) {
-      _setError('데이터 새로고침에 실패했습니다: $e');
-    }
-  }
-
-  // 포그라운드 복귀 시 자동 새로고침
-  void onAppResumed() {
-    refreshData();
-
-    // 스트림 재연결
-    if (_currentGroup != null) {
-      _startGroupStatusStream();
+      debugPrint('GroupController: 초기화 실패: $e');
+      _setError('초기화에 실패했습니다: $e');
     }
   }
 
@@ -601,5 +588,51 @@ class GroupController extends ChangeNotifier {
   // 에러 클리어
   void clearError() {
     _setError(null);
+  }
+
+  // 데이터 새로고침 (네트워크 오류 복구용)
+  Future<void> refreshData() async {
+    try {
+      debugPrint('GroupController: 데이터 새로고침 시작');
+      
+      // 에러 상태 초기화
+      _setError(null);
+      _setLoading(true);
+
+      final currentUserId = _firebaseService.currentUserId;
+      if (currentUserId == null) {
+        _setError('로그인 정보가 없습니다. 다시 로그인해주세요.');
+        _setLoading(false);
+        return;
+      }
+
+      // 현재 그룹 정보 다시 로드
+      await loadCurrentGroup();
+      
+      // 초대 정보 다시 로드
+      await _loadReceivedInvitations();
+      await _loadSentInvitations();
+      
+      _setLoading(false);
+      debugPrint('GroupController: 데이터 새로고침 완료');
+      
+    } catch (e) {
+      debugPrint('GroupController: 데이터 새로고침 실패: $e');
+      _setError('데이터 새로고침에 실패했습니다: $e');
+      _setLoading(false);
+    }
+  }
+
+  // 앱이 포그라운드로 전환될 때 호출
+  void onAppResumed() {
+    debugPrint('GroupController: 앱 포그라운드 전환 감지');
+    
+    // 스트림 재시작 (네트워크 연결 복구 대응)
+    if (_currentGroup != null) {
+      _startGroupStatusStream();
+    }
+    
+    // 데이터 새로고침
+    refreshData();
   }
 }

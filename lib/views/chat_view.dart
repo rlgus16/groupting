@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../controllers/auth_controller.dart';
 import '../controllers/group_controller.dart';
 import '../controllers/chat_controller.dart';
 import '../services/fcm_service.dart';
@@ -88,8 +89,32 @@ class _ChatViewState extends State<ChatView> {
         elevation: 0,
       ),
       body: SafeArea( // 전체 body를 SafeArea로 감싸기
-        child: Consumer2<GroupController, ChatController>(
-        builder: (context, groupController, chatController, _) {
+        child: Consumer3<GroupController, ChatController, AuthController>(
+        builder: (context, groupController, chatController, authController, _) {
+          // 로그인 상태 실시간 체크 (회원탈퇴 후 즉시 리다이렉트)
+          if (!authController.isLoggedIn) {
+            debugPrint('채팅 화면 - 로그인 상태 해제 감지, 로그인 화면으로 이동');
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/login',
+                  (route) => false,
+                );
+              }
+            });
+            // 로그인 화면 이동 중 빈 화면 표시
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('로그인 화면으로 이동 중...'),
+                ],
+              ),
+            );
+          }
+
           return Column(
             children: [
               // 채팅 상태 헤더 (매칭 전/후에 따라 다른 UI)

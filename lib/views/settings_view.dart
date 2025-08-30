@@ -613,27 +613,67 @@ class _SettingsViewState extends State<SettingsView> {
                       child: const Text('취소'),
                     ),
                     ElevatedButton(
-                      onPressed: () async {
+                      onPressed: authController.isLoading ? null : () async {
                         // 계정 삭제 실행
-                        final success = await authController.deleteAccount();
-                        
-                        if (mounted) {
-                          Navigator.pop(context); // 다이얼로그 닫기
+                        try {
+                          // 진행 상태 표시를 위한 스낵바
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  Text('계정 삭제 중... 잠시만 기다려주세요.'),
+                                ],
+                              ),
+                              duration: Duration(seconds: 30), // 충분한 시간 제공
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
                           
-                          if (success) {
-                            // 계정 삭제 성공
-                            Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                          final success = await authController.deleteAccount();
+                          
+                          if (mounted) {
+                            // 진행 상태 스낵바 제거
+                            ScaffoldMessenger.of(context).removeCurrentSnackBar();
+                            Navigator.pop(context); // 다이얼로그 닫기
+                            
+                            if (success) {
+                              // 계정 삭제 성공
+                              Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('계정이 성공적으로 삭제되었습니다.'),
+                                  backgroundColor: Colors.green,
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+                            } else {
+                              // 계정 삭제 실패
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(authController.errorMessage ?? '계정 삭제에 실패했습니다.'),
+                                  backgroundColor: Colors.red,
+                                  duration: Duration(seconds: 5),
+                                ),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          debugPrint('계정 삭제 UI 처리 중 오류: $e');
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).removeCurrentSnackBar();
+                            Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('계정이 성공적으로 삭제되었습니다.'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          } else {
-                            // 계정 삭제 실패
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(authController.errorMessage ?? '계정 삭제에 실패했습니다.'),
+                                content: Text('계정 삭제 처리 중 오류가 발생했습니다.'),
                                 backgroundColor: Colors.red,
                               ),
                             );
