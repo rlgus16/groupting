@@ -53,9 +53,11 @@ class ChatController extends ChangeNotifier {
     _startMessageStreamAsync(groupId);
   }
 
-  // 비동기 메시지 스트림 시작
+  // 비동기 메시지 스트림 시작 - 즉시 반영 최적화
   Future<void> _startMessageStreamAsync(String groupId) async {
     try {
+      debugPrint('채팅방 스트림 시작: $groupId');
+      
       // 기존 구독 해제
       _chatroomSubscription?.cancel();
       _groupSubscription?.cancel();
@@ -72,28 +74,57 @@ class ChatController extends ChangeNotifier {
       // 현재 그룹 ID를 채팅방 ID로 업데이트
       _currentGroupId = chatRoomId;
 
-      // 채팅방 스트림 구독 (새로운 구조)
+      debugPrint('채팅방 ID 결정: $chatRoomId');
+
+      // 1. 먼저 기존 채팅방 데이터 즉시 로드 (캐시된 데이터)
+      try {
+        final existingChatroom = await _chatroomService.getChatroomStream(chatRoomId).first;
+        if (!_disposed && existingChatroom != null) {
+          _messages = existingChatroom.messages;
+          _setLoading(false);
+          debugPrint('기존 메시지 즉시 로드: ${_messages.length}개');
+        }
+      } catch (initialLoadError) {
+        debugPrint('초기 메시지 로드 실패 (스트림으로 재시도): $initialLoadError');
+      }
+
+      // 2. 실시간 스트림 구독 (새로운 메시지 업데이트)
       _chatroomSubscription = _chatroomService
           .getChatroomStream(chatRoomId)
           .listen(
             (chatroom) {
               if (!_disposed) {
                 if (chatroom != null) {
+                  final newMessageCount = chatroom.messages.length;
+                  final oldMessageCount = _messages.length;
+                  
                   _messages = chatroom.messages;
+                  
+                  if (newMessageCount > oldMessageCount) {
+                    debugPrint('새 메시지 수신: ${newMessageCount - oldMessageCount}개');
+                  }
+                  
+                  debugPrint('총 메시지: ${_messages.length}개');
                 } else {
                   _messages = [];
+                  debugPrint('빈 채팅방');
                 }
                 _setLoading(false);
+                notifyListeners(); // 즉시 UI 업데이트
               }
             },
             onError: (error) {
               if (!_disposed) {
+                debugPrint('채팅방 스트림 에러: $error');
                 _setError('채팅방 로드에 실패했습니다: $error');
                 _setLoading(false);
               }
             },
             );
+
+      debugPrint('채팅방 스트림 구독 완료');
     } catch (e) {
+      debugPrint('채팅방 스트림 시작 실패: $e');
       _setError('채팅방 스트림 시작에 실패했습니다: $e');
       _setLoading(false);
     }

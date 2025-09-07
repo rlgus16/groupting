@@ -121,7 +121,7 @@ export const sendMessageNotification = functions.firestore
 
       console.log(`알림 수신자 수: ${recipientIds.length}`);
 
-      // 각 수신자의 FCM 토큰과 정보 가져오기
+      // 각 수신자의 FCM 토큰과 정보 가져오기 + 실시간 그룹 멤버십 검증
       const notifications: Array<{token: string, userId: string, nickname: string}> = [];
       
       for (const userId of recipientIds) {
@@ -129,12 +129,58 @@ export const sendMessageNotification = functions.firestore
           const userDoc = await db.collection("users").doc(userId).get();
           if (userDoc.exists) {
             const userData = userDoc.data();
+            
+            // 추가 검증: 사용자가 실제로 현재 그룹에 속해있는지 확인 (안전장치)
+            let isValidRecipient = true;
+            if (chatType === "매칭") {
+              // 매칭 채팅방의 경우: 두 그룹 중 하나에라도 속해있으면 OK
+              const groupIds = chatroomId.split("_");
+              if (groupIds.length === 2) {
+                let belongsToAnyGroup = false;
+                for (const gId of groupIds) {
+                  try {
+                    const groupDoc = await db.collection("groups").doc(gId).get();
+                    if (groupDoc.exists) {
+                      const groupData = groupDoc.data();
+                      if (groupData?.memberIds?.includes(userId)) {
+                        belongsToAnyGroup = true;
+                        break;
+                      }
+                    }
+                  } catch (groupError) {
+                    console.log(`그룹 멤버십 검증 실패 (${gId}): ${groupError}`);
+                  }
+                }
+                isValidRecipient = belongsToAnyGroup;
+              }
+            } else {
+              // 일반 그룹 채팅방의 경우: 해당 그룹에 속해있는지 확인
+              try {
+                const groupDoc = await db.collection("groups").doc(chatroomId).get();
+                if (groupDoc.exists) {
+                  const groupData = groupDoc.data();
+                  isValidRecipient = groupData?.memberIds?.includes(userId) || false;
+                } else {
+                  isValidRecipient = false;
+                }
+              } catch (groupError) {
+                console.log(`그룹 멤버십 검증 실패 (${chatroomId}): ${groupError}`);
+                isValidRecipient = false;
+              }
+            }
+            
+            if (!isValidRecipient) {
+              console.log(`알림 제외 - 그룹 멤버가 아님: ${userData?.nickname || userId}`);
+              continue;
+            }
+            
             if (userData?.fcmToken) {
               notifications.push({
                 token: userData.fcmToken,
                 userId: userId,
                 nickname: userData.nickname || "사용자"
               });
+              console.log(`✅ 알림 대상 확인: ${userData.nickname || userId}`);
             } else {
               console.log(`FCM 토큰이 없는 사용자: ${userId}`);
             }
@@ -313,16 +359,31 @@ export const sendMatchingNotification = functions.firestore
 
         // 매칭된 그룹 정보 가져오기 (알림에 포함할 정보)
         let matchedGroupName = "새로운 그룹";
+        let matchedGroupMemberCount = 0;
+        let currentGroupMemberCount = 0;
+        
         if (afterData.matchedGroupId) {
           try {
             const matchedGroupDoc = await db.collection("groups").doc(afterData.matchedGroupId).get();
             if (matchedGroupDoc.exists) {
               const matchedGroupData = matchedGroupDoc.data();
               matchedGroupName = matchedGroupData?.name || "새로운 그룹";
+              matchedGroupMemberCount = matchedGroupData?.memberIds?.length || 0;
             }
           } catch (e) {
             console.log(`매칭된 그룹 정보 로드 실패: ${e}`);
           }
+        }
+
+        // 현재 그룹 정보도 가져오기
+        try {
+          const currentGroupDoc = await db.collection("groups").doc(groupId).get();
+          if (currentGroupDoc.exists) {
+            const currentGroupData = currentGroupDoc.data();
+            currentGroupMemberCount = currentGroupData?.memberIds?.length || 0;
+          }
+        } catch (e) {
+          console.log(`현재 그룹 정보 로드 실패: ${e}`);
         }
 
         // FCM 매칭 완료 알림 개별 발송
@@ -336,16 +397,34 @@ export const sendMatchingNotification = functions.firestore
         // 각 사용자에게 개별적으로 매칭 완료 알림 발송
         for (const notification of validNotifications) {
           try {
+            // n:n 매칭에 맞는 개인화된 알림 메시지
+            let notificationTitle = "매칭 완료!";
+            let notificationBody = "";
+            
+            const totalMembers = currentGroupMemberCount + matchedGroupMemberCount;
+            
+            if (currentGroupMemberCount === 1 && matchedGroupMemberCount === 1) {
+              // 1:1 매칭
+              notificationBody = `새로운 친구와 매칭되었어요! 지금 바로 채팅을 시작해보세요!`;
+            } else {
+              // n:n 그룹 매칭
+              notificationBody = `${currentGroupMemberCount}명 vs ${matchedGroupMemberCount}명 그룹 매칭 성공! 총 ${totalMembers}명이 함께해요! 🎉`;
+            }
+
             const message = {
               notification: {
-                title: "매칭 완료!",
-                body: `${matchedGroupName}과 매칭되었습니다! 지금 바로 채팅을 시작해보세요!`,
+                title: notificationTitle,
+                body: notificationBody,
               },
               data: {
                 groupId: groupId,
                 matchedGroupId: afterData.matchedGroupId || "",
                 matchedGroupName: matchedGroupName,
                 chatRoomId: `${groupId}_${afterData.matchedGroupId}`,
+                currentGroupMemberCount: currentGroupMemberCount.toString(),
+                matchedGroupMemberCount: matchedGroupMemberCount.toString(),
+                totalMembers: totalMembers.toString(),
+                matchingType: (currentGroupMemberCount === 1 && matchedGroupMemberCount === 1) ? "1v1" : "group",
                 type: "matching_completed",
                 timestamp: Date.now().toString(),
               },
@@ -377,7 +456,7 @@ export const sendMatchingNotification = functions.firestore
             };
 
             const result = await messaging.send(message);
-            console.log(`매칭 알림 발송 성공: ${notification.nickname} (${result})`);
+            console.log(`매칭 알림 발송 성공: ${notification.nickname} (${totalMembers}명 매칭, ${result})`);
             successCount++;
             
           } catch (error) {

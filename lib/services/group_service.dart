@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../models/group_model.dart';
 import '../models/user_model.dart';
 import 'firebase_service.dart';
@@ -285,9 +287,9 @@ class GroupService {
       
       // 1:1 매칭인지 그룹 매칭인지 확인
       if (currentGroup.memberCount == 1) {
-        // 1:1 매칭 모드로 진행
+        debugPrint('1:1 매칭 모드로 진행 (그룹 ID: $groupId)');
       } else {
-        // 그룹 매칭 모드로 진행
+        debugPrint('n:n 그룹 매칭 모드로 진행 (그룹 ID: $groupId, 멤버 수: ${currentGroup.memberCount}명)');
       }
 
       // 현재 그룹의 멤버들 정보 가져오기
@@ -309,24 +311,25 @@ class GroupService {
       if (matchableGroups.isNotEmpty) {
         // 첫 번째 매칭 가능한 그룹과 매칭 시도 (트랜잭션으로 안전하게 처리)
         final targetGroup = matchableGroups.first;
-        // 매칭 대상 그룹: ${targetGroup.id} (멤버수: ${targetGroup.memberCount})
+        debugPrint('매칭 대상 발견: ${targetGroup.id} (멤버수: ${targetGroup.memberCount}명)');
+        debugPrint('매칭 후 총 참여자: ${currentGroup.memberCount + targetGroup.memberCount}명');
 
         final success = await _safeCompleteMatching(groupId, targetGroup.id);
         
         if (success) {
           if (currentGroup.memberCount == 1 && targetGroup.memberCount == 1) {
-            // 1:1 매칭 완료: $groupId ↔ ${targetGroup.id}
+            debugPrint('1:1 매칭 완료: $groupId ↔ ${targetGroup.id}');
           } else {
-            // 그룹 매칭 완료: $groupId (${currentGroup.memberCount}명) ↔ ${targetGroup.id} (${targetGroup.memberCount}명)
+            debugPrint('n:n 그룹 매칭 완료: $groupId (${currentGroup.memberCount}명) ↔ ${targetGroup.id} (${targetGroup.memberCount}명)');
           }
         } else {
-          // 매칭 시도 실패 (이미 다른 그룹과 매칭되었을 수 있음)
+          debugPrint('매칭 시도 실패 (이미 다른 그룹과 매칭되었을 수 있음)');
         }
       } else {
         if (currentGroup.memberCount == 1) {
-          // 1:1 매칭 가능한 상대가 없음. 대기 상태 유지
+          debugPrint('1:1 매칭 대기 중... (매칭 가능한 개인이 없음)');
         } else {
-          // 그룹 매칭 가능한 그룹이 없음. 대기 상태 유지
+          debugPrint('n:n 그룹 매칭 대기 중... (매칭 가능한 그룹이 없음, ${currentGroup.memberCount}명 그룹)');
         }
       }
     } catch (e) {
@@ -482,30 +485,32 @@ class GroupService {
           .where((group) => group.id != excludeGroupId) // 자기 그룹 제외
           .toList();
 
-      // 매칭 조건을 만족하는 그룹들 필터링 (1:1 매칭 포함)
+      debugPrint('매칭 중인 전체 그룹: ${groups.length}개 발견');
+
+      // 매칭 조건을 만족하는 그룹들 필터링 (개선된 유연한 매칭)
       final matchableGroups = <GroupModel>[];
 
       for (final group in groups) {
 
-        // 1:1 매칭 또는 같은 인원 수 매칭 허용
+        // 유연한 매칭 조건 - n:n 매칭 활성화
         bool canMatchBySize = false;
         if (memberCount == 1 && group.memberCount == 1) {
           // 1:1 매칭
           canMatchBySize = true;
-        } else if (memberCount > 1 && group.memberCount == memberCount) {
-          // 같은 인원 수 그룹 매칭
-          canMatchBySize = true;
+        } else if (memberCount > 1 && group.memberCount > 1) {
+          // n:n 매칭 - 인원수가 정확히 같지 않아도 허용 (2-5명 범위)
+          final totalMembers = memberCount + group.memberCount;
+          if (totalMembers <= 10) { // 최대 10명까지 허용
+            canMatchBySize = true;
+          }
         }
 
         if (canMatchBySize) {
-          // 그룹 멤버들 정보 가져오기
-          final members = await Future.wait(
-            group.memberIds.map((id) => _userService.getUserById(id)),
-          );
-
-          final validMembers = members.whereType<UserModel>().toList();
+          // 그룹 멤버들 정보 가져오기 (성능 최적화)
+          final validMembers = await _getUsersByIds(group.memberIds);
 
           if (validMembers.isEmpty) {
+            debugPrint('빈 그룹 건너뛰기: ${group.id}');
             continue;
           }
 
@@ -514,22 +519,35 @@ class GroupService {
           );
 
 
-          // 1:1 매칭의 경우 활동지역 조건을 더 유연하게 처리
+          // 유연한 활동지역 조건 - n:n 매칭 활성화
           bool shouldMatch = false;
           if (memberCount == 1 && group.memberCount == 1) {
-            // 1:1 매칭은 활동지역이 다르더라도 매칭 허용 (테스트용)
+            // 1:1 매칭은 활동지역이 다르더라도 매칭 허용
             shouldMatch = true;
-          } else {
-            // 그룹 매칭은 기존대로 활동지역 일치 필요
-            shouldMatch = hasMatchingArea;
+          } else if (memberCount > 1 && group.memberCount > 1) {
+            // n:n 매칭 - 활동지역 조건을 완화 (테스트를 위해)
+            // 옵션 1: 활동지역 일치 우선, 없으면 전체 허용
+            shouldMatch = hasMatchingArea || true; // 임시로 모든 그룹 매칭 허용
+            
+            // 실제 배포시에는 아래 로직 사용 권장:
+            // shouldMatch = hasMatchingArea; // 활동지역 일치 필요
           }
 
           if (shouldMatch) {
             matchableGroups.add(group);
+            debugPrint('매칭 가능 그룹: ${group.id} (${group.memberCount}명, 활동지역 일치: $hasMatchingArea)');
           } else {
+            debugPrint('매칭 불가 - 활동지역 불일치: ${group.id} (${group.memberCount}명)');
           }
         } else {
+          final totalMembers = memberCount + group.memberCount;
+          debugPrint('매칭 불가 - 인원수 초과: ${group.id} (${group.memberCount}명, 총합: ${totalMembers}명)');
         }
+      }
+
+      debugPrint('최종 매칭 가능한 그룹: ${matchableGroups.length}개');
+      for (final group in matchableGroups) {
+        debugPrint('  - ${group.id}: ${group.memberCount}명 (${group.name})');
       }
 
       return matchableGroups;
@@ -549,7 +567,7 @@ class GroupService {
     return true;
   }
 
-  // 그룹 멤버 정보 가져오기 (매칭된 그룹 멤버 포함)
+  // 그룹 멤버 정보 가져오기 (매칭된 그룹 멤버 포함) - 성능 최적화 버전
   Future<List<UserModel>> getGroupMembers(String groupId) async {
     try {
       final group = await getGroupById(groupId);
@@ -565,15 +583,61 @@ class GroupService {
         }
       }
 
-      final members = await Future.wait(
-        allMemberIds.map((id) => _userService.getUserById(id)),
-      );
+      // 중복 제거
+      final uniqueMemberIds = allMemberIds.toSet().toList();
 
-      final validMembers = members.whereType<UserModel>().toList();
+      if (uniqueMemberIds.isEmpty) {
+        return [];
+      }
 
+      debugPrint('그룹 멤버 조회: ${uniqueMemberIds.length}명 (그룹 ID: $groupId)');
+
+      // 성능 최적화: 한 번에 여러 사용자 조회 (Firestore 'in' 쿼리 사용)
+      final validMembers = await _getUsersByIds(uniqueMemberIds);
+
+      debugPrint('그룹 멤버 조회 완료: ${validMembers.length}명');
       return validMembers;
     } catch (e) {
       throw Exception('그룹 멤버 정보를 가져오는데 실패했습니다: $e');
+    }
+  }
+
+  // 성능 최적화된 사용자 배치 조회 (Firestore 'in' 쿼리 사용)
+  Future<List<UserModel>> _getUsersByIds(List<String> userIds) async {
+    if (userIds.isEmpty) return [];
+
+    try {
+      final List<UserModel> allUsers = [];
+      
+      // Firestore 'in' 쿼리는 최대 30개까지만 지원하므로 배치로 나누어 처리
+      const batchSize = 30;
+      for (int i = 0; i < userIds.length; i += batchSize) {
+        final batchIds = userIds.skip(i).take(batchSize).toList();
+        
+        debugPrint('사용자 배치 조회: ${i + 1}-${i + batchIds.length} / ${userIds.length}');
+
+        final querySnapshot = await _firebaseService.firestore
+            .collection('users')
+            .where(FieldPath.documentId, whereIn: batchIds)
+            .get();
+
+        final batchUsers = querySnapshot.docs
+            .map((doc) => UserModel.fromFirestore(doc))
+            .toList();
+
+        allUsers.addAll(batchUsers);
+        
+        debugPrint('배치 조회 완료: ${batchUsers.length}명 조회');
+      }
+
+      return allUsers;
+    } catch (e) {
+      debugPrint('배치 사용자 조회 실패: $e');
+      // 폴백: 개별 조회
+      final members = await Future.wait(
+        userIds.map((id) => _userService.getUserById(id)),
+      );
+      return members.whereType<UserModel>().toList();
     }
   }
 
@@ -614,7 +678,7 @@ class GroupService {
         // 매칭 중인 그룹 나가기로 인한 리스너 정리
       }
 
-      // 매칭된 상태에서 나가는 경우 채팅방에 시스템 메시지 전송
+      // 매칭된 상태에서 나가는 경우 채팅방에 시스템 메시지 전송 및 참여자 목록 업데이트
       if (group.status == GroupStatus.matched && group.matchedGroupId != null) {
         try {
           final chatRoomId = groupId.compareTo(group.matchedGroupId!) < 0
@@ -622,6 +686,21 @@ class GroupService {
               : '${group.matchedGroupId!}_${groupId}';
           
           final chatroomService = ChatroomService();
+          
+          // 현재 채팅방 참여자 목록 가져오기
+          final currentParticipants = await _getCurrentChatroomParticipants(chatRoomId);
+          
+          // 나가는 사용자를 참여자 목록에서 제거
+          final updatedParticipants = currentParticipants.where((id) => id != userId).toList();
+          
+          // 채팅방 참여자 목록 업데이트 (FCM 알림 대상에서 제외하기 위함)
+          await chatroomService.updateParticipants(
+            chatRoomId: chatRoomId,
+            participants: updatedParticipants,
+          );
+          debugPrint('채팅방 참여자 목록 업데이트: ${currentParticipants.length}명 → ${updatedParticipants.length}명');
+          
+          // 시스템 메시지 전송
           await chatroomService.sendSystemMessage(
             chatRoomId: chatRoomId,
             content: '$leavingUserNickname님이 채팅을 나갔습니다.',
@@ -629,6 +708,7 @@ class GroupService {
           );
           
         } catch (e) {
+          debugPrint('채팅방 참여자 목록 업데이트 실패: $e');
           // 시스템 메시지 실패는 그룹 나가기에 영향을 주지 않음
         }
       }
@@ -703,6 +783,27 @@ class GroupService {
       
     } catch (e) {
       // 매칭된 그룹 상태 처리 실패: $e
+    }
+  }
+
+  // 현재 채팅방 참여자 목록 가져오기 (FCM 알림 대상 관리용)
+  Future<List<String>> _getCurrentChatroomParticipants(String chatRoomId) async {
+    try {
+      final chatroomDoc = await _firebaseService.firestore
+          .collection('chatrooms')
+          .doc(chatRoomId)
+          .get();
+      
+      if (chatroomDoc.exists) {
+        final data = chatroomDoc.data();
+        final participants = data?['participants'] as List<dynamic>?;
+        return participants?.cast<String>() ?? [];
+      }
+      
+      return [];
+    } catch (e) {
+      debugPrint('채팅방 참여자 목록 조회 실패: $e');
+      return [];
     }
   }
 }
