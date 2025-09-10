@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../models/message_model.dart';
 import '../models/user_model.dart';
 import '../models/group_model.dart';
 import '../services/firebase_service.dart';
@@ -22,6 +21,9 @@ class ChatController extends ChangeNotifier {
   List<UserModel> _matchedGroupMembers = [];
   final TextEditingController _messageController = TextEditingController();
   bool _disposed = false;
+  
+  // 성능 최적화: 메시지 캐싱
+  final Map<String, List<ChatMessage>> _messageCache = {};
 
   // Subscriptions
   StreamSubscription<ChatroomModel?>? _chatroomSubscription;
@@ -53,7 +55,7 @@ class ChatController extends ChangeNotifier {
     _startMessageStreamAsync(groupId);
   }
 
-  // 비동기 메시지 스트림 시작 - 즉시 반영 최적화
+  // 비동기 메시지 스트림 시작 - 성능 최적화 버전
   Future<void> _startMessageStreamAsync(String groupId) async {
     try {
       debugPrint('채팅방 스트림 시작: $groupId');
@@ -76,19 +78,23 @@ class ChatController extends ChangeNotifier {
 
       debugPrint('채팅방 ID 결정: $chatRoomId');
 
-      // 1. 먼저 기존 채팅방 데이터 즉시 로드 (캐시된 데이터)
+      // 1. 먼저 기존 채팅방 데이터 즉시 로드 (캐시된 데이터) - 제한된 개수
       try {
         final existingChatroom = await _chatroomService.getChatroomStream(chatRoomId).first;
         if (!_disposed && existingChatroom != null) {
-          _messages = existingChatroom.messages;
+          // 최근 30개 메시지만 로드 (성능 최적화)
+          final recentMessages = existingChatroom.messages.length > 30 
+              ? existingChatroom.messages.sublist(existingChatroom.messages.length - 30)
+              : existingChatroom.messages;
+          _messages = recentMessages;
           _setLoading(false);
-          debugPrint('기존 메시지 즉시 로드: ${_messages.length}개');
+          debugPrint('기존 메시지 즉시 로드: ${_messages.length}개 (최근 30개)');
         }
       } catch (initialLoadError) {
         debugPrint('초기 메시지 로드 실패 (스트림으로 재시도): $initialLoadError');
       }
 
-      // 2. 실시간 스트림 구독 (새로운 메시지 업데이트)
+      // 2. 실시간 스트림 구독 (새로운 메시지 업데이트) - 성능 최적화
       _chatroomSubscription = _chatroomService
           .getChatroomStream(chatRoomId)
           .listen(
@@ -98,13 +104,17 @@ class ChatController extends ChangeNotifier {
                   final newMessageCount = chatroom.messages.length;
                   final oldMessageCount = _messages.length;
                   
-                  _messages = chatroom.messages;
+                  // 성능 최적화: 최근 50개 메시지만 유지
+                  final recentMessages = chatroom.messages.length > 50 
+                      ? chatroom.messages.sublist(chatroom.messages.length - 50)
+                      : chatroom.messages;
+                  _messages = recentMessages;
                   
                   if (newMessageCount > oldMessageCount) {
                     debugPrint('새 메시지 수신: ${newMessageCount - oldMessageCount}개');
                   }
                   
-                  debugPrint('총 메시지: ${_messages.length}개');
+                  debugPrint('총 메시지: ${_messages.length}개 (최근 50개 제한)');
                 } else {
                   _messages = [];
                   debugPrint('빈 채팅방');
@@ -316,11 +326,12 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  // 로그아웃 시 모든 스트림 정리
+  // 로그아웃 시 모든 스트림 정리 + 캐시 청소
   void onSignOut() {
     stopMessageStream();
     _messages.clear();
     _matchedGroupMembers.clear();
+    _messageCache.clear(); // 캐시 청소
     // _onlineUsers.clear(); // Deprecated: 온라인 상태 관리 비활성화
     _currentGroupId = null;
     notifyListeners();
@@ -331,6 +342,7 @@ class ChatController extends ChangeNotifier {
     _disposed = true;
     stopMessageStream();
     _messageController.dispose();
+    _messageCache.clear(); // 메모리 누수 방지
     super.dispose();
   }
 }

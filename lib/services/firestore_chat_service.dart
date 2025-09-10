@@ -46,7 +46,7 @@ class FirestoreChatService {
       );
 
       // Firestore에 저장
-      final docRef = await _messagesCollection.add(message.toFirestore());
+      await _messagesCollection.add(message.toFirestore());
       
     } catch (e) {
       throw Exception('메시지 전송에 실패했습니다: $e');
@@ -54,20 +54,19 @@ class FirestoreChatService {
   }
 
   // 실시간 메시지 스트림 (그룹별)
-  Stream<List<MessageModel>> getMessagesStream(String groupId) {
-    
+  Stream<List<MessageModel>> getMessagesStream(String groupId, {int limit = 50}) {
     return _messagesCollection
         .where('groupId', isEqualTo: groupId)
-        // .orderBy('createdAt', descending: false) // 시간 순으로 정렬 -> 해당 부분은 속도 증가를 위해 인덱스 해줄 필요가 있는 부분.
+        .orderBy('createdAt', descending: true) // 서버 정렬 활성화 (인덱스 필요)
+        .limit(limit) // 메시지 개수 제한으로 성능 향상
         .snapshots()
         .map((snapshot) {
           final messages = snapshot.docs
               .map((doc) => MessageModel.fromFirestore(doc))
               .toList();
           
-          // 시간순으로 정렬 (클라이언트에서)
-          messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));          
-          return messages;
+          // 최신순으로 정렬되어 오므로 역순으로 변환 (오래된 것부터)
+          return messages.reversed.toList();
         });
   }
 
@@ -85,7 +84,7 @@ class FirestoreChatService {
         metadata: metadata,
       );
 
-      final docRef = await _messagesCollection.add(message.toFirestore());
+      await _messagesCollection.add(message.toFirestore());
       
     } catch (e) {
       // 시스템 메시지 전송 오류

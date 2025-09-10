@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/chatroom_model.dart';
-import '../models/user_model.dart';
 import 'firebase_service.dart';
 import 'user_service.dart';
 
@@ -48,9 +47,11 @@ class ChatroomService {
     }
   }
 
-  /// 실시간 채팅방 스트림
+  /// 실시간 채팅방 스트림 - 성능 최적화
   Stream<ChatroomModel?> getChatroomStream(String chatRoomId) {
-    return _chatroomsCollection.doc(chatRoomId).snapshots().map((doc) {
+    return _chatroomsCollection.doc(chatRoomId)
+        .snapshots(includeMetadataChanges: false) // 메타데이터 변경 제외로 불필요한 업데이트 방지
+        .map((doc) {
       if (doc.exists) {
         return ChatroomModel.fromFirestore(doc);
       }
@@ -95,7 +96,7 @@ class ChatroomService {
         metadata: metadata,
       );
 
-      // 트랜잭션으로 채팅방 업데이트
+      // 성능 최적화된 트랜잭션으로 채팅방 업데이트
       await _firebaseService.runTransaction((transaction) async {
         final chatroomDoc = await transaction.get(_chatroomsCollection.doc(chatRoomId));
         
@@ -104,11 +105,34 @@ class ChatroomService {
         }
 
         final chatroom = ChatroomModel.fromFirestore(chatroomDoc);
-        final updatedChatroom = chatroom.addMessage(newMessage);
-
-        transaction.update(_chatroomsCollection.doc(chatRoomId), updatedChatroom.toFirestore());
         
-        debugPrint('채팅방 업데이트 완료 - 총 메시지: ${updatedChatroom.messageCount}개');
+        // 성능 최적화: 메시지 수 제한 (50개 초과 시 오래된 메시지 제거)
+        var messages = chatroom.messages;
+        if (messages.length >= 50) {
+          messages = messages.sublist(messages.length - 49); // 49개 + 새 메시지 = 50개
+          debugPrint('오래된 메시지 제거: ${chatroom.messages.length - 49}개 삭제');
+        }
+        
+        final optimizedChatroom = ChatroomModel(
+          id: chatroom.id,
+          groupId: chatroom.groupId,
+          participants: chatroom.participants,
+          messages: [...messages, newMessage],
+          lastMessage: LastMessage(
+            content: newMessage.content,
+            senderId: newMessage.senderId,
+            senderNickname: newMessage.senderNickname,
+            createdAt: newMessage.createdAt,
+            type: newMessage.type,
+          ),
+          messageCount: chatroom.messageCount + 1,
+          createdAt: chatroom.createdAt,
+          updatedAt: DateTime.now(),
+        );
+
+        transaction.update(_chatroomsCollection.doc(chatRoomId), optimizedChatroom.toFirestore());
+        
+        debugPrint('채팅방 업데이트 완료 - 총 메시지: ${optimizedChatroom.messageCount}개 (메모리: ${optimizedChatroom.messages.length}개)');
       });
 
       debugPrint('메시지 전송 성공! Firebase Functions 트리거 예상됨');

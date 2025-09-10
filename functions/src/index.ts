@@ -8,8 +8,13 @@ admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-// 채팅방에 메시지가 추가될 때 FCM 알림 발송 (chatrooms 컬렉션 기반)
-export const sendMessageNotification = functions.firestore
+// 채팅방에 메시지가 추가될 때 FCM 알림 발송 (chatrooms 컬렉션 기반) - 성능 최적화
+export const sendMessageNotification = functions
+  .runWith({
+    timeoutSeconds: 60,
+    memory: "256MB"
+  })
+  .firestore
   .document("chatrooms/{chatroomId}")
   .onUpdate(async (change, context) => {
     try {
@@ -834,7 +839,20 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
       }
     }
 
-    // 7. Firebase Storage에서 프로필 이미지 삭제
+    // 7. 전화번호 선점 데이터 삭제 (누락되었던 부분!)
+    if (userData?.phoneNumber) {
+      const phoneNumber = userData.phoneNumber.trim();
+      const phoneDoc = await db.collection("phoneNumbers").doc(phoneNumber).get();
+      if (phoneDoc.exists) {
+        const phoneData = phoneDoc.data();
+        if (phoneData?.uid === userIdToDelete) {
+          await db.collection("phoneNumbers").doc(phoneNumber).delete();
+          console.log(`전화번호 선점 데이터 삭제: ${phoneNumber}`);
+        }
+      }
+    }
+
+    // 8. Firebase Storage에서 프로필 이미지 삭제
     if (userData?.profileImages && Array.isArray(userData.profileImages)) {
       for (const imageUrl of userData.profileImages) {
         if (typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
@@ -850,7 +868,7 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
       }
     }
 
-    // 8. Realtime Database에서 채팅 메시지 삭제
+    // 9. Realtime Database에서 채팅 메시지 삭제
     try {
       const realtimeDb = admin.database();
       const chatsRef = realtimeDb.ref('chats');
@@ -879,13 +897,13 @@ export const deleteUserAccount = functions.https.onCall(async (data, context) =>
       console.log(`Realtime Database 정리 실패 (계속 진행): ${realtimeError}`);
     }
 
-    // 9. Firestore에서 사용자 문서 삭제
+    // 10. Firestore에서 사용자 문서 삭제
     if (userDoc.exists) {
       await db.collection("users").doc(userIdToDelete).delete();
       console.log(`Firestore 사용자 문서 삭제 완료`);
     }
 
-    // 10. Firebase Authentication에서 계정 삭제 (Admin 권한)
+    // 11. Firebase Authentication에서 계정 삭제 (Admin 권한)
     try {
       await admin.auth().deleteUser(userIdToDelete);
       console.log(`Firebase Authentication 계정 삭제 완료: ${userIdToDelete}`);
