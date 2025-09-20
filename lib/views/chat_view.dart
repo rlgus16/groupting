@@ -470,7 +470,7 @@ class _ChatViewState extends State<ChatView> {
             const Icon(Icons.favorite, size: 16, color: AppTheme.successColor),
             const SizedBox(width: 4),
             Text(
-              '모든 참여자',
+              '매칭된 참여자 (${chatController.matchedGroupMembers.length}명)',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: AppTheme.textSecondary,
                 fontWeight: FontWeight.w500,

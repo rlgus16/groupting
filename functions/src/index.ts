@@ -425,7 +425,9 @@ export const sendMatchingNotification = functions.firestore
                 groupId: groupId,
                 matchedGroupId: afterData.matchedGroupId || "",
                 matchedGroupName: matchedGroupName,
-                chatRoomId: `${groupId}_${afterData.matchedGroupId}`,
+                chatRoomId: groupId < afterData.matchedGroupId 
+                    ? `${groupId}_${afterData.matchedGroupId}`
+                    : `${afterData.matchedGroupId}_${groupId}`,
                 currentGroupMemberCount: currentGroupMemberCount.toString(),
                 matchedGroupMemberCount: matchedGroupMemberCount.toString(),
                 totalMembers: totalMembers.toString(),

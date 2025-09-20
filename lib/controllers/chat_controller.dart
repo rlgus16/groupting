@@ -95,42 +95,7 @@ class ChatController extends ChangeNotifier {
       }
 
       // 2. 실시간 스트림 구독 (새로운 메시지 업데이트) - 성능 최적화
-      _chatroomSubscription = _chatroomService
-          .getChatroomStream(chatRoomId)
-          .listen(
-            (chatroom) {
-              if (!_disposed) {
-                if (chatroom != null) {
-                  final newMessageCount = chatroom.messages.length;
-                  final oldMessageCount = _messages.length;
-                  
-                  // 성능 최적화: 최근 50개 메시지만 유지
-                  final recentMessages = chatroom.messages.length > 50 
-                      ? chatroom.messages.sublist(chatroom.messages.length - 50)
-                      : chatroom.messages;
-                  _messages = recentMessages;
-                  
-                  if (newMessageCount > oldMessageCount) {
-                    debugPrint('새 메시지 수신: ${newMessageCount - oldMessageCount}개');
-                  }
-                  
-                  debugPrint('총 메시지: ${_messages.length}개 (최근 50개 제한)');
-                } else {
-                  _messages = [];
-                  debugPrint('빈 채팅방');
-                }
-                _setLoading(false);
-                notifyListeners(); // 즉시 UI 업데이트
-              }
-            },
-            onError: (error) {
-              if (!_disposed) {
-                debugPrint('채팅방 스트림 에러: $error');
-                _setError('채팅방 로드에 실패했습니다: $error');
-                _setLoading(false);
-              }
-            },
-            );
+      _startChatroomStream(chatRoomId);
 
       debugPrint('채팅방 스트림 구독 완료');
     } catch (e) {
@@ -138,6 +103,48 @@ class ChatController extends ChangeNotifier {
       _setError('채팅방 스트림 시작에 실패했습니다: $e');
       _setLoading(false);
     }
+  }
+
+  // 채팅방 스트림 시작 (분리된 메서드)
+  void _startChatroomStream(String chatRoomId) {
+    debugPrint('채팅방 스트림 시작: $chatRoomId');
+    
+    _chatroomSubscription = _chatroomService
+        .getChatroomStream(chatRoomId)
+        .listen(
+          (chatroom) {
+            if (!_disposed) {
+              if (chatroom != null) {
+                final newMessageCount = chatroom.messages.length;
+                final oldMessageCount = _messages.length;
+                
+                // 성능 최적화: 최근 50개 메시지만 유지
+                final recentMessages = chatroom.messages.length > 50 
+                    ? chatroom.messages.sublist(chatroom.messages.length - 50)
+                    : chatroom.messages;
+                _messages = recentMessages;
+                
+                if (newMessageCount > oldMessageCount) {
+                  debugPrint('새 메시지 수신: ${newMessageCount - oldMessageCount}개');
+                }
+                
+                debugPrint('총 메시지: ${_messages.length}개 (최근 50개 제한)');
+              } else {
+                _messages = [];
+                debugPrint('빈 채팅방');
+              }
+              _setLoading(false);
+              notifyListeners(); // 즉시 UI 업데이트
+            }
+          },
+          onError: (error) {
+            if (!_disposed) {
+              debugPrint('채팅방 스트림 에러: $error');
+              _setError('채팅방 로드에 실패했습니다: $error');
+              _setLoading(false);
+            }
+          },
+        );
   }
 
   // 실시간 메시지 전송
@@ -234,19 +241,32 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  // 그룹 상태 실시간 감지
+  // 그룹 상태 실시간 감지 - 매칭 상태 변경 감지 개선
   void _startGroupStatusListener(String groupId) {
     try {
       _groupSubscription = _groupService.getGroupStream(groupId).listen(
-        (group) {
-          if (!_disposed) {
-            if (group != null) {
-              // 그룹 멤버 변경 감지 시 멤버 목록 다시 로드
-              _loadGroupMembers();
-            } else {
-              // 그룹이 삭제된 경우 채팅 종료
-              clearData();
+        (group) async {
+          if (!_disposed && group != null) {
+            
+            // 매칭 상태 변경 감지 - 채팅방 ID 재계산 및 스트림 재시작
+            final newChatRoomId = await _getChatRoomId(groupId);
+            
+            if (_currentGroupId != newChatRoomId) {
+              debugPrint('채팅방 ID 변경 감지: ${_currentGroupId} -> ${newChatRoomId}');
+              
+              // 기존 채팅방 스트림 중단
+              _chatroomSubscription?.cancel();
+              _currentGroupId = newChatRoomId;
+              
+              // 새로운 채팅방 스트림 시작
+              _startChatroomStream(newChatRoomId);
             }
+            
+            // 그룹 멤버 변경 감지 시 멤버 목록 다시 로드
+            await _loadGroupMembers();
+          } else if (!_disposed && group == null) {
+            // 그룹이 삭제된 경우 채팅 종료
+            clearData();
           }
         },
         onError: (error) {
@@ -310,12 +330,17 @@ class ChatController extends ChangeNotifier {
         // 매칭된 경우: 모든 그룹 멤버 로드 (자신 그룹 + 상대방 그룹)
         final allMembers = await _groupService.getGroupMembers(currentGroup.id);
         _matchedGroupMembers = allMembers;
+        debugPrint('매칭된 그룹 멤버 로드: ${_matchedGroupMembers.length}명');
+        for (final member in _matchedGroupMembers) {
+          debugPrint('  - ${member.nickname} (${member.uid})');
+        }
       } else {
         // 매칭 전: 현재 그룹 멤버만 로드
         final groupMembers = await Future.wait(
           currentGroup.memberIds.map((id) => _userService.getUserById(id)),
         );
         _matchedGroupMembers = groupMembers.whereType<UserModel>().toList();
+        debugPrint('현재 그룹 멤버 로드: ${_matchedGroupMembers.length}명');
       }
       // 즉시 UI 업데이트
       if (!_disposed) {

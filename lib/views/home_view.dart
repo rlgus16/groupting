@@ -162,9 +162,20 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
     }
   }
 
-  // 매칭 완료 시 처리
+  // 매칭 완료 시 처리 - 개선된 버전
   void _onMatchingCompleted() {
     if (!mounted) return;
+    
+    // 상대방 그룹 정보 가져오기
+    final groupController = _groupController ?? context.read<GroupController>();
+    final currentGroup = groupController.currentGroup;
+    
+    String dialogContent = '상대방 그룹과 매칭되었습니다!\n채팅방에서 인사해보세요 👋';
+    
+    if (currentGroup != null) {
+      final memberCount = groupController.groupMembers.length;
+      dialogContent = '상대방 그룹과 매칭되었습니다!\n총 ${memberCount}명이 참여하는 채팅방에서 인사해보세요 👋';
+    }
 
     showDialog(
       context: context,
@@ -172,12 +183,12 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
       builder: (context) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.celebration, color: AppTheme.primaryColor),
+            Icon(Icons.celebration, color: AppTheme.successColor),
             SizedBox(width: 8),
-            Text('매칭 완료!'),
+            Text('매칭 성공! 🎉'),
           ],
         ),
-        content: const Text('상대방 그룹과 매칭되었습니다!\n채팅방으로 이동하시겠습니까?'),
+        content: Text(dialogContent),
         actions: [
           TextButton(
             onPressed: () {
@@ -188,8 +199,15 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _navigateToChat();
+              // 짧은 딩레이 후 채팅방 이동 (매칭 데이터 동기화 대기)
+              Future.delayed(const Duration(milliseconds: 500), () {
+                _navigateToChat();
+              });
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.successColor,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('채팅방으로 이동'),
           ),
         ],

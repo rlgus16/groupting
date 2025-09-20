@@ -47,15 +47,21 @@ class ChatroomService {
     }
   }
 
-  /// 실시간 채팅방 스트림 - 성능 최적화
+  /// 실시간 채팅방 스트림 - 성능 최적화 및 디버깅 강화
   Stream<ChatroomModel?> getChatroomStream(String chatRoomId) {
+    debugPrint('ChatroomService: 스트림 시작 - $chatRoomId');
+    
     return _chatroomsCollection.doc(chatRoomId)
         .snapshots(includeMetadataChanges: false) // 메타데이터 변경 제외로 불필요한 업데이트 방지
         .map((doc) {
       if (doc.exists) {
-        return ChatroomModel.fromFirestore(doc);
+        final chatroom = ChatroomModel.fromFirestore(doc);
+        debugPrint('ChatroomService: 채팅방 데이터 수신 - 메시지 ${chatroom.messageCount}개, 참여자 ${chatroom.participants.length}명');
+        return chatroom;
+      } else {
+        debugPrint('ChatroomService: 채팅방 문서 없음 - $chatRoomId');
+        return null;
       }
-      return null;
     });
   }
 
