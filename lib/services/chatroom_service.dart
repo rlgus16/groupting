@@ -12,7 +12,7 @@ class ChatroomService {
   CollectionReference<Map<String, dynamic>> get _chatroomsCollection =>
       _firebaseService.firestore.collection('chatrooms');
 
-  /// 채팅방 생성 또는 가져오기
+  /// 채팅방 생성 또는 가져오기 (개선된 참여자 관리)
   Future<ChatroomModel> getOrCreateChatroom({
     required String chatRoomId,
     required String groupId,
@@ -23,8 +23,30 @@ class ChatroomService {
       final doc = await _chatroomsCollection.doc(chatRoomId).get();
       
       if (doc.exists) {
+        final existingChatroom = ChatroomModel.fromFirestore(doc);
+        
+        // 참여자 목록이 다르면 업데이트
+        final existingParticipants = Set.from(existingChatroom.participants);
+        final newParticipants = Set.from(participants);
+        
+        if (!existingParticipants.containsAll(newParticipants) || 
+            !newParticipants.containsAll(existingParticipants)) {
+          debugPrint('채팅방 참여자 목록 업데이트: ${existingParticipants.length}명 → ${newParticipants.length}명');
+          
+          await _chatroomsCollection.doc(chatRoomId).update({
+            'participants': participants,
+            'updatedAt': Timestamp.fromDate(DateTime.now()),
+          });
+          
+          // 업데이트된 채팅방 반환
+          return existingChatroom.copyWith(
+            participants: participants,
+            updatedAt: DateTime.now(),
+          );
+        }
+        
         // 기존 채팅방 반환
-        return ChatroomModel.fromFirestore(doc);
+        return existingChatroom;
       }
       
       // 새 채팅방 생성
@@ -39,6 +61,7 @@ class ChatroomService {
         updatedAt: now,
       );
       
+      debugPrint('새 채팅방 생성: $chatRoomId (참여자 ${participants.length}명)');
       await _chatroomsCollection.doc(chatRoomId).set(newChatroom.toFirestore());
       
       return newChatroom;
@@ -49,17 +72,27 @@ class ChatroomService {
 
   /// 실시간 채팅방 스트림 - 성능 최적화 및 디버깅 강화
   Stream<ChatroomModel?> getChatroomStream(String chatRoomId) {
-    debugPrint('ChatroomService: 스트림 시작 - $chatRoomId');
     
     return _chatroomsCollection.doc(chatRoomId)
-        .snapshots(includeMetadataChanges: false) // 메타데이터 변경 제외로 불필요한 업데이트 방지
+        .snapshots(
+          includeMetadataChanges: false, // 메타데이터 변경 제외로 불필요한 업데이트 방지
+        )
+        .distinct((prev, next) {
+          // 실제 변경사항이 있을 때만 업데이트 (성능 최적화)
+          final prevData = prev.data();
+          final nextData = next.data();
+          
+          if (prevData == null && nextData == null) return true;
+          if (prevData == null || nextData == null) return false;
+          
+          return prevData['messageCount'] == nextData['messageCount'] &&
+                 prevData['updatedAt'] == nextData['updatedAt'];
+        })
         .map((doc) {
       if (doc.exists) {
         final chatroom = ChatroomModel.fromFirestore(doc);
-        debugPrint('ChatroomService: 채팅방 데이터 수신 - 메시지 ${chatroom.messageCount}개, 참여자 ${chatroom.participants.length}명');
         return chatroom;
       } else {
-        debugPrint('ChatroomService: 채팅방 문서 없음 - $chatRoomId');
         return null;
       }
     });

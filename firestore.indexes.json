@@ -29,6 +29,24 @@
       ]
     },
     {
+      "collectionGroup": "groups",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "messages",
       "queryScope": "COLLECTION",
       "fields": [
@@ -98,6 +116,66 @@
         },
         {
           "fieldPath": "messageCount",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chatrooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "participants",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "messageCount",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "currentGroupId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "nicknames",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reservedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "usernames",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reservedAt",
           "order": "DESCENDING"
         }
       ]

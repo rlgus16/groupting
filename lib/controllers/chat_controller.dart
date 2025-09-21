@@ -7,12 +7,14 @@ import '../services/user_service.dart';
 import '../services/group_service.dart';
 import '../services/chatroom_service.dart';
 import '../models/chatroom_model.dart';
+import '../utils/performance_monitor.dart';
 
 class ChatController extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
   final UserService _userService = UserService();
   final GroupService _groupService = GroupService();
   final ChatroomService _chatroomService = ChatroomService();
+  final PerformanceMonitor _performanceMonitor = PerformanceMonitor();
 
   // State
   bool _isLoading = false;
@@ -24,6 +26,13 @@ class ChatController extends ChangeNotifier {
   
   // 성능 최적화: 메시지 캐싱
   final Map<String, List<ChatMessage>> _messageCache = {};
+  final Map<String, DateTime> _lastUpdateTime = {};
+  Timer? _debounceTimer;
+  
+  // 성능 최적화 설정
+  static const int _maxCachedMessages = 50;
+  static const int _maxDisplayMessages = 100;
+  static const Duration _updateDebounceDelay = Duration(milliseconds: 100);
 
   // Subscriptions
   StreamSubscription<ChatroomModel?>? _chatroomSubscription;
@@ -105,7 +114,7 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  // 채팅방 스트림 시작 (분리된 메서드)
+  // 채팅방 스트림 시작 (성능 최적화된 버전)
   void _startChatroomStream(String chatRoomId) {
     debugPrint('채팅방 스트림 시작: $chatRoomId');
     
@@ -114,27 +123,7 @@ class ChatController extends ChangeNotifier {
         .listen(
           (chatroom) {
             if (!_disposed) {
-              if (chatroom != null) {
-                final newMessageCount = chatroom.messages.length;
-                final oldMessageCount = _messages.length;
-                
-                // 성능 최적화: 최근 50개 메시지만 유지
-                final recentMessages = chatroom.messages.length > 50 
-                    ? chatroom.messages.sublist(chatroom.messages.length - 50)
-                    : chatroom.messages;
-                _messages = recentMessages;
-                
-                if (newMessageCount > oldMessageCount) {
-                  debugPrint('새 메시지 수신: ${newMessageCount - oldMessageCount}개');
-                }
-                
-                debugPrint('총 메시지: ${_messages.length}개 (최근 50개 제한)');
-              } else {
-                _messages = [];
-                debugPrint('빈 채팅방');
-              }
-              _setLoading(false);
-              notifyListeners(); // 즉시 UI 업데이트
+              _handleChatroomUpdate(chatroom, chatRoomId);
             }
           },
           onError: (error) {
@@ -146,8 +135,92 @@ class ChatController extends ChangeNotifier {
           },
         );
   }
+  
+  // 채팅방 업데이트 처리 (디바운싱 적용)
+  void _handleChatroomUpdate(ChatroomModel? chatroom, String chatRoomId) {
+    if (chatroom == null) {
+      _messages = [];
+      _setLoading(false);
+      notifyListeners();
+      return;
+    }
+    
+    final now = DateTime.now();
+    final lastUpdate = _lastUpdateTime[chatRoomId];
+    
+    // 너무 빈번한 업데이트 방지 (100ms 디바운싱)
+    if (lastUpdate != null && now.difference(lastUpdate) < _updateDebounceDelay) {
+      _debounceTimer?.cancel();
+      _debounceTimer = Timer(_updateDebounceDelay, () {
+        if (!_disposed) {
+          _processChatroomUpdate(chatroom, chatRoomId);
+        }
+      });
+      return;
+    }
+    
+    _processChatroomUpdate(chatroom, chatRoomId);
+  }
+  
+  // 실제 채팅방 업데이트 처리 (성능 최적화 포함)
+  void _processChatroomUpdate(ChatroomModel chatroom, String chatRoomId) {
+    final now = DateTime.now();
+    _lastUpdateTime[chatRoomId] = now;
+    
+    // 성능 모니터링: UI 업데이트 기록
+    _performanceMonitor.recordUIUpdate('ChatController_Update');
+    
+    final newMessageCount = chatroom.messages.length;
+    final oldMessageCount = _messages.length;
+    
+    // 새 메시지 수신 시 성능 측정 (안전한 범위 체크)
+    if (newMessageCount > oldMessageCount && oldMessageCount >= 0) {
+      try {
+        final newMessages = chatroom.messages.length > oldMessageCount 
+            ? chatroom.messages.sublist(oldMessageCount)
+            : <ChatMessage>[];
+        
+        for (final message in newMessages) {
+          _performanceMonitor.recordMessageReceived(message.id, message.createdAt);
+        }
+      } catch (e) {
+        // 오류 로그
+      }
+    }
+    
+    // 성능 최적화: 표시할 메시지 수 제한
+    final messagesToDisplay = chatroom.messages.length > _maxDisplayMessages 
+        ? chatroom.messages.sublist(chatroom.messages.length - _maxDisplayMessages)
+        : chatroom.messages;
+    
+    // 캐시 업데이트 (안전한 범위 체크)
+    try {
+      final messagesToCache = chatroom.messages.length > _maxCachedMessages 
+          ? chatroom.messages.sublist(chatroom.messages.length - _maxCachedMessages)
+          : chatroom.messages;
+      _messageCache[chatRoomId] = messagesToCache;
+    } catch (e) {
+      // 오류 로그
+    }
+    
+    _messages = messagesToDisplay;
+    
+    if (newMessageCount > oldMessageCount) {
+      debugPrint('새 메시지 수신: ${newMessageCount - oldMessageCount}개 (표시: ${_messages.length}개)');
+    }
+    
+    // 성능 모니터링: 메모리 사용량 체크 (안전하게)
+    try {
+      _performanceMonitor.checkMemoryUsage();
+    } catch (e) {
+      // 오류 로그
+    }
+    
+    _setLoading(false);
+    notifyListeners();
+  }
 
-  // 실시간 메시지 전송
+  // 실시간 메시지 전송 (성능 모니터링 포함)
   Future<bool> sendMessage() async {
     final content = _messageController.text.trim();
 
@@ -159,6 +232,10 @@ class ChatController extends ChangeNotifier {
       return false;
     }
 
+    // 성능 모니터링: 메시지 전송 시간 측정 시작
+    final messageId = DateTime.now().millisecondsSinceEpoch.toString();
+    final stopwatch = _performanceMonitor.startMessageSend(messageId);
+
     try {
       _setError(null);
 
@@ -168,10 +245,17 @@ class ChatController extends ChangeNotifier {
         content: content,
       );
 
+      // 성능 모니터링: 메시지 전송 완료 기록
+      _performanceMonitor.recordMessageSent(messageId, stopwatch);
+
       _messageController.clear();
 
       return true;
     } catch (e) {
+      // 전송 실패 시에도 시간 기록 (디버깅용)
+      stopwatch.stop();
+      // 오류 로그
+      
       _setError('메시지 전송에 실패했습니다: $e');
       return false;
     }
@@ -211,7 +295,7 @@ class ChatController extends ChangeNotifier {
         });
       }
     } catch (e) {
-      debugPrint('ChatController clearData 중 에러: $e');
+      // 오류 로그
     }
   }
 
@@ -252,7 +336,7 @@ class ChatController extends ChangeNotifier {
             final newChatRoomId = await _getChatRoomId(groupId);
             
             if (_currentGroupId != newChatRoomId) {
-              debugPrint('채팅방 ID 변경 감지: ${_currentGroupId} -> ${newChatRoomId}');
+              // 오류 로그
               
               // 기존 채팅방 스트림 중단
               _chatroomSubscription?.cancel();
@@ -270,11 +354,11 @@ class ChatController extends ChangeNotifier {
           }
         },
         onError: (error) {
-          debugPrint('ChatController: 그룹 상태 감지 오류 - $error');
+          // 오류 로그
         },
       );
     } catch (e) {
-      debugPrint('ChatController: 그룹 상태 리스너 시작 실패 - $e');
+      // 오류 로그
     }
   }
 
@@ -313,26 +397,61 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  // 그룹 멤버 로드 (매칭 전/후 구분)
+  // 그룹 멤버 로드 (매칭 전/후 구분) - 개선된 버전
   Future<void> _loadGroupMembers() async {
     try {
       final currentUserId = _firebaseService.currentUserId;
       if (currentUserId == null) return;
 
       // 현재 사용자의 그룹 찾기
-      final currentGroup = await _groupService.getUserCurrentGroup(
-        currentUserId,
-      );
+      final currentGroup = await _groupService.getUserCurrentGroup(currentUserId);
       if (currentGroup == null) return;
 
       // 매칭 상태에 따라 다른 멤버 로드
-      if (currentGroup.status == GroupStatus.matched) {
-        // 매칭된 경우: 모든 그룹 멤버 로드 (자신 그룹 + 상대방 그룹)
-        final allMembers = await _groupService.getGroupMembers(currentGroup.id);
-        _matchedGroupMembers = allMembers;
-        debugPrint('매칭된 그룹 멤버 로드: ${_matchedGroupMembers.length}명');
+      if (currentGroup.status == GroupStatus.matched && currentGroup.matchedGroupId != null) {
+        // 매칭된 경우: 두 그룹의 모든 멤버 로드
+        
+        // 현재 그룹 멤버들
+        final currentGroupMembers = await Future.wait(
+          currentGroup.memberIds.map((id) => _userService.getUserById(id)),
+        );
+        
+        // 매칭된 그룹 멤버들
+        final matchedGroup = await _groupService.getGroupById(currentGroup.matchedGroupId!);
+        List<UserModel> matchedGroupMembers = [];
+        
+        if (matchedGroup != null) {
+          final matchedMembers = await Future.wait(
+            matchedGroup.memberIds.map((id) => _userService.getUserById(id)),
+          );
+          matchedGroupMembers = matchedMembers.whereType<UserModel>().toList();
+        }
+        
+        // 두 그룹의 모든 멤버 합치기 (중복 제거)
+        final allMemberIds = <String>{
+          ...currentGroup.memberIds,
+          ...?matchedGroup?.memberIds,
+        };
+        
+        final allMembers = [
+          ...currentGroupMembers.whereType<UserModel>(),
+          ...matchedGroupMembers,
+        ];
+        
+        // 중복 제거 (UID 기준)
+        final uniqueMembers = <String, UserModel>{};
+        for (final member in allMembers) {
+          uniqueMembers[member.uid] = member;
+        }
+        
+        _matchedGroupMembers = uniqueMembers.values.toList();
+        
+        debugPrint('매칭된 그룹 멤버 로드 완료: ${_matchedGroupMembers.length}명');
+        debugPrint('  - 현재 그룹: ${currentGroupMembers.length}명');
+        debugPrint('  - 매칭된 그룹: ${matchedGroupMembers.length}명');
+        
         for (final member in _matchedGroupMembers) {
-          debugPrint('  - ${member.nickname} (${member.uid})');
+          debugPrint('    - ${member.nickname} (${member.uid})');
         }
       } else {
         // 매칭 전: 현재 그룹 멤버만 로드
@@ -340,23 +459,43 @@ class ChatController extends ChangeNotifier {
           currentGroup.memberIds.map((id) => _userService.getUserById(id)),
         );
         _matchedGroupMembers = groupMembers.whereType<UserModel>().toList();
-        debugPrint('현재 그룹 멤버 로드: ${_matchedGroupMembers.length}명');
+        debugPrint('현재 그룹 멤버 로드: ${_matchedGroupMembers.length}명 (매칭 전)');
       }
+      
       // 즉시 UI 업데이트
       if (!_disposed) {
         notifyListeners();
       }
     } catch (e) {
-      // ChatController: 그룹 멤버 로드 실패
+      // 오류 로그
+    }
+  }
+
+  // 성능 통계 출력 (개발 모드에서만)
+  void printPerformanceStats() {
+    if (_currentGroupId != null) {
+      _performanceMonitor.printChatPerformanceStats(_currentGroupId!);
+      
+      final warnings = _performanceMonitor.getPerformanceWarnings();
+      if (warnings.isNotEmpty) {
+        // 오류 로그
+        for (final warning in warnings) {
+          // 오류 로그
+        }
+      }
     }
   }
 
   // 로그아웃 시 모든 스트림 정리 + 캐시 청소
   void onSignOut() {
+    // 성능 통계 출력
+    printPerformanceStats();
+    
     stopMessageStream();
     _messages.clear();
     _matchedGroupMembers.clear();
     _messageCache.clear(); // 캐시 청소
+    _performanceMonitor.reset(); // 성능 모니터 초기화
     // _onlineUsers.clear(); // Deprecated: 온라인 상태 관리 비활성화
     _currentGroupId = null;
     notifyListeners();
@@ -365,9 +504,11 @@ class ChatController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _debounceTimer?.cancel(); // 디바운스 타이머 정리
     stopMessageStream();
     _messageController.dispose();
     _messageCache.clear(); // 메모리 누수 방지
+    _lastUpdateTime.clear(); // 업데이트 시간 캐시 정리
     super.dispose();
   }
 }

@@ -396,35 +396,62 @@ class GroupService {
               ? '${groupId1}_${groupId2}'
               : '${groupId2}_${groupId1}';
           
-          // 매칭된 모든 그룹 멤버 ID 수집
-          final group1Members = await getGroupMembers(groupId1);
-          final group2Members = await getGroupMembers(groupId2);
-          final allParticipants = [
-            ...group1Members.map((member) => member.uid),
-            ...group2Members.map((member) => member.uid),
-          ];
+          // 매칭된 그룹들의 현재 멤버 ID 수집 (매칭 시점 기준)
+          final group1Doc = await _groupsCollection.doc(groupId1).get();
+          final group2Doc = await _groupsCollection.doc(groupId2).get();
+          
+          if (!group1Doc.exists || !group2Doc.exists) {
+            // debugPrint('매칭된 그룹 중 하나가 존재하지 않음');
+            // 존재하지 않으면 매칭 실패
+            return false;
+          }
+          
+          final group1Data = group1Doc.data()!;
+          final group2Data = group2Doc.data()!;
+          
+          final group1MemberIds = List<String>.from(group1Data['memberIds'] ?? []);
+          final group2MemberIds = List<String>.from(group2Data['memberIds'] ?? []);
+          
+          // 중복 제거하여 전체 참여자 목록 생성
+          final allParticipants = <String>{
+            ...group1MemberIds,
+            ...group2MemberIds,
+          }.toList();
           
           // 채팅방 서비스로 채팅방 생성 및 환영 메시지 전송
           final chatroomService = ChatroomService();
           
-          // 채팅방 생성
+          // 채팅방 생성 (참여자 목록 정확히 설정)
           await chatroomService.getOrCreateChatroom(
             chatRoomId: chatRoomId,
             groupId: chatRoomId,
             participants: allParticipants,
           );
           
+          // 매칭 타입에 따른 환영 메시지
+          String welcomeMessage;
+          if (group1MemberIds.length == 1 && group2MemberIds.length == 1) {
+            welcomeMessage = '1:1 매칭이 완료되었습니다! 서로 인사해보세요 👋';
+          } else {
+            welcomeMessage = 'n:n 그룹 매칭이 완료되었습니다! (${group1MemberIds.length}명 vs ${group2MemberIds.length}명) 모두 함께 인사해보세요 🎉';
+          }
+          
           // 환영 메시지 전송
           await chatroomService.sendSystemMessage(
             chatRoomId: chatRoomId,
-            content: '매칭이 완료되었습니다! 서로 인사해보세요 👋',
-            metadata: {'type': 'matching_completed'},
+            content: welcomeMessage,
+            metadata: {
+              'type': 'matching_completed',
+              'group1Id': groupId1,
+              'group2Id': groupId2,
+              'group1MemberCount': group1MemberIds.length,
+              'group2MemberCount': group2MemberIds.length,
+              'totalParticipants': allParticipants.length,
+            },
           );
-          
         } catch (e) {
           // 채팅방 생성 실패는 매칭 성공에 영향을 주지 않음
         }
-        
       } else {
         // 매칭 트랜잭션 실패 - 이유: ${failureReason ?? "알 수 없는 이유"}
       }

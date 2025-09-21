@@ -217,4 +217,27 @@ class ChatroomModel {
         message.senderId != userId && !message.isReadBy(userId)
     ).length;
   }
+
+  // 복사본 생성
+  ChatroomModel copyWith({
+    String? id,
+    String? groupId,
+    List<String>? participants,
+    List<ChatMessage>? messages,
+    LastMessage? lastMessage,
+    int? messageCount,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return ChatroomModel(
+      id: id ?? this.id,
+      groupId: groupId ?? this.groupId,
+      participants: participants ?? this.participants,
+      messages: messages ?? this.messages,
+      lastMessage: lastMessage ?? this.lastMessage,
+      messageCount: messageCount ?? this.messageCount,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }

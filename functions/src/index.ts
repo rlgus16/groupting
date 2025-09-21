@@ -204,10 +204,17 @@ export const sendMessageNotification = functions
 
       console.log(`FCM 토큰 수: ${notifications.length}`);
 
-      // 알림 제목 생성 (매칭/일반 구분)
+      // 알림 제목 생성 (매칭/일반 구분, n:n 그룹 매칭 고려)
       let notificationTitle: string;
       if (chatType === "매칭") {
-        notificationTitle = `${lastMessage.senderNickname} (매칭 채팅)`;
+        const totalParticipants = allMemberIds.length;
+        if (totalParticipants === 2) {
+          // 1:1 매칭
+          notificationTitle = `${lastMessage.senderNickname} (1:1 매칭)`;
+        } else {
+          // n:n 그룹 매칭
+          notificationTitle = `${lastMessage.senderNickname} (${totalParticipants}명 그룹 매칭)`;
+        }
       } else {
         const groupName = groupNames.length > 0 ? groupNames[0] : "그룹";
         notificationTitle = `${lastMessage.senderNickname} (${groupName})`;

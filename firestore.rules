@@ -57,6 +57,20 @@ service cloud.firestore {
       // 그룹 소유자만 멤버 추가/제거 등 수정 가능
       allow update: if request.auth != null && 
         request.auth.uid == resource.data.ownerId;
+        
+      // 매칭 시작: 그룹 소유자(방장)만 가능
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.ownerId &&
+        resource.data.status == 'active' &&
+        request.resource.data.status == 'matching' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
+        
+      // 매칭 취소: 그룹 소유자(방장)만 가능
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.ownerId &&
+        resource.data.status == 'matching' &&
+        request.resource.data.status in ['active', 'waiting'] &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
       
       // 초대 수락 시 자신을 그룹에 추가하는 경우 허용
       allow update: if request.auth != null && 
@@ -65,8 +79,12 @@ service cloud.firestore {
         !(request.auth.uid in resource.data.memberIds) &&
         // 새로운 멤버 수가 기존보다 정확히 1명 많아야 함
         request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1 &&
+        // 최대 인원 제한 확인 (5명)
+        request.resource.data.memberIds.size() <= 5 &&
         // ownerId는 변경되지 않아야 함
         request.resource.data.ownerId == resource.data.ownerId &&
+        // 그룹이 매칭 중이 아닌지 확인
+        resource.data.status != 'matching' &&
         // memberIds와 updatedAt만 변경 가능
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds', 'updatedAt']);
       
@@ -102,10 +120,14 @@ service cloud.firestore {
       allow read: if request.auth != null;
       
       // 매칭 완료를 위해 'matching' 상태인 그룹을 'matched' 상태로 업데이트 허용
+      // 단, 매칭되는 상대방 그룹의 멤버이거나 시스템 작업인 경우만 허용
       allow update: if request.auth != null && 
         resource.data.status == 'matching' &&
         request.resource.data.status == 'matched' &&
-        request.resource.data.keys().hasAll(['status', 'matchedGroupId', 'updatedAt']);
+        request.resource.data.keys().hasAll(['status', 'matchedGroupId', 'updatedAt']) &&
+        // 매칭되는 상대방 그룹에 속한 사용자이거나 현재 그룹 멤버인 경우만 허용
+        (request.auth.uid in resource.data.memberIds ||
+         isUserInGroup(request.auth.uid, request.resource.data.matchedGroupId));
       
       // 그룹 소유자(방장)만 삭제 가능
       allow delete: if request.auth != null && 
@@ -114,19 +136,67 @@ service cloud.firestore {
     
     // 채팅방 컬렉션 (새로운 구조 - 메시지 배열 기반)
     match /chatrooms/{chatroomId} {
-      // 채팅방 생성: 인증된 사용자만 가능
+      // 채팅방 생성: 인증된 사용자만 가능하고 자신이 참여자인 경우
       allow create: if request.auth != null &&
-        request.resource.data.keys().hasAll(['groupId', 'participants', 'messages', 'messageCount', 'createdAt', 'updatedAt']);
+        request.resource.data.keys().hasAll(['groupId', 'participants', 'messages', 'messageCount', 'createdAt', 'updatedAt']) &&
+        request.auth.uid in request.resource.data.participants;
+        
+      // 매칭된 채팅방 생성: 복합 ID 형태의 채팅방 (_로 구분)
+      // 두 그룹 중 하나에라도 속한 사용자가 생성 가능
+      allow create: if request.auth != null &&
+        request.resource.data.keys().hasAll(['groupId', 'participants', 'messages', 'messageCount', 'createdAt', 'updatedAt']) &&
+        chatroomId.matches('.*_.*') &&
+        isUserInMatchedGroups(request.auth.uid, chatroomId);
       
-      // 채팅방 읽기: 인증된 모든 사용자 가능 (임시 완화 - 매칭된 그룹 접근용)
-      allow read: if request.auth != null;
+      // 채팅방 읽기: 참여자만 가능
+      allow read: if request.auth != null && 
+        request.auth.uid in resource.data.participants;
       
-      // 채팅방 업데이트: 인증된 모든 사용자 가능 (메시지 추가, 읽음 처리)
-      // 실제로는 참여자만 업데이트하지만 규칙을 단순화
-      allow update: if request.auth != null;
+      // 채팅방 업데이트: 참여자만 가능 (메시지 추가, 읽음 처리)
+      allow update: if request.auth != null && 
+        request.auth.uid in resource.data.participants &&
+        // 참여자 목록은 변경되지 않거나, 자신을 제거하는 경우만 허용
+        (request.resource.data.participants == resource.data.participants ||
+         (request.resource.data.participants.size() == resource.data.participants.size() - 1 &&
+          !(request.auth.uid in request.resource.data.participants) &&
+          request.auth.uid in resource.data.participants));
       
-      // 채팅방 삭제: 인증된 사용자만 가능
-      allow delete: if request.auth != null;
+      // 채팅방 삭제: 참여자만 가능
+      allow delete: if request.auth != null && 
+        request.auth.uid in resource.data.participants;
+        
+      // 매칭된 채팅방 특별 규칙: 복합 ID 형태의 채팅방 (_로 구분)
+      // 두 그룹 중 하나에라도 속한 사용자는 접근 가능
+      allow read, update: if request.auth != null && 
+        chatroomId.matches('.*_.*') &&
+        isUserInMatchedGroups(request.auth.uid, chatroomId);
+    }
+    
+    // 매칭된 그룹 채팅방 접근 권한 확인 함수
+    function isUserInMatchedGroups(userId, chatroomId) {
+      let groupIds = chatroomId.split('_');
+      return groupIds.size() == 2 && (
+        isUserInGroup(userId, groupIds[0]) || 
+        isUserInGroup(userId, groupIds[1])
+      );
+    }
+    
+    // 사용자가 특정 그룹에 속하는지 확인하는 함수
+    function isUserInGroup(userId, groupId) {
+      return exists(/databases/$(database)/documents/groups/$(groupId)) &&
+        userId in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds;
+    }
+    
+    // 사용자가 특정 그룹의 방장인지 확인하는 함수
+    function isGroupOwner(userId, groupId) {
+      return exists(/databases/$(database)/documents/groups/$(groupId)) &&
+        userId == get(/databases/$(database)/documents/groups/$(groupId)).data.ownerId;
+    }
+    
+    // 그룹이 매칭 중인지 확인하는 함수
+    function isGroupMatching(groupId) {
+      return exists(/databases/$(database)/documents/groups/$(groupId)) &&
+        get(/databases/$(database)/documents/groups/$(groupId)).data.status == 'matching';
     }
     
     // 메시지 컬렉션 (초대 메시지 포함)
@@ -152,10 +222,14 @@ service cloud.firestore {
     
     // 초대 컬렉션
     match /invitations/{invitationId} {
-      // 초대 보낸 사람만 생성 가능
+      // 초대 보낸 사람만 생성 가능 (그룹 방장이고 그룹이 매칭 중이 아닌 경우)
       allow create: if request.auth != null && 
         request.auth.uid == request.resource.data.fromUserId &&
-        request.resource.data.keys().hasAll(['fromUserId', 'toUserId', 'groupId', 'status', 'createdAt']);
+        request.resource.data.keys().hasAll(['fromUserId', 'toUserId', 'groupId', 'status', 'createdAt']) &&
+        // 초대를 보내는 사용자가 해당 그룹의 방장인지 확인
+        isGroupOwner(request.auth.uid, request.resource.data.groupId) &&
+        // 그룹이 매칭 중이 아닌지 확인 (매칭 중에는 초대 불가)
+        !isGroupMatching(request.resource.data.groupId);
       
       // 초대 보낸 사람과 받는 사람만 읽기 가능
       allow read: if request.auth != null && (
