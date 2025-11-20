@@ -749,7 +749,10 @@ class GroupService {
       if (group.memberCount <= 1) {
         await _groupsCollection.doc(groupId).delete();
         // 그룹 삭제 완료: $groupId
-        
+
+        // [빠른손] 임시 채팅방 삭제
+        await ChatroomService().deleteChatroom(groupId);
+
         // 사용자의 현재 그룹 ID 제거
         await _userService.updateCurrentGroupId(userId, null);
         // 사용자의 currentGroupId 제거 완료

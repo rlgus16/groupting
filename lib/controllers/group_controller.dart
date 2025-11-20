@@ -1,8 +1,11 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:groupting/services/chatroom_service.dart';
+
 import '../models/group_model.dart';
-import '../models/user_model.dart';
 import '../models/invitation_model.dart';
+import '../models/user_model.dart';
 import '../services/firebase_service.dart';
 import '../services/group_service.dart';
 import '../services/invitation_service.dart';
@@ -21,6 +24,7 @@ class GroupController extends ChangeNotifier {
   List<InvitationModel> _receivedInvitations = [];
   List<InvitationModel> _sentInvitations = [];
   bool _isMatching = false;
+  String _myGroupId = '';
 
   // Streams
   Stream<GroupModel?>? _groupStream;
@@ -100,6 +104,19 @@ class GroupController extends ChangeNotifier {
       // 그룹 상태 실시간 감지 시작
       _startGroupStatusStream();
 
+      // [빠른손] 채팅방 존재 여부 확인 후 없는 경우 임시 생성 >>
+      _myGroupId = group.id;
+      final chatroomService = ChatroomService();
+      final members = await _groupService.getGroupMembers(_myGroupId);
+      final participants = [for (final m in members) m.uid];
+
+      await chatroomService.getOrCreateChatroom(
+        chatRoomId: _myGroupId,
+        groupId: _myGroupId,
+        participants: participants,
+      );
+      // <<
+
       _setLoading(false);
       return true;
     } catch (e) {
@@ -112,6 +129,8 @@ class GroupController extends ChangeNotifier {
   // 그룹 상태 실시간 감지 (재연결 로직 포함)
   void _startGroupStatusStream() {
     if (_currentGroup == null) return;
+
+    final chatroomService = ChatroomService();
 
     // 기존 구독 취소
     _groupSubscription?.cancel();
@@ -127,6 +146,21 @@ class GroupController extends ChangeNotifier {
           // [빠른손] 그룹 내 멤버 수 변경 감지(수락 및 나가기) 시 멤버 다시 로드
           if (_currentGroup?.memberCount != group.memberCount) {
             _loadGroupMembers();
+
+            // [빠른손] 임시 채팅방 참여자 업데이트
+            _myGroupId = _currentGroup?.id ?? '';
+            if (group.isMember(_firebaseService.currentUserId ?? '')) {
+              _myGroupId = group.id;
+            }
+
+            // [빠른손] 채팅방 ID가 유효하고 현재 사용자가 방장인 경우에만 업데이트
+            if (_myGroupId.isNotEmpty &&
+                group.ownerId == _firebaseService.currentUserId) {
+              chatroomService.updateParticipants(
+                chatRoomId: _myGroupId,
+                participants: group.memberIds,
+              );
+            }
           }
 
           // [빠른손] 매칭 중 상태 업데이트
@@ -137,6 +171,10 @@ class GroupController extends ChangeNotifier {
           // 매칭 완료 감지
           if (oldStatus == GroupStatus.matching &&
               group.status == GroupStatus.matched) {
+            // [빠른손] 임시 채팅방 삭제 >>
+            chatroomService.deleteChatroom(_myGroupId);
+            _myGroupId = '';
+            // <<
             _handleMatchingCompleted();
           }
 

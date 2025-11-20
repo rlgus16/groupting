@@ -45,6 +45,7 @@ class ChatController extends ChangeNotifier {
   List<ChatMessage> get messages => _messages;
   List<UserModel> get matchedGroupMembers => _matchedGroupMembers;
   TextEditingController get messageController => _messageController;
+  ChatroomService get chatroomService => _chatroomService;
 
   void _setLoading(bool loading) {
     _isLoading = loading;
