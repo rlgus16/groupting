@@ -25,8 +25,8 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   final _activityAreaController = TextEditingController();
   
   // 이미지 관리 관련
-  List<XFile?> _selectedImages = List.filled(6, null); // 6개 슬롯을 null로 초기화
-  List<String> _originalImages = []; // 기존 저장된 이미지들
+  List<dynamic> _imageSlots = List.filled(6, null); // 통합 이미지 슬롯
+  List<String> _imagesToDelete = []; // 삭제할 이미지 URL 저장
   final ImagePicker _picker = ImagePicker();
   bool _isPickerActive = false;
   int _mainProfileIndex = 0; // 메인 프로필 이미지 인덱스 (기본값: 0번)
@@ -40,7 +40,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   void initState() {
     super.initState();
     _initializeControllers();
-    _cleanupInvalidImages();
   }
 
   void _initializeControllers() {
@@ -55,33 +54,18 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       _activityAreaController.text = user.activityArea;
       
       // 기존 이미지들 로드 (유효한 URL만 필터링)
-      _originalImages = user.profileImages.where((imageUrl) {
-        // 로컬 경로 (local://, temp://)는 제외하고 Firebase Storage URL만 유지
+      List<String> _originalImages = user.profileImages.where((imageUrl) {
         return imageUrl.startsWith('http://') || imageUrl.startsWith('https://');
       }).toList();
       
-      // 기존 프로필 이미지들: $_originalImages
-
-    }
-  }
-
-  // 무효한 이미지 경로들을 데이터베이스에서 정리
-  Future<void> _cleanupInvalidImages() async {
-    final profileController = context.read<ProfileController>();
-    final authController = context.read<AuthController>();
-    
-    try {
-      final success = await profileController.cleanupProfileImages();
-      if (success) {
-        // 정리 후 사용자 정보 새로고침
-        await authController.refreshCurrentUser();
-        // 컨트롤러 다시 초기화
-        if (mounted) {
-          _initializeControllers();
+      // 통합 이미지 슬롯에 기존 이미지 할당
+      for (int i = 0; i < _imageSlots.length; i++) {
+        if (i < _originalImages.length) {
+          _imageSlots[i] = _originalImages[i];
+        } else {
+          _imageSlots[i] = null;
         }
       }
-    } catch (e) {
-      // 이미지 정리 중 오류: $e
     }
   }
 
@@ -130,21 +114,24 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     }
   }
 
-  // 이미지 선택 메서드들
+  // 이미지 선택 메서드
   Future<void> _selectSingleImage(int index) async {
-    if (_isPickerActive) return; // 이미 활성화 중이면 리턴
+    if (_isPickerActive) return;
     
     try {
       _isPickerActive = true;
       final image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
         setState(() {
-          // 해당 인덱스에 직접 이미지 저장
-          _selectedImages[index] = image;
+          // 기존 이미지가 URL(String)이었다면 삭제 목록에 추가
+          if (_imageSlots[index] is String) {
+            _imagesToDelete.add(_imageSlots[index] as String);
+          }
+          // 새 이미지로 슬롯 교체
+          _imageSlots[index] = image;
         });
       }
     } catch (e) {
-      // 이미지 선택 오류: $e
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('이미지 선택 중 오류가 발생했습니다.')),
@@ -155,44 +142,22 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     }
   }
 
-  // 해당 슬롯에 표시할 이미지 반환 (편집된 이미지 우선, 없으면 기존 이미지)
-  dynamic _getImageForSlot(int index) {
-    // 편집된 이미지가 있으면 우선 반환
-    if (_selectedImages[index] != null) {
-      return _selectedImages[index];
-    }
-    
-    // 기존 이미지가 있으면 반환
-    if (index < _originalImages.length) {
-      return _originalImages[index];
-    }
-    
-    return null;
-  }
-
-  // 이미지 슬롯 삭제 (편집된 이미지 또는 기존 이미지)
+  // 이미지 슬롯 삭제
   void _removeImageFromSlot(int index) {
     setState(() {
-      if (_selectedImages[index] != null) {
-        // 편집된 이미지가 있으면 제거
-        _selectedImages[index] = null;
-      } else if (index < _originalImages.length) {
-        // 기존 이미지를 삭제 표시 (빈 XFile로 설정)
-        _selectedImages[index] = null;
-        // 실제로는 저장 시 해당 인덱스를 제외하도록 처리
+      final currentImage = _imageSlots[index];
+      if (currentImage is String) {
+        // 기존 이미지(URL)라면 삭제 목록에 추가
+        _imagesToDelete.add(currentImage);
       }
+      // 슬롯을 비움
+      _imageSlots[index] = null;
       
       // 메인 프로필 인덱스 조정
       if (_mainProfileIndex == index) {
-        // 삭제된 이미지가 메인 프로필이었다면 첫 번째 유효한 이미지로 변경
-        int newMainIndex = -1;
-        for (int i = 0; i < 6; i++) {
-          if (_getImageForSlot(i) != null) {
-            newMainIndex = i;
-            break;
-          }
-        }
-        _mainProfileIndex = newMainIndex >= 0 ? newMainIndex : 0;
+        // 첫 번째 유효한 이미지를 새 메인 프로필로 설정
+        _mainProfileIndex = _imageSlots.indexWhere((img) => img != null);
+        if (_mainProfileIndex == -1) _mainProfileIndex = 0; // 이미지가 없으면 0으로 초기화
       }
     });
   }
@@ -542,7 +507,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // 닉네임 중복 검증
     if (_nicknameValidationMessage == '이미 사용 중인 닉네임입니다.') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('이미 사용 중인 닉네임입니다. 다른 닉네임을 사용해주세요.')),
@@ -553,92 +517,57 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     final profileController = context.read<ProfileController>();
     final authController = context.read<AuthController>();
     final user = authController.currentUserModel;
-
     if (user == null) return;
 
-    // 새로 선택된 이미지들과 기존 이미지들 분리
-    List<XFile> newImages = [];
-    List<String> finalImages = [];
-    bool hasImageChanges = false;
-
-    // 1. 새로 선택된 이미지들 수집
-    for (int i = 0; i < 6; i++) {
-      if (_selectedImages[i] != null) {
-        newImages.add(_selectedImages[i]!);
-        hasImageChanges = true;
+    // 1. 삭제할 이미지들 Firebase Storage에서 삭제
+    for (String imageUrl in _imagesToDelete) {
+      try {
+        await FirebaseStorage.instance.refFromURL(imageUrl).delete();
+      } catch (e) {
+        // 이미지 삭제 실패: $e
       }
     }
 
-    // 2. 새 이미지들 업로드 (있는 경우)
-    List<String> uploadedUrls = [];
-    if (newImages.isNotEmpty) {
-      try {
-        // 새 이미지 업로드 시작: ${newImages.length}개
-        for (int i = 0; i < newImages.length; i++) {
-          final file = newImages[i];
-          final fileName = '${user.uid}_profile_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+    // 2. 최종 이미지 목록 생성 및 업로드
+    List<String> finalImages = [];
+    List<dynamic> sortedImageSlots = List.from(_imageSlots);
 
-          // Firebase Storage에 업로드
-          final ref = FirebaseStorage.instance
-              .ref()
-              .child('profile_images')
-              .child(user.uid)
-              .child(fileName);
+    // 메인 프로필을 목록의 맨 앞으로 이동
+    if (_mainProfileIndex >= 0 && _mainProfileIndex < sortedImageSlots.length) {
+      final mainImage = sortedImageSlots.removeAt(_mainProfileIndex);
+      if (mainImage != null) {
+        sortedImageSlots.insert(0, mainImage);
+      }
+    }
 
-          // 플랫폼별 업로드 처리
+    for (final image in sortedImageSlots) {
+      if (image is String) {
+        finalImages.add(image);
+      } else if (image is XFile) {
+        try {
+          final fileName = '${user.uid}_profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final ref = FirebaseStorage.instance.ref().child('profile_images').child(user.uid).child(fileName);
+
           late UploadTask uploadTask;
           if (kIsWeb) {
-            // 웹에서는 XFile에서 bytes 사용
-            final bytes = await file.readAsBytes();
+            final bytes = await image.readAsBytes();
             uploadTask = ref.putData(bytes);
           } else {
-            // 모바일에서는 XFile을 File로 변환
-            final ioFile = File(file.path);
-            uploadTask = ref.putFile(ioFile);
+            uploadTask = ref.putFile(File(image.path));
           }
 
           final snapshot = await uploadTask;
           final downloadUrl = await snapshot.ref.getDownloadURL();
-
-          uploadedUrls.add(downloadUrl);
+          finalImages.add(downloadUrl);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('이미지 업로드에 실패했습니다.')),
+            );
+          }
+          return;
         }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('이미지 업로드에 실패했습니다.')),
-          );
-        }
-        return;
       }
-    }
-
-    // 3. 최종 이미지 목록 생성 (메인 프로필 우선)
-    List<String> tempImages = [];
-    int uploadedIndex = 0;
-    
-    // 먼저 모든 이미지를 순서대로 수집
-    for (int i = 0; i < 6; i++) {
-      if (_selectedImages[i] != null) {
-        // 새로 선택된 이미지
-        if (uploadedIndex < uploadedUrls.length) {
-          tempImages.add(uploadedUrls[uploadedIndex]);
-          uploadedIndex++;
-        }
-        hasImageChanges = true;
-      } else if (i < _originalImages.length) {
-        // 기존 이미지 유지
-        tempImages.add(_originalImages[i]);
-      }
-    }
-    
-    // 메인 프로필 이미지가 있다면 첫 번째로 이동
-    if (tempImages.isNotEmpty && _mainProfileIndex < tempImages.length) {
-      String mainProfileImage = tempImages[_mainProfileIndex];
-      tempImages.removeAt(_mainProfileIndex);
-      finalImages.add(mainProfileImage);
-      finalImages.addAll(tempImages);
-    } else {
-      finalImages.addAll(tempImages);
     }
 
     final success = await profileController.updateProfile(
@@ -646,16 +575,12 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       introduction: _introductionController.text.trim(),
       height: int.parse(_heightController.text.trim()),
       activityArea: _activityAreaController.text.trim(),
-      profileImages: hasImageChanges ? finalImages : null,
+      profileImages: finalImages,
     );
 
     if (success && mounted) {
-      // 사용자 정보 새로고침
       await authController.refreshCurrentUser();
-      
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('프로필이 성공적으로 업데이트되었습니다.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('프로필이 성공적으로 업데이트되었습니다.')));
       Navigator.pop(context);
     } else if (mounted && profileController.errorMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -664,7 +589,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     }
   }
 
-  Widget _buildImageWidget(dynamic imageData, {bool isMainProfile = false}) {
+  Widget _buildImageWidget(dynamic imageData) {
     if (imageData is XFile) {
       // 새로 선택된 이미지 (XFile)
       if (kIsWeb) {
@@ -672,84 +597,43 @@ class _ProfileEditViewState extends State<ProfileEditView> {
           future: imageData.readAsBytes(),
           builder: (context, snapshot) {
             if (snapshot.hasData) {
-              return Center(
-                child: Image.memory(
-                  snapshot.data!,
-                  width: isMainProfile ? double.infinity : 80,
-                  height: isMainProfile ? double.infinity : 80,
-                  fit: BoxFit.cover,
-                ),
-              );
-            } else {
-              return Container(
-                width: isMainProfile ? double.infinity : 80,
-                height: 80,
-                color: AppTheme.gray200,
-                child: const Center(child: CircularProgressIndicator()),
-              );
+              return Image.memory(snapshot.data!, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
             }
+            return const Center(child: CircularProgressIndicator());
           },
         );
       } else {
-        return FutureBuilder<Uint8List>(
-          future: imageData.readAsBytes(),
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              return Center(
-                child: Image.memory(
-                  snapshot.data!,
-                  width: isMainProfile ? double.infinity : 80,
-                  height: isMainProfile ? double.infinity : 80,
-                  fit: BoxFit.cover,
-                ),
-              );
-            } else {
-              return Container(
-                width: isMainProfile ? double.infinity : 80,
-                height: 80,
-                color: AppTheme.gray200,
-                child: const Center(child: CircularProgressIndicator()),
-              );
-            }
-          },
-        );
+        return Image.file(File(imageData.path), fit: BoxFit.cover, width: double.infinity, height: double.infinity);
       }
     } else if (imageData is String) {
       // 기존 저장된 이미지 (URL)
-      return Center(child: _buildProfileImage(imageData, isMainProfile ? 200 : 80));
+      return _buildProfileImage(imageData);
     } else {
       // 빈 슬롯
-      return Container(
-        width: isMainProfile ? double.infinity : 80,
-        height: 80,
-        color: AppTheme.gray200,
-        child: Icon(
-          Icons.add_photo_alternate,
-          size: isMainProfile ? 48 : 24,
-          color: AppTheme.gray400,
-        ),
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.add, color: AppTheme.gray300, size: 24),
+          const SizedBox(height: 4),
+          Text('${_imageSlots.indexOf(imageData) + 1}번', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+        ],
       );
     }
   }
 
-  Widget _buildProfileImage(String imageUrl, double size) {
+  Widget _buildProfileImage(String imageUrl) {
     // 유효한 네트워크 이미지만 표시
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
       return CachedNetworkImage(
         imageUrl: imageUrl,
         fit: BoxFit.cover,
-        placeholder: (context, url) =>
-            const Center(child: CircularProgressIndicator()),
-        errorWidget: (context, url, error) =>
-            Icon(Icons.person, size: size * 0.5, color: AppTheme.textSecondary),
+        width: double.infinity,
+        height: double.infinity,
+        placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+        errorWidget: (context, url, error) => const Icon(Icons.person, color: AppTheme.textSecondary),
       );
     } else {
-      // 로컬 이미지나 잘못된 URL은 기본 아이콘으로 표시 -> 추후 정리 도움드리면 될 것으로 보임.
-      return Icon(
-        Icons.person,
-        size: size * 0.5,
-        color: AppTheme.textSecondary,
-      );
+      return const Icon(Icons.person, color: AppTheme.textSecondary);
     }
   }
 
@@ -765,14 +649,14 @@ class _ProfileEditViewState extends State<ProfileEditView> {
 
   // 새로운 그리드 이미지 슬롯 빌더
   Widget _buildImageGridSlot(int index) {
-    final imageData = _getImageForSlot(index);
+    final imageData = _imageSlots[index];
     final hasImage = imageData != null;
     final isMainProfile = index == _mainProfileIndex && hasImage;
     
     return AspectRatio(
       aspectRatio: 1.0, // 정사각형 비율
       child: GestureDetector(
-        onTap: () => _selectSingleImage(index),
+        onTap: !hasImage ? () => _selectSingleImage(index) : null,
         onLongPress: hasImage ? () => _setMainProfile(index) : null,
         child: Container(
           decoration: BoxDecoration(
@@ -788,75 +672,53 @@ class _ProfileEditViewState extends State<ProfileEditView> {
           ),
           child: hasImage
               ? Stack(
+                  clipBehavior: Clip.none,
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
                       child: _buildImageWidget(imageData),
                     ),
-                    // 메인 프로필 표시
                     if (isMainProfile)
                       Positioned(
                         bottom: 4,
                         left: 4,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppTheme.primaryColor,
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text(
-                            '대표',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child: const Text('대표', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                         ),
                       ),
-                    // 삭제 버튼
                     Positioned(
-                      top: 4,
-                      right: 4,
+                      top: -8,
+                      right: -8,
                       child: GestureDetector(
                         onTap: () => _removeImageFromSlot(index),
                         child: Container(
-                          width: 20,
-                          height: 20,
+                          width: 24,
+                          height: 24,
                           decoration: const BoxDecoration(
                             color: Colors.red,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 14,
-                          ),
+                          child: const Icon(Icons.close, color: Colors.white, size: 16),
                         ),
                       ),
                     ),
                   ],
                 )
-              : Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.add,
-                      color: AppTheme.gray300,
-                      size: 24,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${index + 1}번',
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+              : GestureDetector(
+                  onTap: () => _selectSingleImage(index),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.add, color: AppTheme.gray300, size: 24),
+                      const SizedBox(height: 4),
+                      Text('${index + 1}번', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                    ],
+                  ),
                 ),
         ),
       ),
