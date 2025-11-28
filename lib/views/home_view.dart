@@ -355,6 +355,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
 
               const Divider(height: 1),
 
+              if (groupController.currentGroup != null)
               ListTile(
                 leading: const Icon(
                   Icons.exit_to_app,
@@ -451,7 +452,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('그룹 나가기'),
-            content: const Text('정말로 그룹을 나가시겠습니까?\n나간 후에는 다시 초대를 받아야 합니다.'),
+            content: const Text('정말로 그룹을 나가시겠습니까?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
