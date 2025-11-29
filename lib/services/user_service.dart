@@ -42,6 +42,14 @@ class UserService {
     
     return null; // 이 코드는 실행되지 않지만 타입 안전성을 위해 추가
   }
+   Stream<UserModel?> getUserStream(String userId) {
+    return _usersCollection.doc(userId).snapshots().map((doc) {
+      if (doc.exists) {
+        return UserModel.fromFirestore(doc);
+      }
+      return null;
+    });
+  }
 
   // 닉네임으로 사용자 검색
   Future<UserModel?> getUserByNickname(String nickname) async {

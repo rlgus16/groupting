@@ -195,7 +195,7 @@ class _ChatViewState extends State<ChatView> {
                     boxShadow: isKeyboardVisible 
                         ? [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
+                              color: Colors.black.withOpacity(0.1),
                               blurRadius: 4,
                               offset: const Offset(0, -2),
                             ),
@@ -317,10 +317,6 @@ class _ChatViewState extends State<ChatView> {
           
           // 매칭 전: 현재 그룹 멤버들 + 초대 상태
           if (!isMatched) ...[_buildInvitationStatus(context, groupController)],
-
-          // 매칭 후: 모든 참여자들
-          if (isMatched)
-            _buildMatchedMembers(context, chatController),
         ],
       ),
     );
@@ -355,7 +351,7 @@ class _ChatViewState extends State<ChatView> {
           margin: const EdgeInsets.only(top: 12),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withValues(alpha: 0.1),
+            color: AppTheme.primaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -396,7 +392,7 @@ class _ChatViewState extends State<ChatView> {
         margin: const EdgeInsets.only(top: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.orange.withValues(alpha: 0.1),
+          color: Colors.orange.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -421,135 +417,6 @@ class _ChatViewState extends State<ChatView> {
     }
     
     return const SizedBox.shrink();
-  }
-
-  // 매칭 후 모든 멤버들 표시 (그룹별로 구분)
-  Widget _buildMatchedMembers(
-    BuildContext context,
-    ChatController chatController,
-  ) {
-    final groupController = context.read<GroupController>();
-    final currentGroup = groupController.currentGroup;
-    
-    if (currentGroup == null || currentGroup.matchedGroupId == null) {
-      return const SizedBox.shrink();
-    }
-    
-    // 현재 그룹과 매칭된 그룹의 멤버들을 구분
-    final currentGroupMembers = chatController.matchedGroupMembers
-        .where((member) => currentGroup.memberIds.contains(member.uid))
-        .toList();
-    
-    final matchedGroupMembers = chatController.matchedGroupMembers
-        .where((member) => !currentGroup.memberIds.contains(member.uid))
-        .toList();
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.favorite, size: 16, color: AppTheme.successColor),
-            const SizedBox(width: 4),
-            Text(
-              '매칭된 참여자 (총 ${chatController.matchedGroupMembers.length}명)',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        
-        // 우리 그룹
-        if (currentGroupMembers.isNotEmpty) ...[
-          Text(
-            '우리 그룹 (${currentGroupMembers.length}명)',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.primaryColor,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          SizedBox(
-            height: 50,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: currentGroupMembers.length,
-              itemBuilder: (context, index) {
-                final member = currentGroupMembers[index];
-                final isOwner = currentGroup.isOwner(member.uid);
-                
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ProfileDetailView(user: member),
-                        ),
-                      );
-                    },
-                    child: MemberAvatar(
-                      imageUrl: member.mainProfileImage,
-                      name: member.nickname,
-                      isOwner: isOwner,
-                      isMatched: true,
-                      size: 40,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        
-        // 상대방 그룹
-        if (matchedGroupMembers.isNotEmpty) ...[
-          Text(
-            '상대방 그룹 (${matchedGroupMembers.length}명)',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.successColor,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          SizedBox(
-            height: 50,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: matchedGroupMembers.length,
-              itemBuilder: (context, index) {
-                final member = matchedGroupMembers[index];
-                
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ProfileDetailView(user: member),
-                        ),
-                      );
-                    },
-                    child: MemberAvatar(
-                      imageUrl: member.mainProfileImage,
-                      name: member.nickname,
-                      isMatched: true,
-                      size: 40,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ],
-    );
   }
 
   // 빈 메시지 뷰 (매칭 전/후에 따라 다른 메시지)

@@ -31,6 +31,8 @@ class GroupController extends ChangeNotifier {
   StreamSubscription<GroupModel?>? _groupSubscription;
   StreamSubscription<List<InvitationModel>>? _receivedInvitationsSubscription;
   StreamSubscription<List<InvitationModel>>? _sentInvitationsSubscription;
+  StreamSubscription<UserModel?>? _userSubscription;
+
   Timer? _reconnectTimer;
 
   // Callbacks
@@ -68,6 +70,8 @@ class GroupController extends ChangeNotifier {
     _receivedInvitationsSubscription = null;
     _sentInvitationsSubscription?.cancel();
     _sentInvitationsSubscription = null;
+    _userSubscription?.cancel();
+    _userSubscription = null;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     
@@ -112,6 +116,7 @@ class GroupController extends ChangeNotifier {
 
       // 그룹 상태 실시간 감지 시작
       _startGroupStatusStream();
+      _startUserStream();
 
       // [빠른손] 채팅방 존재 여부 확인 후 없는 경우 임시 생성 >>
       _myGroupId = group.id;
@@ -189,7 +194,6 @@ class GroupController extends ChangeNotifier {
             chatroomService.deleteChatroom(_myGroupId);
             _myGroupId = '';
             // <<
-            _handleMatchingCompleted();
           }
 
           _loadGroupMembers();
@@ -234,15 +238,7 @@ class GroupController extends ChangeNotifier {
     }
 
     // 그룹 멤버 다시 로드 (상대방 그룹 멤버 포함)
-    _loadGroupMembers();
-
-    // 잠시 후 한 번 더 로드 (Firestore 동기화 지연 대응)
-    Future.delayed(const Duration(seconds: 2), () {
-      // 컨트롤러가 여전히 유효한지 확인
-      if (_currentGroup != null && _currentGroup!.status == GroupStatus.matched) {
-        _loadGroupMembers();
-      }
-    });
+    loadCurrentGroup();
   }
 
   // 그룹 멤버 로드
@@ -489,6 +485,7 @@ class GroupController extends ChangeNotifier {
       if (_currentGroup != null) {
         await _loadGroupMembers();
         _startGroupStatusStream();
+        _startUserStream();
       } else {
         _clearData();
       }
@@ -614,6 +611,7 @@ class GroupController extends ChangeNotifier {
     _groupSubscription?.cancel();
     _receivedInvitationsSubscription?.cancel();
     _sentInvitationsSubscription?.cancel();
+    _userSubscription?.cancel();
     _reconnectTimer?.cancel();
     
     // 매칭 리스너도 모두 정리
@@ -700,5 +698,20 @@ class GroupController extends ChangeNotifier {
     
     // 데이터 새로고침
     refreshData();
+  }
+   void _startUserStream() {
+    final currentUserId = _firebaseService.currentUserId;
+    if (currentUserId == null) return;
+
+    _userSubscription?.cancel();
+    _userSubscription =
+        UserService().getUserStream(currentUserId).listen((user) {
+      if (user != null &&
+          _currentGroup != null &&
+          user.currentGroupId != _currentGroup!.id) {
+        // The user has been moved to a new group (a match was made)
+        _handleMatchingCompleted();
+      }
+    });
   }
 }

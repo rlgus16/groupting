@@ -4,7 +4,7 @@ import * as admin from "firebase-admin";
 // Firebase Admin 초기화
 admin.initializeApp();
 
-// Firestore와 Messaging 인스턴스
+// Firestore와 Messaging 인턴스
 const db = admin.firestore();
 const messaging = admin.messaging();
 
@@ -305,196 +305,6 @@ export const sendMessageNotification = functions
     } catch (error) {
       console.error("메시지 알림 발송 중 치명적 오류:", error);
       // 에러 세부 정보 로깅
-      if (error instanceof Error) {
-        console.error("에러 메시지:", error.message);
-        console.error("에러 스택:", error.stack);
-      }
-    }
-  });
-
-// 매칭 완료 시 알림 발송 - 개선된 버전
-export const sendMatchingNotification = functions.firestore
-  .document("groups/{groupId}")
-  .onUpdate(async (change, context) => {
-    try {
-      const beforeData = change.before.data();
-      const afterData = change.after.data();
-      const groupId = context.params.groupId;
-
-      // 매칭 상태 변경 감지
-      if (beforeData.status !== "matched" && afterData.status === "matched") {
-        console.log(`매칭 완료 감지: ${groupId}`);
-        console.log(`매칭된 그룹: ${groupId} ↔ ${afterData.matchedGroupId}`);
-        
-        // 현재 그룹과 매칭된 그룹의 모든 멤버 정보 가져오기
-        const allMemberData: Array<{userId: string, nickname: string, fcmToken?: string}> = [];
-        const groupIds = [groupId];
-        
-        if (afterData.matchedGroupId) {
-          groupIds.push(afterData.matchedGroupId);
-        }
-        
-        // 각 그룹의 멤버 정보 수집
-        for (const gId of groupIds) {
-          try {
-            const groupDoc = await db.collection("groups").doc(gId).get();
-            if (groupDoc.exists) {
-              const groupData = groupDoc.data();
-              const memberIds = groupData?.memberIds || [];
-              
-              for (const userId of memberIds) {
-                const userDoc = await db.collection("users").doc(userId).get();
-                if (userDoc.exists) {
-                  const userData = userDoc.data();
-                  allMemberData.push({
-                    userId: userId,
-                    nickname: userData?.nickname || "사용자",
-                    fcmToken: userData?.fcmToken
-                  });
-                }
-              }
-            }
-          } catch (groupError) {
-            console.error(`그룹 데이터 로드 실패 (${gId}):`, groupError);
-          }
-        }
-
-        // FCM 토큰이 있는 사용자들만 필터링
-        const validNotifications = allMemberData.filter(member => member.fcmToken);
-        
-        if (validNotifications.length === 0) {
-          console.log("유효한 FCM 토큰이 없습니다.");
-          return;
-        }
-
-        console.log(`매칭 완료 알림 대상: ${validNotifications.length}명`);
-
-        // 매칭된 그룹 정보 가져오기 (알림에 포함할 정보)
-        let matchedGroupName = "새로운 그룹";
-        let matchedGroupMemberCount = 0;
-        let currentGroupMemberCount = 0;
-        
-        if (afterData.matchedGroupId) {
-          try {
-            const matchedGroupDoc = await db.collection("groups").doc(afterData.matchedGroupId).get();
-            if (matchedGroupDoc.exists) {
-              const matchedGroupData = matchedGroupDoc.data();
-              matchedGroupName = matchedGroupData?.name || "새로운 그룹";
-              matchedGroupMemberCount = matchedGroupData?.memberIds?.length || 0;
-            }
-          } catch (e) {
-            console.log(`매칭된 그룹 정보 로드 실패: ${e}`);
-          }
-        }
-
-        // 현재 그룹 정보도 가져오기
-        try {
-          const currentGroupDoc = await db.collection("groups").doc(groupId).get();
-          if (currentGroupDoc.exists) {
-            const currentGroupData = currentGroupDoc.data();
-            currentGroupMemberCount = currentGroupData?.memberIds?.length || 0;
-          }
-        } catch (e) {
-          console.log(`현재 그룹 정보 로드 실패: ${e}`);
-        }
-
-        // FCM 매칭 완료 알림 개별 발송
-        console.log(`매칭 완료 알림 발송 시작... (${validNotifications.length}명)`);
-        
-        let successCount = 0;
-        let failureCount = 0;
-        const failedTokens: string[] = [];
-        const failedUserIds: string[] = [];
-
-        // 각 사용자에게 개별적으로 매칭 완료 알림 발송
-        for (const notification of validNotifications) {
-          try {
-            // n:n 매칭에 맞는 개인화된 알림 메시지
-            let notificationTitle = "매칭 완료!";
-            let notificationBody = "";
-            
-            const totalMembers = currentGroupMemberCount + matchedGroupMemberCount;
-            
-            if (currentGroupMemberCount === 1 && matchedGroupMemberCount === 1) {
-              // 1:1 매칭
-              notificationBody = `새로운 친구와 매칭되었어요! 지금 바로 채팅을 시작해보세요!`;
-            } else {
-              // n:n 그룹 매칭
-              notificationBody = `${currentGroupMemberCount}명 vs ${matchedGroupMemberCount}명 그룹 매칭 성공! 총 ${totalMembers}명이 함께해요! 🎉`;
-            }
-
-            const message = {
-              notification: {
-                title: notificationTitle,
-                body: notificationBody,
-              },
-              data: {
-                groupId: groupId,
-                matchedGroupId: afterData.matchedGroupId || "",
-                matchedGroupName: matchedGroupName,
-                chatRoomId: groupId < afterData.matchedGroupId 
-                    ? `${groupId}_${afterData.matchedGroupId}`
-                    : `${afterData.matchedGroupId}_${groupId}`,
-                currentGroupMemberCount: currentGroupMemberCount.toString(),
-                matchedGroupMemberCount: matchedGroupMemberCount.toString(),
-                totalMembers: totalMembers.toString(),
-                matchingType: (currentGroupMemberCount === 1 && matchedGroupMemberCount === 1) ? "1v1" : "group",
-                type: "matching_completed",
-                timestamp: Date.now().toString(),
-              },
-              android: {
-                notification: {
-                  channelId: "groupting_default",
-                  sound: "default",
-                  priority: "high" as const,
-                  defaultSound: true,
-                  defaultVibrateTimings: true,
-                  clickAction: "FLUTTER_NOTIFICATION_CLICK",
-                  color: "#FF6B6B", // 매칭 완료 색상
-                },
-                data: {
-                  click_action: "FLUTTER_NOTIFICATION_CLICK",
-                }
-              },
-              apns: {
-                payload: {
-                  aps: {
-                    sound: "default",
-                    badge: 1,
-                    category: "MATCHING_CATEGORY",
-                    "mutable-content": 1,
-                  },
-                },
-              },
-              token: notification.fcmToken!,
-            };
-
-            const result = await messaging.send(message);
-            console.log(`매칭 알림 발송 성공: ${notification.nickname} (${totalMembers}명 매칭, ${result})`);
-            successCount++;
-            
-          } catch (error) {
-            console.error(`매칭 알림 발송 실패: ${notification.nickname} -`, error);
-            failedTokens.push(notification.fcmToken!);
-            failedUserIds.push(notification.userId);
-            failureCount++;
-          }
-        }
-        
-        console.log(`매칭 완료 알림 발송 완료: 성공 ${successCount}, 실패 ${failureCount}`);
-
-        // 실패한 토큰들 처리
-        if (failedTokens.length > 0) {
-          await removeInvalidTokens(failedTokens, failedUserIds);
-        }
-
-        if (successCount > 0) {
-          console.log(`${successCount}명에게 매칭 완료 알림 발송 성공!`);
-        }
-      }
-      
-    } catch (error) {
-      console.error("매칭 알림 발송 중 치명적 오류:", error);
       if (error instanceof Error) {
         console.error("에러 메시지:", error.message);
         console.error("에러 스택:", error.stack);
@@ -995,3 +805,110 @@ async function removeInvalidTokens(invalidTokens: string[], userIds: string[]) {
     console.error("유효하지 않은 토큰 제거 중 치명적 오류:", error);
   }
 }
+// 매칭 완료 시 그룹 병합 및 새 채팅방 생성 (Idempotent)
+export const handleMatchingCompletion = functions.firestore
+  .document("groups/{groupId}")
+  .onUpdate(async (change, context) => {
+    const beforeData = change.before.data();
+    const afterData = change.after.data();
+    const groupId = context.params.groupId;
+
+    // 1. 매칭 상태 변경 감지
+    if (beforeData.status === "matched" || afterData.status !== "matched") {
+      return; // 이미 처리되었거나, 매칭 상태가 아님
+    }
+
+    const matchedGroupId = afterData.matchedGroupId;
+    if (!matchedGroupId) {
+      console.log("매칭된 그룹 ID가 없습니다.");
+      return;
+    }
+
+    // 2. 일관성을 위한 ID 정렬
+    const group1Id = groupId < matchedGroupId ? groupId : matchedGroupId;
+    const group2Id = groupId < matchedGroupId ? matchedGroupId : groupId;
+
+    // 3. 새로운 채팅방 ID 생성
+    const newChatRoomId = `${group1Id}_${group2Id}`;
+    console.log(`매칭 완료 처리 시작: ${group1Id}와 ${group2Id} -> ${newChatRoomId}`);
+
+    try {
+      await db.runTransaction(async (transaction) => {
+        // 4. Idempotency: 새로운 채팅방이 이미 존재하는지 확인
+        const newChatRoomRef = db.collection("chatrooms").doc(newChatRoomId);
+        const newChatRoomDoc = await transaction.get(newChatRoomRef);
+        if (newChatRoomDoc.exists) {
+          console.log("이미 처리된 매칭입니다. 중복 실행을 방지합니다.");
+          return;
+        }
+
+        // 5. 두 그룹의 최신 데이터 가져오기
+        const group1Ref = db.collection("groups").doc(group1Id);
+        const group2Ref = db.collection("groups").doc(group2Id);
+        const group1Doc = await transaction.get(group1Ref);
+        const group2Doc = await transaction.get(group2Ref);
+
+        if (!group1Doc.exists || !group2Doc.exists) {
+          throw new Error("하나 이상의 그룹을 찾을 수 없습니다.");
+        }
+        const group1Data = group1Doc.data();
+        const group2Data = group2Doc.data();
+        
+        if (!group1Data || !group2Data) {
+            throw new Error("하나 이상의 그룹 데이터를 찾을 수 없습니다.");
+        }
+
+        // 6. 모든 멤버 정보 및 FCM 토큰 수집
+        const allMemberIds = [...new Set([...group1Data.memberIds, ...group2Data.memberIds])];
+        const allMemberData: any[] = [];
+        for (const userId of allMemberIds) {
+          const userDoc = await db.collection("users").doc(userId).get();
+          if (userDoc.exists) {
+            allMemberData.push({ id: userId, ...userDoc.data() });
+          }
+        }
+
+        // 7. 새로운 채팅방 생성
+        transaction.set(newChatRoomRef, {
+          groupId: newChatRoomId,
+          participants: allMemberIds,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          // 필요하다면 다른 초기 필드 추가
+        });
+
+        // 8. 모든 멤버의 currentGroupId를 새 채팅방 ID로 업데이트
+        for (const memberId of allMemberIds) {
+          const userRef = db.collection("users").doc(memberId);
+          transaction.update(userRef, { currentGroupId: newChatRoomId });
+        }
+
+        // 9. 이전 그룹 문서 삭제
+        transaction.delete(group1Ref);
+        transaction.delete(group2Ref);
+
+        // 10. 모든 멤버에게 알림 발송
+        const tokens = allMemberData
+          .map((member) => member.fcmToken)
+          .filter((token) => token);
+
+        if (tokens.length > 0) {
+          const message = {
+            notification: {
+              title: "매칭 완료!",
+              body: `${group1Data.name}와(과) ${group2Data.name} 그룹이 매칭되었습니다.`,
+            },
+            data: {
+              chatRoomId: newChatRoomId,
+              type: "matching_completed",
+            },
+            tokens: tokens,
+          };
+          await messaging.sendMulticast(message);
+          console.log(`${tokens.length}명의 멤버에게 매칭 완료 알림 발송`);
+        }
+      });
+      console.log(`매칭 완료 처리 성공: ${newChatRoomId}`);
+    } catch (error) {
+      console.error("매칭 완료 처리 실패:", error);
+    }
+  });
