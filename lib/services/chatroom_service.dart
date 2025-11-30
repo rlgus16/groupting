@@ -12,7 +12,8 @@ class ChatroomService {
   CollectionReference<Map<String, dynamic>> get _chatroomsCollection =>
       _firebaseService.firestore.collection('chatrooms');
 
-  /// Ensures a chatroom exists and participants are up-to-date.
+  /// Retrieves an existing chatroom or creates it if it doesn't exist.
+  /// Also ensures the participant list is up-to-date.
   Future<ChatroomModel> getOrCreateChatroom({
     required String chatRoomId,
     required String groupId,
@@ -23,13 +24,15 @@ class ChatroomService {
       final doc = await docRef.get();
 
       if (doc.exists) {
-        // Update participants if they have changed (e.g. new member joined)
         final existingChatroom = ChatroomModel.fromFirestore(doc);
-        final currentParticipants = Set.from(existingChatroom.participants);
-        final newParticipants = Set.from(participants);
 
-        if (!currentParticipants.containsAll(newParticipants)) {
+        // Check if we need to update participants (e.g., a new member joined)
+        final currentSet = Set.from(existingChatroom.participants);
+        final newSet = Set.from(participants);
+
+        if (!currentSet.containsAll(newSet)) {
           debugPrint('Syncing participants for chatroom $chatRoomId');
+          // Use arrayUnion to add new members without duplicates
           await docRef.update({
             'participants': FieldValue.arrayUnion(participants),
             'updatedAt': FieldValue.serverTimestamp(),
@@ -51,7 +54,7 @@ class ChatroomService {
         updatedAt: now,
       );
 
-      // Use set with merge: true to be safe against race conditions
+      // set() with merge: true is safer than set() alone for race conditions
       await docRef.set(newChatroom.toFirestore(), SetOptions(merge: true));
 
       return newChatroom;
@@ -79,7 +82,7 @@ class ChatroomService {
       final currentUser = _firebaseService.currentUser;
       if (currentUser == null) throw Exception('User not logged in');
 
-      // Fetch sender details for the message snapshot
+      // Fetch latest user details for the message snapshot
       final userModel = await _userService.getUserById(currentUser.uid);
       final senderNickname = userModel?.nickname ?? 'Unknown User';
       final senderProfileImage = userModel?.mainProfileImage;
@@ -99,7 +102,7 @@ class ChatroomService {
         metadata: metadata,
       );
 
-      // Atomically add message and update stats
+      // Atomically add the message to the array and update stats
       await _chatroomsCollection.doc(chatRoomId).update({
         'messages': FieldValue.arrayUnion([newMessage.toFirestore()]),
         'lastMessage': newMessage.toFirestore(),
@@ -109,6 +112,30 @@ class ChatroomService {
     } catch (e) {
       debugPrint('SendMessage failed: $e');
       throw Exception('Failed to send message: $e');
+    }
+  }
+
+  Future<void> sendSystemMessage({
+    required String chatRoomId,
+    required String content,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      final systemMessage = MessageModel.createSystemMessage(
+        groupId: chatRoomId,
+        content: content,
+        metadata: metadata,
+      );
+
+      await _chatroomsCollection.doc(chatRoomId).update({
+        'messages': FieldValue.arrayUnion([systemMessage.toFirestore()]),
+        'lastMessage': systemMessage.toFirestore(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'messageCount': FieldValue.increment(1),
+      });
+    } catch (e) {
+      debugPrint('System message failed: $e');
+      throw Exception('Failed to send system message: $e');
     }
   }
 }

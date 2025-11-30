@@ -29,7 +29,7 @@ class MessageModel {
     this.metadata,
   });
 
-  // Firestore에서 데이터를 가져올 때 사용
+  // Factory for Firestore
   factory MessageModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return MessageModel(
@@ -39,7 +39,7 @@ class MessageModel {
       senderNickname: data['senderNickname'] ?? '',
       content: data['content'] ?? '',
       type: MessageType.values.firstWhere(
-        (e) => e.toString().split('.').last == data['type'],
+            (e) => e.toString().split('.').last == data['type'],
         orElse: () => MessageType.text,
       ),
       createdAt: (data['createdAt'] as Timestamp? ?? Timestamp.now()).toDate(),
@@ -50,7 +50,7 @@ class MessageModel {
     );
   }
 
-  // Firestore에 저장할 때 사용
+  // To Firestore
   Map<String, dynamic> toFirestore() {
     return {
       'groupId': groupId,
@@ -66,45 +66,7 @@ class MessageModel {
     };
   }
 
-  // Realtime Database에 저장할 때 사용
-  Map<String, dynamic> toMap() {
-    return {
-      'groupId': groupId,
-      'senderId': senderId,
-      'senderNickname': senderNickname,
-      'content': content,
-      'type': type.toString().split('.').last,
-      'timestamp': createdAt.millisecondsSinceEpoch,
-      'readBy': readBy,
-      'imageUrl': imageUrl,
-      'senderProfileImage': senderProfileImage,
-      'metadata': metadata,
-    };
-  }
-
-  // Realtime Database에서 데이터를 가져올 때 사용
-  factory MessageModel.fromMap(Map<String, dynamic> data) {
-    return MessageModel(
-      id: data['id'] ?? '',
-      groupId: data['groupId'] ?? '',
-      senderId: data['senderId'] ?? '',
-      senderNickname: data['senderNickname'] ?? '',
-      content: data['content'] ?? '',
-      type: MessageType.values.firstWhere(
-        (e) => e.toString().split('.').last == data['type'],
-        orElse: () => MessageType.text,
-      ),
-      createdAt: DateTime.fromMillisecondsSinceEpoch(data['timestamp'] ?? 0),
-      readBy: List<String>.from(data['readBy'] ?? []),
-      imageUrl: data['imageUrl'],
-      senderProfileImage: data['senderProfileImage'],
-      metadata: data['metadata'] != null
-          ? Map<String, dynamic>.from(data['metadata'])
-          : null,
-    );
-  }
-
-  // 복사본 생성
+  // CopyWith
   MessageModel copyWith({
     String? id,
     String? groupId,
@@ -133,14 +95,14 @@ class MessageModel {
     );
   }
 
-  // 헬퍼 메서드들
+  // Helpers
   bool isReadBy(String userId) => readBy.contains(userId);
   bool get isImage => type == MessageType.image;
   bool get isSystem => type == MessageType.system;
   bool get isSystemMessage => type == MessageType.system;
   bool get isInvitationMessage => metadata?['type'] == 'invitation';
 
-  // Factory methods for special message types
+  // Factory: System Message
   factory MessageModel.createSystemMessage({
     required String groupId,
     required String content,
@@ -159,6 +121,7 @@ class MessageModel {
     );
   }
 
+  // Factory: Invitation Message
   factory MessageModel.createInvitationMessage({
     required String groupId,
     required String senderId,
