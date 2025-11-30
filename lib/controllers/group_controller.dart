@@ -82,6 +82,10 @@ class GroupController extends ChangeNotifier {
         if (newGroupId != _currentGroup?.id) {
           _setLoading(true);
           _startGroupStream(newGroupId);
+        } else {
+          // CRITICAL FIX: If the group ID hasn't changed (e.g., already loaded via acceptInvitation),
+          // we must manually turn off the loading state set by initialize().
+          _setLoading(false);
         }
       },
       onError: (error) => _setError('사용자 정보 스트림 오류: $error'),
