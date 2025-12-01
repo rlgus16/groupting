@@ -1329,8 +1329,9 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                 ),
                 Row(
                   children: [
-                    // 멤버 추가 버튼 (매칭 전이고 멤버가 5명 미만일 때만 표시)
-                    if (!groupController.isMatched && 
+                    // [UPDATED] 멤버 추가 버튼 (방장이고, 매칭 전이며, 멤버가 5명 미만일 때만 표시)
+                    if (groupController.isOwner &&
+                        !groupController.isMatched &&
                         groupController.groupMembers.length < 5)
                       TextButton.icon(
                         onPressed: () {
@@ -1370,9 +1371,9 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
               height: 80,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: groupController.groupMembers.length + 
-                    // 매칭 전이고 멤버가 5명 미만일 때 "+추가" 슬롯 표시
-                    (!groupController.isMatched && groupController.groupMembers.length < 5 ? 1 : 0),
+                itemCount: groupController.groupMembers.length +
+                    // [UPDATED] 방장이고, 매칭 전이며, 멤버가 5명 미만일 때 "+추가" 슬롯 표시
+                    (groupController.isOwner && !groupController.isMatched && groupController.groupMembers.length < 5 ? 1 : 0),
                 itemBuilder: (context, index) {
                   // 멤버 추가 슬롯
                   if (index == groupController.groupMembers.length) {
@@ -1422,9 +1423,10 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                       ),
                     );
                   }
-                  
+
                   // 기존 멤버 표시
                   final member = groupController.groupMembers[index];
+                  // ... (rest of the code remains the same)
                   return Padding(
                     padding: const EdgeInsets.only(right: 12),
                     child: GestureDetector(
