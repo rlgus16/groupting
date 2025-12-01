@@ -28,26 +28,26 @@ class ProfileDetailView extends StatelessWidget {
               height: 400,
               child: user.profileImages.isNotEmpty
                   ? PageView.builder(
-                      itemCount: user.profileImages.length,
-                      itemBuilder: (context, index) {
-                        return Container(
-                          decoration: const BoxDecoration(
-                            color: AppTheme.gray100,
-                          ),
-                          child: _buildProfileImage(user.profileImages[index]),
-                        );
-                      },
-                    )
-                  : Container(
+                itemCount: user.profileImages.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    decoration: const BoxDecoration(
                       color: AppTheme.gray100,
-                      child: const Center(
-                        child: Icon(
-                          Icons.person,
-                          size: 100,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
                     ),
+                    child: _buildProfileImage(user.profileImages[index]),
+                  );
+                },
+              )
+                  : Container(
+                color: AppTheme.gray100,
+                child: const Center(
+                  child: Icon(
+                    Icons.person,
+                    size: 100,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ),
             ),
 
             // 프로필 이미지 개수 표시
@@ -99,9 +99,9 @@ class ProfileDetailView extends StatelessWidget {
                         user.nickname,
                         style: Theme.of(context).textTheme.headlineMedium
                             ?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
-                            ),
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Container(
@@ -153,10 +153,10 @@ class ProfileDetailView extends StatelessWidget {
   }
 
   Widget _buildInfoSection(
-    BuildContext context,
-    String title,
-    List<_InfoItem> items,
-  ) {
+      BuildContext context,
+      String title,
+      List<_InfoItem> items,
+      ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -245,10 +245,10 @@ class ProfileDetailView extends StatelessWidget {
         } else {
           localPath = imageUrl.substring(7); // 'temp://' 제거
         }
-        
+
         return Image.file(
           File(localPath),
-          fit: BoxFit.cover,
+          fit: BoxFit.contain, // [UPDATED] Show whole image
           errorBuilder: (context, error, stackTrace) => const Center(
             child: Icon(Icons.person, size: 100, color: AppTheme.textSecondary),
           ),
@@ -258,9 +258,9 @@ class ProfileDetailView extends StatelessWidget {
       // 네트워크 이미지
       return CachedNetworkImage(
         imageUrl: imageUrl,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain, // [UPDATED] Show whole image
         placeholder: (context, url) =>
-            const Center(child: CircularProgressIndicator()),
+        const Center(child: CircularProgressIndicator()),
         errorWidget: (context, url, error) => const Center(
           child: Icon(Icons.person, size: 100, color: AppTheme.textSecondary),
         ),
