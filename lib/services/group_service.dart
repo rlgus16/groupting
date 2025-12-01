@@ -265,11 +265,21 @@ class GroupService {
               newOwnerId = newMemberIds.first;
             }
 
-            transaction.update(groupRef, {
+            // 멤버가 탈퇴시 매칭중 취소
+            final Map<String, dynamic> updates = {
               'memberIds': newMemberIds,
               'ownerId': newOwnerId,
               'updatedAt': Timestamp.fromDate(DateTime.now()),
-            });
+            };
+
+            // If the group was currently matching, cancel it (revert to waiting)
+            // This is critical because matching relies on group size (N vs N)
+            if (group.status == GroupStatus.matching) {
+              updates['status'] = GroupStatus.waiting.toString().split('.').last;
+            }
+
+            transaction.update(groupRef, updates);
+
           }
         }
       });

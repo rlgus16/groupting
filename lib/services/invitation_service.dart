@@ -174,7 +174,7 @@ class InvitationService {
     }
   }
 
-  // 초대 수락 (핵심 수정 부분)
+// 초대 수락 (기존 그룹 매칭 취소 로직 추가)
   Future<void> acceptInvitation(String invitationId) async {
     final currentUser = _firebaseService.currentUser;
     if (currentUser == null) {
@@ -227,7 +227,6 @@ class InvitationService {
           if (participants.isEmpty) {
             transaction.delete(oldGroupRef!);
           } else {
-            // [FIX] Add System Message for leaving matched group
             var systemMessage = MessageModel.createSystemMessage(
               groupId: currentGroupId,
               content: '${currentUserInfo.nickname}님이 나갔습니다.',
@@ -254,11 +253,24 @@ class InvitationService {
           } else {
             String newOwnerId = oldGroupData['ownerId'];
             if (newOwnerId == currentUser.uid) newOwnerId = memberIds.first;
-            transaction.update(oldGroupRef!, {
+
+            // [UPDATED] Prepare update data
+            final Map<String, dynamic> updates = {
               'memberIds': memberIds,
               'ownerId': newOwnerId,
               'updatedAt': Timestamp.fromDate(DateTime.now()),
-            });
+            };
+
+            // [UPDATED] If the old group was matching, cancel it (revert to waiting)
+            // This is critical to stop matching if a member leaves by accepting another invite
+            final currentStatus = oldGroupData['status'];
+            final matchingStatus = GroupStatus.matching.toString().split('.').last;
+
+            if (currentStatus == matchingStatus) {
+              updates['status'] = GroupStatus.waiting.toString().split('.').last;
+            }
+
+            transaction.update(oldGroupRef!, updates);
           }
         }
       }
@@ -289,7 +301,7 @@ class InvitationService {
       });
     });
 
-    // 3. [FIX] Send System Message for leaving Pre-match group (Post-transaction)
+    // 3. Send System Message for leaving Pre-match group (Post-transaction)
     if (oldGroupId != null && !oldGroupId.contains('_')) {
       try {
         await _chatroomService.sendSystemMessage(
@@ -298,7 +310,6 @@ class InvitationService {
         );
       } catch (e) {
         debugPrint('Failed to send system message for old pre-match group: $e');
-        // Ignore error as user has already left
       }
     }
   }
