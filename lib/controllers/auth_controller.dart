@@ -1370,36 +1370,20 @@ class AuthController extends ChangeNotifier {
       return false;
     }
   }
-  // 닉네임 중복 확인 (users 컬렉션 + 선점 시스템)
+// 닉네임 중복 확인 (Calls Cloud Function - works without login)
   Future<bool> isNicknameDuplicate(String nickname) async {
     try {
-      final trimmedNickname = nickname.trim();
-      
-      // 1. users 컬렉션에서 실제 데이터 확인 (우선순위)
-      final users = await _firebaseService.getCollection('users')
-          .where('nickname', isEqualTo: trimmedNickname)
-          .limit(1)
-          .get();
-      
-      // 컬렉션에 이미 저장된 값
-      if (users.docs.isNotEmpty) {
-        return true;
-      }
-      
-      // 2. nicknames 컬렉션에서 선점 상태 확인 (보조)
-      try {
-        final normalizedNickname = trimmedNickname.toLowerCase();
-        final nicknameDoc = await _firebaseService.getDocument('nicknames/$normalizedNickname').get();
-        if (nicknameDoc.exists) {
-          return true;
-        }
-      } catch (reservationError) {
-        // 선점 시스템 오류는 무시하고 users 컬렉션 결과만 사용
-      }
-      
-      return false;
+      // Call the Cloud Function we just created
+      final result = await FirebaseFunctions.instance
+          .httpsCallable('checkNickname')
+          .call({'nickname': nickname});
+
+      // The function returns { isDuplicate: true/false }
+      return result.data['isDuplicate'] == true;
     } catch (e) {
-      // 닉네임 중복 확인 오류로 안전하게 false 반환
+      debugPrint('Nickname check failed: $e');
+      // If the check fails (e.g., network error), we return false
+      // so the user isn't blocked, though you might want to handle this differently.
       return false;
     }
   }

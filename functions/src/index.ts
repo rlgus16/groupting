@@ -270,3 +270,46 @@ export const notifyInvitation = functions.firestore
       console.error("Error sending invitation notification:", error);
     }
   });
+
+// 가입시 닉네임 중복 확인
+// This runs with admin privileges, bypassing the "must be logged in" rule.
+export const checkNickname = functions.https.onCall(async (data, context) => {
+  const nickname = data.nickname;
+
+  if (!nickname || typeof nickname !== 'string') {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "The function must be called with one argument 'nickname'."
+    );
+  }
+
+  const trimmedNickname = nickname.trim();
+
+  try {
+    // 1. Check 'users' collection (real profiles)
+    const usersQuery = await db.collection("users")
+      .where("nickname", "==", trimmedNickname)
+      .limit(1)
+      .get();
+
+    if (!usersQuery.empty) {
+      return { isDuplicate: true };
+    }
+
+    // 2. Check 'nicknames' collection (reserved/temp names)
+    // Note: Your auth_controller logic uses lowercase for ID lookup in this collection
+    const normalizedNickname = trimmedNickname.toLowerCase();
+    const reservedDoc = await db.collection("nicknames").doc(normalizedNickname).get();
+
+    if (reservedDoc.exists) {
+      return { isDuplicate: true };
+    }
+
+    // If neither check found a match, it's available
+    return { isDuplicate: false };
+
+  } catch (error) {
+    console.error("Error checking nickname:", error);
+    throw new functions.https.HttpsError("internal", "Error checking nickname availability.");
+  }
+});
