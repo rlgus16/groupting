@@ -740,51 +740,6 @@ class _ProfileCreateViewState extends State<ProfileCreateView> with WidgetsBindi
     }
   }
 
-  Future<void> _skipProfile() async {
-    final authController = context.read<AuthController>();
-
-    // 회원가입 데이터가 있는 경우와 없는 경우를 구분
-    if (authController.tempRegistrationData != null) {
-      // 회원가입 과정에서 온 경우 - 확인 다이얼로그 표시 후 스킵 처리
-      final shouldSkip = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('프로필 생성 건너뛰기'),
-          content: const Text('프로필을 나중에 설정하고 바로 시작하시겠습니까?\n언제든지 마이페이지에서 프로필을 완성할 수 있습니다.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('계속 작성'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('나중에'),
-            ),
-          ],
-        ),
-      );
-
-      if (shouldSkip == true) {
-        // 기본 정보만으로 회원가입 완료 (프로필 이미지, 키, 위치, 자기소개 제외)
-        await authController.completeRegistrationWithoutProfile();
-
-        if (mounted) {
-          if (authController.errorMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(authController.errorMessage!)),
-            );
-          } else {
-            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-          }
-        }
-      }
-    } else {
-      // 홈 화면에서 온 경우 - 바로 홈으로 돌아가기
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
