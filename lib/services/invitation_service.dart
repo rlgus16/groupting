@@ -277,6 +277,13 @@ class InvitationService {
 
       // B. Handle joining the new group.
       final newGroupData = newGroupDoc.data()! as Map<String, dynamic>;
+
+      // 참여하려는 그룹이 매칭중인지 확인
+      final newGroupStatus = newGroupData['status'];
+      if (newGroupStatus == GroupStatus.matching.toString().split('.').last) {
+        throw ('매칭 중인 그룹에는 참여할 수 없습니다.');
+      }
+
       final newMemberIds = List<String>.from(newGroupData['memberIds'] ?? []);
       if (newMemberIds.length >= 5) throw Exception('참여하려는 그룹의 인원이 가득 찼습니다.');
       if (!newMemberIds.contains(currentUser.uid)) newMemberIds.add(currentUser.uid);
@@ -397,7 +404,7 @@ class InvitationService {
       }
       return true;
     } catch (e) {
-      throw Exception('초대 응답에 실패했습니다: $e');
+      throw Exception('초대 응답 실패: $e');
     }
   }
 }
