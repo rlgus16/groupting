@@ -17,6 +17,11 @@ class GroupController extends ChangeNotifier {
   bool _isLoading = true;
   String? _errorMessage;
   GroupModel? _currentGroup;
+
+  // [FIX] Track the specific group ID we are trying to load
+  // This prevents race conditions between UserStream and GroupStream
+  String? _targetGroupId;
+
   List<UserModel> _groupMembers = [];
   List<InvitationModel> _receivedInvitations = [];
   List<InvitationModel> _sentInvitations = [];
@@ -40,12 +45,12 @@ class GroupController extends ChangeNotifier {
 
   bool get isOwner =>
       _currentGroup != null &&
-      _currentGroup!.isOwner(_firebaseService.currentUserId ?? '');
+          _currentGroup!.isOwner(_firebaseService.currentUserId ?? '');
 
   bool get canMatch =>
       _currentGroup != null &&
-      !_currentGroup!.id.contains('_') &&
-      isOwner;
+          !_currentGroup!.id.contains('_') &&
+          isOwner;
 
   GroupController() {
     initialize();
@@ -67,10 +72,11 @@ class GroupController extends ChangeNotifier {
   void _startUserStream(String userId) {
     _userStreamSubscription?.cancel();
     _userStreamSubscription = _userService.getUserStream(userId).listen(
-      (user) {
+          (user) {
         final newGroupId = user?.currentGroupId;
 
         if (newGroupId == null) {
+          _targetGroupId = null; // [FIX] Reset target
           _groupStreamSubscription?.cancel();
           _currentGroup = null;
           _groupMembers.clear();
@@ -79,32 +85,33 @@ class GroupController extends ChangeNotifier {
           return;
         }
 
-        if (newGroupId != _currentGroup?.id) {
-          _setLoading(true);
-          _startGroupStream(newGroupId);
-        } else {
-          // CRITICAL FIX: If the group ID hasn't changed (e.g., already loaded via acceptInvitation),
-          // we must manually turn off the loading state set by initialize().
-          _setLoading(false);
+        // [FIX] Prevent unnecessary stream restarts
+        if (newGroupId == _targetGroupId) {
+          if (_currentGroup != null) _setLoading(false);
+          return;
         }
+
+        _setLoading(true);
+        _startGroupStream(newGroupId);
       },
       onError: (error) => _setError('사용자 정보 스트림 오류: $error'),
     );
   }
 
   void _startGroupStream(String groupId) {
+    _targetGroupId = groupId; // [FIX] Set target immediately
+
     _groupStreamSubscription?.cancel();
     _groupStreamSubscription = _groupService.getGroupStream(groupId).listen(
           (group) async {
+        // [FIX] Ignore updates for old groups
+        if (_targetGroupId != groupId) return;
+
         final oldStatus = _currentGroup?.status;
         _currentGroup = group;
         if (group != null) {
           await _loadGroupMembers();
 
-          // [FIX] Added (oldStatus != null) check.
-          // This prevents the "Success" dialog from showing every time you open the app
-          // if you are already matched. It will only show if you were previously
-          // in a different state (like 'matching').
           if (oldStatus != null &&
               oldStatus != GroupStatus.matched &&
               group.status == GroupStatus.matched) {
@@ -146,26 +153,29 @@ class GroupController extends ChangeNotifier {
     _receivedInvitationsSubscription?.cancel();
     _receivedInvitationsSubscription =
         _invitationService.getReceivedInvitationsStream(userId).listen(
-      (invitations) {
-        _receivedInvitations = invitations;
-        notifyListeners();
-      },
-      onError: (error) => _setError('받은 초대 로드 실패: $error'),
-    );
+              (invitations) {
+            _receivedInvitations = invitations;
+            notifyListeners();
+          },
+          onError: (error) => _setError('받은 초대 로드 실패: $error'),
+        );
 
     _sentInvitationsSubscription?.cancel();
     _sentInvitationsSubscription =
         _invitationService.getSentInvitationsStream(userId).listen(
-      (invitations) {
-        _sentInvitations = invitations;
-        notifyListeners();
-      },
-      onError: (error) => _setError('보낸 초대 로드 실패: $error'),
-    );
+              (invitations) {
+            _sentInvitations = invitations;
+            notifyListeners();
+          },
+          onError: (error) => _setError('보낸 초대 로드 실패: $error'),
+        );
   }
 
   Future<void> refreshData() async {
+    // [FIX] Clear error message on refresh so UI can recover from error state
+    _errorMessage = null;
     _setLoading(true);
+
     final userId = _firebaseService.currentUserId;
     if (userId == null) {
       _clearData();
@@ -177,11 +187,11 @@ class GroupController extends ChangeNotifier {
       final user = await _userService.getUserById(userId);
       final groupId = user?.currentGroupId;
       if (groupId == null) {
-          _clearGroupData();
-          _setLoading(false);
-          notifyListeners();
+        _clearGroupData();
+        _setLoading(false);
+        notifyListeners();
       } else {
-         _startGroupStream(groupId);
+        _startGroupStream(groupId);
       }
       await _loadInvitations();
     } catch (e) {
@@ -199,8 +209,8 @@ class GroupController extends ChangeNotifier {
       _setLoading(true);
       final user = await _userService.getUserById(userId);
       if(user == null || !_isProfileCompleteForGroupCreation(user)) {
-         _setError('그룹을 생성하려면 프로필을 완성해야 합니다.');
-         return false;
+        _setError('그룹을 생성하려면 프로필을 완성해야 합니다.');
+        return false;
       }
       await _groupService.createGroup(userId);
       return true;
@@ -211,7 +221,7 @@ class GroupController extends ChangeNotifier {
       _setLoading(false);
     }
   }
-  
+
   Future<bool> startMatching() async {
     if (_currentGroup == null) return false;
     _setLoading(true);
@@ -239,7 +249,7 @@ class GroupController extends ChangeNotifier {
       _setLoading(false);
     }
   }
-  
+
   Future<bool> leaveGroup() async {
     final userId = _firebaseService.currentUserId;
     if (_currentGroup == null || userId == null) return false;
@@ -254,19 +264,21 @@ class GroupController extends ChangeNotifier {
       _setLoading(false);
     }
   }
-  
-  Future<bool> inviteFriend({required String nickname, String? message}) async {
-    if (currentGroup == null) return false;
+
+  Future<void> inviteFriend({required String nickname, String? message}) async {
+    if (currentGroup == null) return;
+
     try {
       await _invitationService.sendInvitation(
-        groupId: currentGroup!.id,
-        toUserNickname: nickname,
-        message: message
+          groupId: currentGroup!.id,
+          toUserNickname: nickname,
+          message: message
       );
-      return true;
+      // Success: Function completes normally
     } catch(e) {
-      _setError(_getFriendlyErrorMessage(e.toString()));
-      return false;
+      // [FIX] Do NOT call _setError() here. It blocks the HomeView.
+      // Instead, rethrow the friendly message so the UI can show a SnackBar.
+      throw _getFriendlyErrorMessage(e.toString());
     }
   }
 
@@ -278,14 +290,14 @@ class GroupController extends ChangeNotifier {
       return false;
     }
   }
-  
+
   Future<bool> acceptInvitation(String invitationId) async {
     _setLoading(true);
     try {
       final invitation = await _invitationService.getInvitationById(invitationId);
       if (invitation == null) {
-        _setError("초대 정보를 찾을 수 없습니다.");
-        return false;
+        // Logic error: throw to catch block
+        throw "초대 정보를 찾을 수 없습니다.";
       }
       final success = await _invitationService.respondToInvitation(invitationId, true);
       if (success) {
@@ -295,16 +307,20 @@ class GroupController extends ChangeNotifier {
       }
       return success;
     } catch (e) {
-      _setError("초대 수락 실패: $e");
       _setLoading(false);
-      return false;
+      // [FIX] Do NOT set global _setError here.
+      // Setting _errorMessage blocks the HomeView.
+      // Instead, we rethrow the error so the UI (InvitationListView) can show a SnackBar.
+      rethrow;
     }
   }
-  
+
   Future<bool> rejectInvitation(String invitationId) async {
     try {
-       return await _invitationService.respondToInvitation(invitationId, false);
+      return await _invitationService.respondToInvitation(invitationId, false);
     } catch (e) {
+      // Reuse logic: simple return false or set error.
+      // For rejection, it's less critical, but consistent behavior is good.
       _setError("초대 거절 실패: $e");
       return false;
     }
@@ -317,11 +333,11 @@ class GroupController extends ChangeNotifier {
       return null;
     }
   }
-  
+
   void onAppResumed() {
     refreshData();
   }
-  
+
   void onSignOut() {
     _clearData();
   }
@@ -337,6 +353,7 @@ class GroupController extends ChangeNotifier {
   void _clearGroupData() {
     _currentGroup = null;
     _groupMembers.clear();
+    _targetGroupId = null; // [FIX] Clear target ID
   }
 
   @override

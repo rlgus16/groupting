@@ -23,7 +23,7 @@ class _InvitationListViewState extends State<InvitationListView> {
 
     final groupController = context.read<GroupController>();
 
-    // [추가됨] 초대를 수락할 때, 이미 그룹이 있다면 확인 다이얼로그 표시
+    // 초대를 수락할 때, 이미 그룹이 있다면 확인 다이얼로그 표시
     if (accept && groupController.currentGroup != null) {
       final bool? confirm = await showDialog<bool>(
         context: context,
@@ -59,6 +59,7 @@ class _InvitationListViewState extends State<InvitationListView> {
     try {
       debugPrint('UI: ${accept ? "수락" : "거절"} 처리 시작: $invitationId');
 
+      // acceptInvitation은 실패 시 에러를 throw하므로 catch 블록으로 이동합니다.
       final success = accept
           ? await groupController.acceptInvitation(invitationId)
           : await groupController.rejectInvitation(invitationId);
@@ -70,19 +71,23 @@ class _InvitationListViewState extends State<InvitationListView> {
             // 초대 수락 시 잠시 대기 후 홈으로 이동 (사용자에게 성공 메시지 보여주기 위해)
             await Future.delayed(const Duration(milliseconds: 1200));
             if (mounted) {
-              Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+              Navigator.pushNamedAndRemoveUntil(
+                  context, '/home', (route) => false);
             }
           } else {
             CustomToast.showInfo(context, '초대를 거절했어요');
           }
         } else if (groupController.errorMessage != null) {
+          // rejectInvitation 등 throw하지 않고 에러 상태만 설정하는 경우 처리
           CustomToast.showError(context, groupController.errorMessage!);
         }
       }
     } catch (e) {
       debugPrint('UI: 초대 처리 중 예외 발생: $e');
       if (mounted) {
-        CustomToast.showError(context, '처리 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.');
+        // [UPDATED] Display the specific error message from the controller
+        // This will show "매칭 중인 그룹에는 참여할 수 없습니다..." to the user.
+        CustomToast.showError(context, e.toString());
       }
     } finally {
       if (mounted) {
@@ -155,7 +160,9 @@ class _InvitationListViewState extends State<InvitationListView> {
                                 const SizedBox(height: 4),
                                 Text(
                                   _formatTime(invitation.createdAt),
-                                  style: Theme.of(context).textTheme.bodySmall
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
                                       ?.copyWith(color: AppTheme.textSecondary),
                                 ),
                               ],
@@ -204,7 +211,9 @@ class _InvitationListViewState extends State<InvitationListView> {
                               const SizedBox(width: 4),
                               Text(
                                 '초대가 만료되었습니다',
-                                style: Theme.of(context).textTheme.bodySmall
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
                                     ?.copyWith(
                                   color: AppTheme.errorColor,
                                   fontWeight: FontWeight.w500,
@@ -222,16 +231,20 @@ class _InvitationListViewState extends State<InvitationListView> {
                           Expanded(
                             child: OutlinedButton(
                               onPressed: (invitation.canRespond &&
-                                  !_processingInvitations.contains(invitation.id))
-                                  ? () => _handleInvitation(invitation.id, false)
+                                  !_processingInvitations
+                                      .contains(invitation.id))
+                                  ? () =>
+                                  _handleInvitation(invitation.id, false)
                                   : null,
-                              child: _processingInvitations.contains(invitation.id)
+                              child: _processingInvitations
+                                  .contains(invitation.id)
                                   ? const SizedBox(
                                 height: 16,
                                 width: 16,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                  valueColor:
+                                  AlwaysStoppedAnimation<Color>(
                                     AppTheme.textSecondary,
                                   ),
                                 ),
@@ -243,16 +256,19 @@ class _InvitationListViewState extends State<InvitationListView> {
                           Expanded(
                             child: ElevatedButton(
                               onPressed: (invitation.canRespond &&
-                                  !_processingInvitations.contains(invitation.id))
+                                  !_processingInvitations
+                                      .contains(invitation.id))
                                   ? () => _handleInvitation(invitation.id, true)
                                   : null,
-                              child: _processingInvitations.contains(invitation.id)
+                              child: _processingInvitations
+                                  .contains(invitation.id)
                                   ? const SizedBox(
                                 height: 16,
                                 width: 16,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                  valueColor:
+                                  AlwaysStoppedAnimation<Color>(
                                     Colors.white,
                                   ),
                                 ),

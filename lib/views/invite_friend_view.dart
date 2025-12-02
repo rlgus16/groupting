@@ -28,22 +28,34 @@ class _InviteFriendViewState extends State<InviteFriendView> {
     if (!_formKey.currentState!.validate()) return;
 
     final groupController = context.read<GroupController>();
-    final success = await groupController.inviteFriend(
-      nickname: _nicknameController.text.trim(),
-      message: _messageController.text.trim().isNotEmpty
-          ? _messageController.text.trim()
-          : null,
-    );
 
-    if (success && mounted) {
-      CustomToast.showSuccess(context, '초대를 보냈어요!');
-      // 입력 필드 초기화
-      _nicknameController.clear();
-      _messageController.clear();
-      // 포커스 해제
-      FocusScope.of(context).unfocus();
-    } else if (mounted && groupController.errorMessage != null) {
-      CustomToast.showError(context, groupController.errorMessage!);
+    try {
+      // [UPDATED] Now we await the call and catch any errors it throws.
+      // The controller no longer returns a boolean success flag, but throws on error.
+      await groupController.inviteFriend(
+        nickname: _nicknameController.text.trim(),
+        message: _messageController.text.trim().isNotEmpty
+            ? _messageController.text.trim()
+            : null,
+      );
+
+      if (mounted) {
+        CustomToast.showSuccess(context, '초대를 보냈어요!');
+
+        // Clear inputs on success
+        _nicknameController.clear();
+        _messageController.clear();
+        FocusScope.of(context).unfocus();
+
+        // Optional: Close the screen if you prefer
+        // Navigator.pop(context);
+      }
+    } catch (e) {
+      // [FIX] Catch the specific error message thrown by the controller
+      // This prevents the Global Error State in HomeView
+      if (mounted) {
+        CustomToast.showError(context, e.toString());
+      }
     }
   }
 
@@ -81,16 +93,16 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                             '초대 안내',
                             style: Theme.of(context).textTheme.titleSmall
                                 ?.copyWith(
-                                  color: AppTheme.primaryColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       Text(
                         '• 친구의 닉네임을 정확히 입력해주세요\n'
-                        '• 최대 5명까지 그룹을 구성할 수 있습니다',
+                            '• 최대 5명까지 그룹을 구성할 수 있습니다',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
@@ -103,7 +115,6 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                   builder: (context, groupController, _) {
                     final currentCount =
                         groupController.currentGroup?.memberCount ?? 1;
-                    final remainingSlots = 5 - currentCount;
 
                     return Container(
                       padding: const EdgeInsets.all(16),
@@ -122,9 +133,9 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                             '$currentCount / 5명',
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
-                                  color: AppTheme.primaryColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
@@ -181,24 +192,6 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                   },
                 ),
 
-                // 에러 메시지
-                Consumer<GroupController>(
-                  builder: (context, groupController, _) {
-                    if (groupController.errorMessage != null) {
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 16),
-                        child: Text(
-                          groupController.errorMessage!,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: AppTheme.errorColor),
-                          textAlign: TextAlign.center,
-                        ),
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                ),
-
                 const SizedBox(height: 32),
 
                 // 보낸 초대 목록
@@ -234,45 +227,45 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                                 invitation.status == InvitationStatus.pending
                                     ? '응답 대기 중'
                                     : invitation.status ==
-                                          InvitationStatus.accepted
+                                    InvitationStatus.accepted
                                     ? '수락됨'
                                     : invitation.status ==
-                                          InvitationStatus.rejected
+                                    InvitationStatus.rejected
                                     ? '거절됨'
                                     : '만료됨',
                                 style: TextStyle(
                                   color:
-                                      invitation.status ==
-                                          InvitationStatus.accepted
+                                  invitation.status ==
+                                      InvitationStatus.accepted
                                       ? AppTheme.successColor
                                       : invitation.status ==
-                                            InvitationStatus.rejected
+                                      InvitationStatus.rejected
                                       ? AppTheme.errorColor
                                       : AppTheme.textSecondary,
                                 ),
                               ),
                               trailing:
-                                  invitation.status == InvitationStatus.pending
+                              invitation.status == InvitationStatus.pending
                                   ? const Icon(
-                                      Icons.access_time,
-                                      color: AppTheme.textSecondary,
-                                    )
+                                Icons.access_time,
+                                color: AppTheme.textSecondary,
+                              )
                                   : invitation.status ==
-                                        InvitationStatus.accepted
+                                  InvitationStatus.accepted
                                   ? const Icon(
-                                      Icons.check_circle,
-                                      color: AppTheme.successColor,
-                                    )
+                                Icons.check_circle,
+                                color: AppTheme.successColor,
+                              )
                                   : invitation.status ==
-                                        InvitationStatus.rejected
+                                  InvitationStatus.rejected
                                   ? const Icon(
-                                      Icons.cancel,
-                                      color: AppTheme.errorColor,
-                                    )
+                                Icons.cancel,
+                                color: AppTheme.errorColor,
+                              )
                                   : const Icon(
-                                      Icons.timer_off,
-                                      color: AppTheme.textSecondary,
-                                    ),
+                                Icons.timer_off,
+                                color: AppTheme.textSecondary,
+                              ),
                             ),
                           );
                         }),
