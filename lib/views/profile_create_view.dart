@@ -177,109 +177,9 @@ class _ProfileCreateViewState extends State<ProfileCreateView> with WidgetsBindi
     });
   }
 
-  // 현재 입력 중인 프로필 데이터 백업
-  Future<void> _backupCurrentProfileData() async {
-    final authController = context.read<AuthController>();
-
-    // 최소한 하나 이상의 필드가 입력되었을 때만 백업
-    if (_nicknameController.text.isNotEmpty ||
-        _introductionController.text.isNotEmpty ||
-        _heightController.text.isNotEmpty ||
-        _activityAreaController.text.isNotEmpty ||
-        _selectedImages.any((image) => image != null)) {
-
-      // 이미지들을 Base64로 인코딩
-      List<String> imageBytes = [];
-      for (final image in _selectedImages) {
-        if (image != null) {
-          try {
-            final bytes = await image.readAsBytes();
-            final base64String = base64Encode(bytes);
-            imageBytes.add(base64String);
-          } catch (e) {
-            imageBytes.add(''); // 실패한 경우 빈 문자열
-          }
-        } else {
-          imageBytes.add(''); // null인 경우 빈 문자열
-        }
-      }
-
-      authController.saveTemporaryProfileData(
-        nickname: _nicknameController.text.trim(),
-        introduction: _introductionController.text.trim(),
-        height: _heightController.text.trim(),
-        activityArea: _activityAreaController.text.trim(),
-        profileImageBytes: imageBytes,
-        mainProfileIndex: _mainProfileIndex,
-      );
-    }
-  }
-
   // 뒤로가기 처리
   void _handleBackPress() {
-    // 현재 입력된 데이터가 있는지 확인
-    final hasInputData = _nicknameController.text.isNotEmpty ||
-        _introductionController.text.isNotEmpty ||
-        _heightController.text.isNotEmpty ||
-        _activityAreaController.text.isNotEmpty ||
-        _selectedImages.any((image) => image != null);
-
-    if (hasInputData) {
-      // 입력된 데이터가 있으면 저장 여부 확인
-      _showSaveConfirmDialog();
-    } else {
-      // 입력된 데이터가 없으면 바로 뒤로가기
-      _navigateBack();
-    }
-  }
-
-  // 저장 확인 다이얼로그 표시
-  void _showSaveConfirmDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('입력 중인 정보가 있습니다'),
-        content: const Text(
-          '현재 입력하신 프로필 정보를 임시 저장할까요?\n다음에 프로필 생성 화면에 진입할 때 복원할 수 있습니다.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // 저장하지 않고 뒤로가기
-              final authController = context.read<AuthController>();
-              authController.clearTemporaryProfileData();
-              _navigateBack();
-            },
-            child: const Text('저장 안함'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // 계속 작성
-            },
-            child: const Text('계속 작성'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              // 저장하고 뒤로가기
-              await _backupCurrentProfileData();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('입력 중인 정보를 임시 저장했습니다.'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-                _navigateBack();
-              }
-            },
-            child: const Text('저장하고 나가기'),
-          ),
-        ],
-      ),
-    );
+    _navigateBack();
   }
 
   // 실제 뒤로가기 네비게이션
@@ -522,7 +422,7 @@ class _ProfileCreateViewState extends State<ProfileCreateView> with WidgetsBindi
         final savedAt = DateTime.tryParse(savedAtStr);
         if (savedAt != null &&
             DateTime.now().difference(savedAt).inHours < 24) {
-          // 24시간 이내 데이터면 복원 다이얼로그 표시 - 제거됨
+          // 24시간 이내 데이터면 복원 다이얼로그 표시 - 제거됨 (이전 요청에 의해)
           // _isRestoreDialogShown = true;
           // WidgetsBinding.instance.addPostFrameCallback((_) {
           //   if (mounted && !_isRestoringData) {
