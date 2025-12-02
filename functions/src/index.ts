@@ -1,5 +1,7 @@
-import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+// Import v2 triggers explicitly
+import { onDocumentUpdated, onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 
 admin.initializeApp();
 
@@ -13,12 +15,17 @@ interface GroupData {
 
 // 1. [MATCHING LOGIC]
 // Finds a match and updates statuses safely. No notifications are sent here.
-export const handleGroupUpdate = functions.firestore
-  .document("groups/{groupId}")
-  .onUpdate(async (change, context) => {
-    const beforeData = change.before.data();
-    const afterData = change.after.data();
-    const groupId = context.params.groupId;
+export const handleGroupUpdate = onDocumentUpdated("groups/{groupId}", async (event) => {
+    // In v2, the change object is in event.data
+    // event.data can be undefined if the document was deleted, so we check for it.
+    if (!event.data) return;
+
+    const beforeData = event.data.before.data();
+    const afterData = event.data.after.data();
+    const groupId = event.params.groupId;
+
+    // Safety check: ensure data exists
+    if (!beforeData || !afterData) return;
 
     // Trigger only when status changes to "matching"
     if (beforeData.status !== "matching" && afterData.status === "matching") {
@@ -93,19 +100,20 @@ export const handleGroupUpdate = functions.firestore
 
 // 2. [CHATROOM CREATION]
 // Creates the chatroom document. No notifications are sent here.
-export const handleMatchingCompletion = functions.firestore
-  .document("groups/{groupId}")
-  .onUpdate(async (change, context) => {
-    const beforeData = change.before.data();
-    const afterData = change.after.data();
-    const groupId = context.params.groupId;
+export const handleMatchingCompletion = onDocumentUpdated("groups/{groupId}", async (event) => {
+    if (!event.data) return;
+
+    const beforeData = event.data.before.data();
+    const afterData = event.data.after.data();
+    const groupId = event.params.groupId;
+
+    if (!beforeData || !afterData) return;
 
     if (beforeData.status !== "matched" && afterData.status === "matched") {
       const matchedGroupId = afterData.matchedGroupId;
       if (!matchedGroupId) return;
 
       // Only the group with the "lexicographically higher" ID runs this logic
-      // This prevents the code from running twice (once for each group)
       if (groupId > matchedGroupId) {
           console.log(`Group ${groupId} deferring to ${matchedGroupId} to handle completion.`);
           return;
@@ -157,13 +165,15 @@ export const handleMatchingCompletion = functions.firestore
   });
 
 // 3. [NOTIFICATIONS]
-// Triggers ONLY when the chatroom is created. This ensures exactly ONE notification.
-export const notifyMatchOnChatroomCreate = functions.firestore
-  .document("chatrooms/{chatroomId}")
-  .onCreate(async (snapshot, context) => {
+// Triggers ONLY when the chatroom is created.
+export const notifyMatchOnChatroomCreate = onDocumentCreated("chatrooms/{chatroomId}", async (event) => {
+    // In v2, snapshot is event.data
+    const snapshot = event.data;
+    if (!snapshot) return;
+
     const chatroomData = snapshot.data();
-    const chatRoomId = context.params.chatroomId;
-    const participantIds = chatroomData.participants || [];
+    const chatRoomId = event.params.chatroomId;
+    const participantIds = chatroomData?.participants || [];
 
     if (participantIds.length === 0) {
       console.log("No participants in chatroom.");
@@ -215,13 +225,14 @@ export const notifyMatchOnChatroomCreate = functions.firestore
 
 // 4. [INVITATION NOTIFICATION]
 // Triggers when a new invitation is created
-export const notifyInvitation = functions.firestore
-  .document("invitations/{invitationId}")
-  .onCreate(async (snapshot, context) => {
+export const notifyInvitation = onDocumentCreated("invitations/{invitationId}", async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
     const invitationData = snapshot.data();
-    const invitationId = context.params.invitationId;
-    const toUserId = invitationData.toUserId;
-    const fromUserNickname = invitationData.fromUserNickname;
+    const invitationId = event.params.invitationId;
+    const toUserId = invitationData?.toUserId;
+    const fromUserNickname = invitationData?.fromUserNickname;
 
     if (!toUserId) {
       console.log("No toUserId in invitation.");
@@ -246,7 +257,6 @@ export const notifyInvitation = functions.firestore
     }
 
     // Construct the notification payload
-    // Matches the data structure expected by _handleInvitationForegroundMessage in lib/services/fcm_service.dart
     const message = {
       token: fcmToken,
       notification: {
@@ -257,8 +267,8 @@ export const notifyInvitation = functions.firestore
         type: "new_invitation",
         invitationId: invitationId,
         fromUserNickname: fromUserNickname,
-        fromUserProfileImage: invitationData.fromUserProfileImage || "",
-        showAsLocalNotification: "true", // Client triggers local notification manually for rich UI
+        fromUserProfileImage: invitationData?.fromUserProfileImage || "",
+        showAsLocalNotification: "true",
         click_action: "FLUTTER_NOTIFICATION_CLICK",
       },
     };
@@ -272,12 +282,14 @@ export const notifyInvitation = functions.firestore
   });
 
 // 가입시 닉네임 중복 확인
-// This runs with admin privileges, bypassing the "must be logged in" rule.
-export const checkNickname = functions.https.onCall(async (data, context) => {
+// v2 Callables receive a 'request' object. 'data' is a property of 'request'.
+export const checkNickname = onCall(async (request) => {
+  // Use request.data to get the client-sent data
+  const data = request.data;
   const nickname = data.nickname;
 
   if (!nickname || typeof nickname !== 'string') {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "The function must be called with one argument 'nickname'."
     );
@@ -297,7 +309,6 @@ export const checkNickname = functions.https.onCall(async (data, context) => {
     }
 
     // 2. Check 'nicknames' collection (reserved/temp names)
-    // Note: Your auth_controller logic uses lowercase for ID lookup in this collection
     const normalizedNickname = trimmedNickname.toLowerCase();
     const reservedDoc = await db.collection("nicknames").doc(normalizedNickname).get();
 
@@ -305,22 +316,21 @@ export const checkNickname = functions.https.onCall(async (data, context) => {
       return { isDuplicate: true };
     }
 
-    // If neither check found a match, it's available
     return { isDuplicate: false };
 
   } catch (error) {
     console.error("Error checking nickname:", error);
-    throw new functions.https.HttpsError("internal", "Error checking nickname availability.");
+    throw new HttpsError("internal", "Error checking nickname availability.");
   }
 });
 
 // 이메일 중복 확인
-// Checks for email duplicates in Firebase Auth and Firestore.
-export const checkEmail = functions.https.onCall(async (data, context) => {
+export const checkEmail = onCall(async (request) => {
+  const data = request.data;
   const email = data.email;
 
   if (!email || typeof email !== 'string') {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "The function must be called with one argument 'email'."
     );
@@ -332,10 +342,8 @@ export const checkEmail = functions.https.onCall(async (data, context) => {
     // 1. Check Firebase Auth (Source of Truth)
     try {
       await admin.auth().getUserByEmail(normalizedEmail);
-      // If this succeeds, the user exists
       return { isDuplicate: true };
     } catch (authError: any) {
-      // If error is 'user-not-found', we continue to check Firestore
       if (authError.code !== 'auth/user-not-found') {
         throw authError;
       }
@@ -351,32 +359,29 @@ export const checkEmail = functions.https.onCall(async (data, context) => {
       return { isDuplicate: true };
     }
 
-    // Available
     return { isDuplicate: false };
 
   } catch (error) {
     console.error("Error checking email:", error);
-    throw new functions.https.HttpsError("internal", "Error checking email availability.");
+    throw new HttpsError("internal", "Error checking email availability.");
   }
 });
 
 // 전화번호 중복 확인
-// Checks for phone number duplicates in Firestore.
-export const checkPhoneNumber = functions.https.onCall(async (data, context) => {
+export const checkPhoneNumber = onCall(async (request) => {
+  const data = request.data;
   const phoneNumber = data.phoneNumber;
 
   if (!phoneNumber || typeof phoneNumber !== 'string') {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "The function must be called with one argument 'phoneNumber'."
     );
   }
 
-  // Remove any potential whitespace
   const cleanPhoneNumber = phoneNumber.trim();
 
   try {
-    // Check 'users' collection for this phone number
     const usersQuery = await db.collection("users")
       .where("phoneNumber", "==", cleanPhoneNumber)
       .limit(1)
@@ -386,11 +391,10 @@ export const checkPhoneNumber = functions.https.onCall(async (data, context) => 
       return { isDuplicate: true };
     }
 
-    // Available
     return { isDuplicate: false };
 
   } catch (error) {
     console.error("Error checking phone number:", error);
-    throw new functions.https.HttpsError("internal", "Error checking phone number availability.");
+    throw new HttpsError("internal", "Error checking phone number availability.");
   }
 });
