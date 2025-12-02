@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.groupting"
+    namespace = "com.rlgus16.groupting"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
@@ -21,7 +21,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.groupting"
+        applicationId = "com.rlgus16.groupting"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
