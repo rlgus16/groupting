@@ -128,21 +128,24 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                 final currentUser = context.read<AuthController>().currentUserModel;
                 if (currentUser == null) return;
 
-                // Firestore에 차단 정보 저장 (내 하위 컬렉션에 추가)
+                // 'blocks' 컬렉션에 저장 (양방향 차단 지원)
+                // 문서 ID를 '내ID_상대ID'로 설정하여 중복 방지
+                final blockDocId = '${currentUser.uid}_${widget.user.uid}';
+
                 await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(currentUser.uid)
-                    .collection('blocked_users')
-                    .doc(widget.user.uid)
+                    .collection('blocks')
+                    .doc(blockDocId)
                     .set({
-                  'blockedUserId': widget.user.uid,
-                  'blockedUserNickname': widget.user.nickname,
-                  'blockedAt': FieldValue.serverTimestamp(),
+                  'blockerId': currentUser.uid,      // 차단한 사람 (나)
+                  'blockerNickname': currentUser.nickname,
+                  'blockedId': widget.user.uid,      // 차단당한 사람 (상대)
+                  'blockedNickname': widget.user.nickname,
+                  'createdAt': FieldValue.serverTimestamp(),
                 });
 
                 if (mounted) {
                   Navigator.pop(context); // 다이얼로그 닫기
-                  Navigator.pop(context); // 프로필 화면 닫기 (차단했으므로)
+                  Navigator.pop(context); // 프로필 화면 닫기
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('사용자를 차단했습니다.')),
                   );
