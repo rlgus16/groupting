@@ -163,72 +163,44 @@ class _RegisterViewState extends State<RegisterView> {
     final phoneNumber = _phoneController.text.trim();
     final birthDate = _birthDateController.text.trim();
 
-    if (email.isEmpty || password.isEmpty ||
-        phoneNumber.isEmpty || birthDate.isEmpty || _selectedGender.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('모든 필수 정보를 입력해주세요.')),
-      );
-      return;
-    }
-
     final authController = context.read<AuthController>();
 
-    // 이메일 중복 확인
-    if (_emailValidationMessage == null && email.isNotEmpty) {
-      final isEmailDuplicate = await authController.isEmailDuplicate(email);
-      if (isEmailDuplicate) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('이미 사용 중인 이메일입니다. 다른 이메일을 사용해주세요.')),
-        );
-        return;
-      }
-    }
-
+    // 1. 중복 검사 (이미 UI에서 체크했지만 최종 확인)
     if (_emailValidationMessage == '이미 사용 중인 이메일입니다.') {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이미 사용 중인 이메일입니다. 다른 이메일을 사용해주세요.')),
+        const SnackBar(content: Text('이미 사용 중인 이메일입니다.')),
       );
       return;
     }
-
-    // [ADDED] 전화번호 중복 확인
-    if (_phoneValidationMessage == null && phoneNumber.isNotEmpty) {
-      final isPhoneDuplicate = await authController.isPhoneNumberDuplicate(phoneNumber);
-      if (isPhoneDuplicate) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('이미 사용 중인 전화번호입니다. 다른 번호를 사용해주세요.')),
-        );
-        return;
-      }
-    }
-
     if (_phoneValidationMessage == '이미 사용 중인 전화번호입니다.') {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이미 사용 중인 전화번호입니다. 다른 번호를 사용해주세요.')),
+        const SnackBar(content: Text('이미 사용 중인 전화번호입니다.')),
       );
       return;
     }
 
     authController.clearError();
 
-    try {
-      authController.saveTemporaryRegistrationData(
-        email: email,
-        password: password,
-        phoneNumber: phoneNumber,
-        birthDate: birthDate,
-        gender: _selectedGender,
-      );
+    // 2. [변경됨] 임시 저장이 아닌 '즉시 가입' 시도
+    final success = await authController.register(
+      email: email,
+      password: password,
+      phoneNumber: phoneNumber,
+      birthDate: birthDate,
+      gender: _selectedGender,
+    );
 
-      if (mounted) {
-        Navigator.pushNamed(context, '/profile-create');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('회원가입 준비 중 오류가 발생했습니다.')),
-        );
-      }
+    // 3. 가입 성공 시 프로필 설정 화면으로 이동
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('회원가입이 완료되었습니다. 프로필을 설정해주세요.')),
+      );
+      // 로그인된 상태이므로 /profile-create로 이동하면 자동으로 '내 정보 수정' 모드로 동작함
+      Navigator.pushNamed(context, '/profile-create');
+    } else if (mounted && authController.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authController.errorMessage!)),
+      );
     }
   }
 
