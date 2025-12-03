@@ -15,6 +15,7 @@ import 'profile_detail_view.dart';
 import 'group_members_view.dart';
 import 'my_page_view.dart';
 import 'chat_view.dart';
+import 'profile_edit_view.dart';
 
 // 프로필 검증 결과 클래스
 class ProfileValidationResult {
@@ -1144,64 +1145,33 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                     // === 프로필 완성도 종합 검증 ===
                     final authController = context.read<AuthController>();
                     final profileValidation = _validateProfileForGroupCreation(authController);
-                    
+
                     if (!profileValidation.isValid) {
                       if (mounted) {
-                        // 프로필 미완성 알림 및 프로필 생성 화면으로 이동 제안
+                        // 프로필 미완성 알림
                         showDialog(
                           context: context,
-                          builder: (BuildContext context) {
-                            return AlertDialog(
-                              title: const Text('프로필 완성 필요'),
-                              content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('그룹을 생성하려면 프로필을 완성해야 합니다.'),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    '미완성 항목:',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.orange.shade700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  ...profileValidation.missingFields.map((field) => 
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 8, bottom: 4),
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.circle, size: 4, color: Colors.orange.shade600),
-                                          const SizedBox(width: 8),
-                                          Text(field, style: const TextStyle(fontSize: 14)),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                          barrierDismissible: false, // 프로필 완성을 강제하려면 false로 설정
+                          builder: (context) => AlertDialog(
+                            title: const Text('프로필 완성 필요'),
+                            content: const Text('원활한 서비스 이용을 위해 프로필을 완성해주세요.'),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context); // 다이얼로그 닫기
+
+                                  // [수정됨] ProfileEditView로 이동하여 프로필 완성 유도
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => ProfileEditView()),
+                                  );
+                                },
+                                child: const Text('프로필 완성하기'),
                               ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(context).pop(),
-                                  child: const Text('취소'),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
-                                    Navigator.pushNamed(context, '/profile-create');
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.primaryColor,
-                                  ),
-                                  child: const Text('프로필 완성하기', style: TextStyle(color: Colors.white)),
-                                ),
-                              ],
-                            );
-                          },
+                            ],
+                          ),
                         );
                       }
-                      return;
                     }
                     
                     // 프로필이 완성된 경우에만 그룹 생성 진행 가능하도록 구현하기

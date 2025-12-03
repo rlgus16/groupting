@@ -183,7 +183,10 @@ class _MyPageViewState extends State<MyPageView> {
                     const SizedBox(height: 32),
                     ElevatedButton.icon(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/profile-create');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => ProfileEditView()),
+                        );
                       },
                       icon: const Icon(Icons.edit),
                       label: const Text('프로필 완성하기'),
