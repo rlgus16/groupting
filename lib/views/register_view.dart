@@ -496,8 +496,9 @@ class _RegisterViewState extends State<RegisterView> {
                         final month = int.parse(value.substring(4, 6));
                         final day = int.parse(value.substring(6, 8));
 
-                        final currentYear = DateTime.now().year;
-                        if (year < 1900 || year > currentYear) {
+                        // 1. 기본적인 날짜 유효성 검사
+                        final now = DateTime.now();
+                        if (year < 1900 || year > now.year) {
                           return '유효한 연도를 입력해주세요.';
                         }
                         if (month < 1 || month > 12) {
@@ -507,7 +508,22 @@ class _RegisterViewState extends State<RegisterView> {
                           return '유효한 일을 입력해주세요.';
                         }
 
-                        DateTime(year, month, day);
+                        // DateTime 객체 생성 (유효하지 않은 날짜면 여기서 에러 발생)
+                        final birthDate = DateTime(year, month, day);
+
+                        // 2. 만 18세 미만 차단 로직 (추가된 부분)
+                        int age = now.year - birthDate.year;
+
+                        // 생일이 아직 안 지났으면 나이에서 1 빼기
+                        if (now.month < birthDate.month ||
+                            (now.month == birthDate.month && now.day < birthDate.day)) {
+                          age--;
+                        }
+
+                        if (age < 18) {
+                          return '만 18세 미만은 이용할 수 없습니다.';
+                        }
+
                       } catch (e) {
                         return '유효한 날짜를 입력해주세요.';
                       }
