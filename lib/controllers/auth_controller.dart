@@ -1387,22 +1387,47 @@ class AuthController extends ChangeNotifier {
   Future<bool> reserveNickname(String nickname, String uid) async {
     try {
       final normalizedNickname = nickname.trim().toLowerCase();
+      final nicknameRef = _firebaseService.getDocument('nicknames/$normalizedNickname');
+
       final reservationData = {
         'uid': uid,
         'originalNickname': nickname.trim(),
         'reservedAt': FieldValue.serverTimestamp(),
         'type': 'nickname',
       };
-      
-      await _firebaseService.getDocument('nicknames/$normalizedNickname').set(
-        reservationData,
-        SetOptions(merge: false),
-      );
-      
-      // 닉네임 선점 성공
-      return true;
+
+      // 1. 선점 시도
+      try {
+        await nicknameRef.set(
+          reservationData,
+          SetOptions(merge: false), // 이미 있으면 에러 발생
+        );
+        return true;
+      } catch (e) {
+        // 2. 이미 선점된 경우, 실제 유저가 존재하는지 확인 ('유령 데이터' 체크)
+        final doc = await nicknameRef.get();
+        if (doc.exists) {
+          final data = doc.data();
+          final existingUid = data?['uid'];
+
+          if (existingUid != null) {
+            // 해당 UID를 가진 유저가 실제로 users 컬렉션에 있는지 확인
+            final userExists = await _userService.userExists(existingUid);
+
+            if (!userExists) {
+              // 유저가 없다면(유령 데이터), 선점 기록 삭제 후 재시도
+              debugPrint('유효하지 않은 닉네임 선점 기록 삭제 후 재시도: $nickname');
+              await nicknameRef.delete();
+              await nicknameRef.set(reservationData);
+              return true;
+            }
+          }
+        }
+        // 진짜 사용 중인 닉네임임
+        return false;
+      }
     } catch (e) {
-      // 닉네임 선점 실패
+      debugPrint('닉네임 선점 오류: $e');
       return false;
     }
   }
@@ -1411,27 +1436,51 @@ class AuthController extends ChangeNotifier {
   Future<bool> reservePhoneNumber(String phoneNumber, String uid) async {
     try {
       final trimmedPhoneNumber = phoneNumber.trim();
+      final phoneRef = _firebaseService.getDocument('phoneNumbers/$trimmedPhoneNumber');
+
       final reservationData = {
         'uid': uid,
         'originalPhoneNumber': trimmedPhoneNumber,
         'reservedAt': FieldValue.serverTimestamp(),
         'type': 'phoneNumber',
       };
-      
-      await _firebaseService.getDocument('phoneNumbers/$trimmedPhoneNumber').set(
-        reservationData,
-        SetOptions(merge: false),
-      );
-      
-      // 전화번호 선점 성공
-      return true;
+
+      // 1. 선점 시도
+      try {
+        await phoneRef.set(
+          reservationData,
+          SetOptions(merge: false), // 이미 있으면 에러 발생
+        );
+        return true;
+      } catch (e) {
+        // 2. 이미 선점된 경우, 실제 유저가 존재하는지 확인 ('유령 데이터' 체크)
+        final doc = await phoneRef.get();
+        if (doc.exists) {
+          final data = doc.data();
+          final existingUid = data?['uid'];
+
+          if (existingUid != null) {
+            // 해당 UID를 가진 유저가 실제로 users 컬렉션에 있는지 확인
+            final userExists = await _userService.userExists(existingUid);
+
+            if (!userExists) {
+              // 유저가 없다면(유령 데이터), 선점 기록 삭제 후 재시도
+              debugPrint('유효하지 않은 전화번호 선점 기록 삭제 후 재시도: $phoneNumber');
+              await phoneRef.delete();
+              await phoneRef.set(reservationData);
+              return true;
+            }
+          }
+        }
+        // 진짜 사용 중인 전화번호임
+        return false;
+      }
     } catch (e) {
-      // 전화번호 선점 실패
+      debugPrint('전화번호 선점 오류: $e');
       return false;
     }
   }
   
-
   
   // 닉네임 선점 해제
   Future<void> releaseNickname(String nickname, String uid) async {
