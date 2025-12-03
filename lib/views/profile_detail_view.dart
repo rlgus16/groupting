@@ -1,23 +1,215 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import 'dart:io';
 import '../models/user_model.dart';
 import '../utils/app_theme.dart';
+import '../controllers/auth_controller.dart';
 
-class ProfileDetailView extends StatelessWidget {
+class ProfileDetailView extends StatefulWidget {
   final UserModel user;
 
   const ProfileDetailView({super.key, required this.user});
 
   @override
+  State<ProfileDetailView> createState() => _ProfileDetailViewState();
+}
+
+class _ProfileDetailViewState extends State<ProfileDetailView> {
+
+  // 신고하기 기능
+  void _showReportDialog(BuildContext context) {
+    final reasonController = TextEditingController();
+    final reasons = ['부적절한 사진', '욕설/비하 발언', '스팸/홍보', '사칭/사기', '기타'];
+    String selectedReason = reasons[0];
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('사용자 신고'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('신고 사유를 선택해주세요.'),
+                const SizedBox(height: 16),
+                ...reasons.map((reason) => RadioListTile<String>(
+                  title: Text(reason),
+                  value: reason,
+                  groupValue: selectedReason,
+                  onChanged: (value) {
+                    setState(() => selectedReason = value!);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                )),
+                if (selectedReason == '기타')
+                  TextField(
+                    controller: reasonController,
+                    decoration: const InputDecoration(
+                      hintText: '구체적인 사유를 입력해주세요',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('취소'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  final currentUser = context.read<AuthController>().currentUserModel;
+                  if (currentUser == null) return;
+
+                  final description = selectedReason == '기타'
+                      ? reasonController.text.trim()
+                      : selectedReason;
+
+                  // Firestore 'reports' 컬렉션에 저장
+                  await FirebaseFirestore.instance.collection('reports').add({
+                    'reporterId': currentUser.uid, // 신고자
+                    'reportedUserId': widget.user.uid, // 신고 대상
+                    'reason': description,
+                    'createdAt': FieldValue.serverTimestamp(),
+                    'status': 'pending', // 처리 상태
+                  });
+
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('신고가 접수되었습니다. 검토 후 조치하겠습니다.')),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('신고 실패: $e');
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('신고 처리에 실패했습니다.')),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
+              child: const Text('신고하기'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 차단하기 기능
+  void _showBlockDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('사용자 차단'),
+        content: Text(
+          '${widget.user.nickname}님을 차단하시겠습니까?\n\n'
+              '서로의 프로필 차단\n서로의 채팅 메세지 차단\n서로의 초대 메세지 차단',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final currentUser = context.read<AuthController>().currentUserModel;
+                if (currentUser == null) return;
+
+                // Firestore에 차단 정보 저장 (내 하위 컬렉션에 추가)
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(currentUser.uid)
+                    .collection('blocked_users')
+                    .doc(widget.user.uid)
+                    .set({
+                  'blockedUserId': widget.user.uid,
+                  'blockedUserNickname': widget.user.nickname,
+                  'blockedAt': FieldValue.serverTimestamp(),
+                });
+
+                if (mounted) {
+                  Navigator.pop(context); // 다이얼로그 닫기
+                  Navigator.pop(context); // 프로필 화면 닫기 (차단했으므로)
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('사용자를 차단했습니다.')),
+                  );
+                }
+              } catch (e) {
+                debugPrint('차단 실패: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('차단 처리에 실패했습니다.')),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
+            child: const Text('차단하기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // 현재 로그인한 유저인지 확인 (본인 프로필에는 차단/신고 버튼 숨김)
+    final isMe = context.read<AuthController>().currentUserModel?.uid == widget.user.uid;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('${user.nickname}님의 프로필'),
+        title: Text('${widget.user.nickname}님의 프로필'),
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: AppTheme.textPrimary,
+        actions: isMe ? [] : [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'report') {
+                _showReportDialog(context);
+              } else if (value == 'block') {
+                _showBlockDialog(context);
+              }
+            },
+            itemBuilder: (BuildContext context) {
+              return [
+                const PopupMenuItem<String>(
+                  value: 'report',
+                  child: Row(
+                    children: [
+                      Icon(Icons.report_problem_outlined, color: Colors.orange, size: 20),
+                      SizedBox(width: 8),
+                      Text('신고하기'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'block',
+                  child: Row(
+                    children: [
+                      Icon(Icons.block, color: Colors.red, size: 20),
+                      SizedBox(width: 8),
+                      Text('차단하기'),
+                    ],
+                  ),
+                ),
+              ];
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -26,15 +218,15 @@ class ProfileDetailView extends StatelessWidget {
             // 프로필 이미지 갤러리
             SizedBox(
               height: 400,
-              child: user.profileImages.isNotEmpty
+              child: widget.user.profileImages.isNotEmpty
                   ? PageView.builder(
-                itemCount: user.profileImages.length,
+                itemCount: widget.user.profileImages.length,
                 itemBuilder: (context, index) {
                   return Container(
                     decoration: const BoxDecoration(
                       color: AppTheme.gray100,
                     ),
-                    child: _buildProfileImage(user.profileImages[index]),
+                    child: _buildProfileImage(widget.user.profileImages[index]),
                   );
                 },
               )
@@ -51,7 +243,7 @@ class ProfileDetailView extends StatelessWidget {
             ),
 
             // 프로필 이미지 개수 표시
-            if (user.profileImages.length > 1) ...[
+            if (widget.user.profileImages.length > 1) ...[
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -67,7 +259,7 @@ class ProfileDetailView extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '사진 ${user.profileImages.length}장',
+                      '사진 ${widget.user.profileImages.length}장',
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 14,
@@ -96,7 +288,7 @@ class ProfileDetailView extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        user.nickname,
+                        widget.user.nickname,
                         style: Theme.of(context).textTheme.headlineMedium
                             ?.copyWith(
                           fontWeight: FontWeight.bold,
@@ -114,7 +306,7 @@ class ProfileDetailView extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          '${user.age}세',
+                          '${widget.user.age}세',
                           style: const TextStyle(
                             color: AppTheme.primaryColor,
                             fontWeight: FontWeight.w600,
@@ -129,17 +321,17 @@ class ProfileDetailView extends StatelessWidget {
 
                   // 기본 정보
                   _buildInfoSection(context, '기본 정보', [
-                    _InfoItem('성별', user.gender),
-                    _InfoItem('키', '${user.height}cm'),
-                    _InfoItem('활동지역', user.activityArea),
+                    _InfoItem('성별', widget.user.gender),
+                    _InfoItem('키', '${widget.user.height}cm'),
+                    _InfoItem('활동지역', widget.user.activityArea),
                   ]),
 
                   const SizedBox(height: 24),
 
                   // 소개
-                  if (user.introduction.isNotEmpty) ...[
+                  if (widget.user.introduction.isNotEmpty) ...[
                     _buildInfoSection(context, '소개', [
-                      _InfoItem('', user.introduction, isDescription: true),
+                      _InfoItem('', widget.user.introduction, isDescription: true),
                     ]),
                     const SizedBox(height: 24,),
                   ],
@@ -230,35 +422,31 @@ class ProfileDetailView extends StatelessWidget {
   }
 
   Widget _buildProfileImage(String imageUrl) {
-    // 로컬 이미지인지 확인 (local:// 또는 temp://)
     if (imageUrl.startsWith('local://') || imageUrl.startsWith('temp://')) {
       if (kIsWeb) {
-        // 웹에서는 로컬 이미지 표시 불가
         return const Center(
           child: Icon(Icons.person, size: 100, color: AppTheme.textSecondary),
         );
       } else {
-        // 모바일에서만 로컬 파일 접근
         String localPath;
         if (imageUrl.startsWith('local://')) {
-          localPath = imageUrl.substring(8); // 'local://' 제거
+          localPath = imageUrl.substring(8);
         } else {
-          localPath = imageUrl.substring(7); // 'temp://' 제거
+          localPath = imageUrl.substring(7);
         }
 
         return Image.file(
           File(localPath),
-          fit: BoxFit.contain, // [UPDATED] Show whole image
+          fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) => const Center(
             child: Icon(Icons.person, size: 100, color: AppTheme.textSecondary),
           ),
         );
       }
     } else {
-      // 네트워크 이미지
       return CachedNetworkImage(
         imageUrl: imageUrl,
-        fit: BoxFit.contain, // [UPDATED] Show whole image
+        fit: BoxFit.contain,
         placeholder: (context, url) =>
         const Center(child: CircularProgressIndicator()),
         errorWidget: (context, url, error) => const Center(
