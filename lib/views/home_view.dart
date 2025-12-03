@@ -818,6 +818,12 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
       ),
       body: Consumer2<GroupController, AuthController>(
         builder: (context, groupController, authController, _) {
+          if (authController.isLoggedIn) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              groupController.updateBlockedUsers(authController.blockedUserIds);
+            });
+          }
+
           // 로그인 상태 실시간 체크 (회원탈퇴 후 즉시 리다이렉트)
           if (!authController.isLoggedIn) {
             debugPrint('홈 화면 - 로그인 상태 해제 감지, 로그인 화면으로 이동');

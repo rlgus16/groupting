@@ -31,6 +31,9 @@ class ChatController extends ChangeNotifier {
   bool _disposed = false;
   String? _currentGroupId;
 
+  // 차단된 사용자 목록
+  List<String> _blockedUserIds = [];
+
   // Cache & Performance
   final Map<String, List<ChatMessage>> _messageCache = {};
   final Map<String, DateTime> _lastUpdateTime = {};
@@ -43,10 +46,22 @@ class ChatController extends ChangeNotifier {
   // Getters
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  List<ChatMessage> get messages => _messages;
+  List<ChatMessage> get messages => _messages
+      .where((msg) => !_blockedUserIds.contains(msg.senderId))
+      .toList();
   List<UserModel> get matchedGroupMembers => _matchedGroupMembers;
   TextEditingController get messageController => _messageController;
   ChatroomService get chatroomService => _chatroomService;
+
+  // 차단 목록 업데이트
+  void updateBlockedUsers(List<String> blockedIds) {
+    // 목록이 변경되었을 때만 갱신
+    if (_blockedUserIds.length != blockedIds.length ||
+        !_blockedUserIds.toSet().containsAll(blockedIds)) {
+      _blockedUserIds = List.from(blockedIds);
+      notifyListeners();
+    }
+  }
 
   // --- Initialization & Stream Management ---
 

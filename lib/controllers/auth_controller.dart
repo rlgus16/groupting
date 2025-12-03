@@ -27,6 +27,11 @@ class AuthController extends ChangeNotifier {
   UserModel? _currentUserModel;
   bool _isInitialized = false;
 
+  // 차단된 사용자 ID 목록 및 리스너
+  List<String> _blockedUserIds = [];
+  List<String> get blockedUserIds => _blockedUserIds;
+  StreamSubscription<QuerySnapshot>? _blockedUsersSubscription;
+
   // 로그아웃 시 호출할 콜백
   VoidCallback? onSignOutCallback;
 
@@ -39,6 +44,13 @@ class AuthController extends ChangeNotifier {
 
   // 회원가입 진행 중 플래그
   bool _isRegistrationInProgress = false;
+
+  // 차단 목록 관리 변수 (양방향)
+  List<String> _blockedUserIds = [];
+
+  // 기존 _blockedUsersSubscription 대신 아래 두 변수를 사용합니다.
+  StreamSubscription? _sub1; // 내가 차단한 목록 구독
+  StreamSubscription? _sub2; // 나를 차단한 목록 구독
 
   // Getters
   bool get isLoading => _isLoading;
@@ -365,6 +377,11 @@ class AuthController extends ChangeNotifier {
 
       await _firebaseService.auth.signOut();
 
+      _sub1?.cancel();
+      _sub2?.cancel();
+      _sub1 = null;
+      _sub2 = null;
+      _blockedUserIds = [];
       _currentUserModel = null;
       _tempRegistrationData = null;
       _tempProfileData = null;
@@ -620,6 +637,10 @@ class AuthController extends ChangeNotifier {
           return;
         }
         _currentUserModel = await _userService.getUserById(uid);
+        // (사용자 정보 로드 성공 시)
+        if (_currentUserModel != null) {
+          _startBlockedUsersListener(uid);
+        }
         notifyListeners();
         return;
       } catch (e) {
@@ -631,6 +652,50 @@ class AuthController extends ChangeNotifier {
         await Future.delayed(const Duration(milliseconds: 300));
       }
     }
+  }
+
+// 차단 목록 리스너 시작 함수
+  void _startBlockedUsersListener(String uid) {
+    // 기존 구독 모두 해제
+    _sub1?.cancel();
+    _sub2?.cancel();
+
+    // 양방향 리스너 시작
+    _listenToBothBlockStreams(uid);
+  }
+
+  // [신규 추가] 양방향(내가 차단/나를 차단) 스트림 관리 함수
+  void _listenToBothBlockStreams(String uid) {
+    List<String> myBlocks = [];   // 내가 차단한 사람 ID들
+    List<String> blockedBy = [];  // 나를 차단한 사람 ID들
+
+    // 내부 함수: 두 목록을 합쳐서 _blockedUserIds 업데이트
+    void updateCombinedList() {
+      // 두 리스트를 합치고 중복 제거 (Set 사용)
+      final combined = {...myBlocks, ...blockedBy}.toList();
+      _blockedUserIds = combined;
+      notifyListeners(); // UI 갱신 알림
+    }
+
+    // 1. 내가 차단한 목록 구독 (blockerId가 '나'인 문서)
+    _sub1 = _firebaseService.firestore
+        .collection('blocks')
+        .where('blockerId', isEqualTo: uid)
+        .snapshots()
+        .listen((snapshot) {
+      myBlocks = snapshot.docs.map((doc) => doc['blockedId'] as String).toList();
+      updateCombinedList();
+    });
+
+    // 2. 나를 차단한 목록 구독 (blockedId가 '나'인 문서)
+    _sub2 = _firebaseService.firestore
+        .collection('blocks')
+        .where('blockedId', isEqualTo: uid)
+        .snapshots()
+        .listen((snapshot) {
+      blockedBy = snapshot.docs.map((doc) => doc['blockerId'] as String).toList();
+      updateCombinedList();
+    });
   }
 
   // 앱 시작 시 초기화

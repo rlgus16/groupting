@@ -94,6 +94,14 @@ class _ChatViewState extends State<ChatView> {
       ),
       body: Consumer3<GroupController, ChatController, AuthController>(
         builder: (context, groupController, chatController, authController, _) {
+
+          // 차단 목록 동기화
+          if (authController.isLoggedIn) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              chatController.updateBlockedUsers(authController.blockedUserIds);
+            });
+          }
+
           // 로그인 상태 실시간 체크 (회원탈퇴 후 즉시 리다이렉트)
           if (!authController.isLoggedIn) {
             debugPrint('채팅 화면 - 로그인 상태 해제 감지, 로그인 화면으로 이동');

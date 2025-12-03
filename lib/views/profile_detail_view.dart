@@ -114,8 +114,8 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
       builder: (context) => AlertDialog(
         title: const Text('사용자 차단'),
         content: Text(
-          '${widget.user.nickname}님을 차단하시겠습니까?\n\n'
-              '서로의 프로필 차단\n서로의 채팅 메세지 차단\n서로의 초대 메세지 차단',
+              '서로의 프로필 차단\n서로의 채팅 메세지 차단\n서로의 초대 메세지 차단\n\n'
+                  '${widget.user.nickname}님을 차단하시겠습니까?\n',
         ),
         actions: [
           TextButton(

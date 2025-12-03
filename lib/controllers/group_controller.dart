@@ -25,6 +25,7 @@ class GroupController extends ChangeNotifier {
   List<UserModel> _groupMembers = [];
   List<InvitationModel> _receivedInvitations = [];
   List<InvitationModel> _sentInvitations = [];
+  List<String> _blockedUserIds = [];
 
   StreamSubscription<UserModel?>? _userStreamSubscription;
   StreamSubscription<GroupModel?>? _groupStreamSubscription;
@@ -33,11 +34,25 @@ class GroupController extends ChangeNotifier {
 
   VoidCallback? onMatchingCompleted;
 
+  // 차단 목록 업데이트
+  void updateBlockedUsers(List<String> blockedIds) {
+    if (_blockedUserIds.length != blockedIds.length ||
+        !_blockedUserIds.toSet().containsAll(blockedIds)) {
+      _blockedUserIds = List.from(blockedIds);
+      notifyListeners();
+    }
+  }
+
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   GroupModel? get currentGroup => _currentGroup;
-  List<UserModel> get groupMembers => _groupMembers;
-  List<InvitationModel> get receivedInvitations => _receivedInvitations;
+  List<UserModel> get groupMembers => _groupMembers
+      .where((member) => !_blockedUserIds.contains(member.uid))
+      .toList();
+
+  List<InvitationModel> get receivedInvitations => _receivedInvitations
+      .where((inv) => !_blockedUserIds.contains(inv.fromUserId))
+      .toList();
   List<InvitationModel> get sentInvitations => _sentInvitations;
 
   bool get isMatching => _currentGroup?.status == GroupStatus.matching;
