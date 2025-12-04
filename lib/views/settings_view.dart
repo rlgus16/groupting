@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../controllers/auth_controller.dart';
 import '../utils/app_theme.dart';
 
@@ -281,36 +282,24 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  // 개인정보 처리방침 -> 여기에 스토어 등록에 맞춰 방침 구성하시고, 업로드 진행해 주시거나 url을 통해 연동해주시면 됩니다!
-  void _showPrivacyPolicy() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('개인정보 처리방침'),
-        content: const SingleChildScrollView(
-          child: Text(
-            '그룹팅 앱은 사용자의 개인정보를 보호하기 위해 다음과 같은 방침을 운영하고 있습니다.\n\n'
-            '1. 수집하는 개인정보\n'
-            '- 필수정보: 이메일, 닉네임, 전화번호, 생년월일, 성별\n'
-            '- 선택정보: 프로필 사진, 자기소개, 활동지역\n\n'
-            '2. 개인정보 이용목적\n'
-            '- 서비스 제공 및 운영\n'
-            '- 매칭 서비스 제공\n'
-            '- 고객 지원\n\n'
-            '3. 개인정보 보유기간\n'
-            '- 회원 탈퇴 시까지\n\n'
-            '자세한 내용은 앱 내 개인정보 처리방침을 참조해 주세요.',
-            style: TextStyle(fontSize: 14),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('확인'),
-          ),
-        ],
-      ),
-    );
+// 개인정보 처리방침 - 웹페이지 연결
+  Future<void> _showPrivacyPolicy() async {
+    const url = 'https://flossy-sword-5a1.notion.site/2bee454bf6f580ad8c6df10d571c93a9';
+
+    final Uri uri = Uri.parse(url);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch $url';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('페이지를 열 수 없습니다.')),
+        );
+      }
+    }
   }
 
   // 서비스 이용약관

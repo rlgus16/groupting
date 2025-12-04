@@ -5,7 +5,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
-
 import 'controllers/auth_controller.dart';
 import 'controllers/profile_controller.dart';
 import 'controllers/group_controller.dart';
@@ -13,10 +12,11 @@ import 'controllers/chat_controller.dart';
 import 'views/login_view.dart';
 import 'views/home_view.dart';
 import 'views/register_view.dart';
-// ProfileCreateView import 삭제됨
 import 'utils/app_theme.dart';
 import 'services/fcm_service.dart';
 import 'firebase_options.dart';
+import 'services/version_service.dart';
+import 'views/update_view.dart';
 
 // 전역 네비게이터 키
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -86,14 +86,67 @@ class MyApp extends StatelessWidget {
         locale: const Locale('ko', 'KR'),
         initialRoute: '/',
         routes: {
-          '/': (context) => const AuthWrapper(),
+          '/': (context) => const VersionCheckWrapper(child: AuthWrapper()),
           '/login': (context) => const LoginView(),
           '/register': (context) => const RegisterView(),
-          // '/profile-create': (context) => const ProfileCreateView(), // 삭제됨
           '/home': (context) => const HomeView(),
         },
       ),
     );
+  }
+}
+
+// 앱 시작 시 버전 체크를 수행하는 위젯
+class VersionCheckWrapper extends StatefulWidget {
+  final Widget child;
+  const VersionCheckWrapper({super.key, required this.child});
+
+  @override
+  State<VersionCheckWrapper> createState() => _VersionCheckWrapperState();
+}
+
+class _VersionCheckWrapperState extends State<VersionCheckWrapper> {
+  bool _isLoading = true;
+  VersionCheckResult? _result;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkVersion();
+  }
+
+  Future<void> _checkVersion() async {
+    final versionService = VersionService();
+    // 최소한의 로딩 시간을 주어 스플래시 효과를 낼 수도 있음
+    final result = await versionService.checkVersion();
+
+    if (mounted) {
+      setState(() {
+        _result = result;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      // 로딩 중에는 스플래시 화면이나 로딩 인디케이터 표시
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_result != null && _result!.needsUpdate) {
+      // 업데이트가 필요하면 강제 업데이트 화면 표시
+      return UpdateView(
+        storeUrl: _result!.storeUrl ?? '',
+        message: _result!.message ?? '업데이트가 필요합니다.',
+      );
+    }
+
+    // 업데이트가 필요 없으면 기존 흐름(AuthWrapper)으로 진행
+    return widget.child;
   }
 }
 

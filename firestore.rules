@@ -3,6 +3,55 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+  // 앱 설정/버전 정보는 누구나 읽기 가능 (로그인 전 체크를 위해)
+      match /config/{document=**} {
+        allow read: if true;
+        allow write: if false; // 쓰기는 관리자만(콘솔에서) 가능
+      }
+
+  // 차단된 사용자인지 확인하는 함수
+      function isBanned() {
+        // 사용자 문서의 status 필드가 'banned'이면 true 반환
+        // (request.auth.uid가 null이 아닐 때만 체크)
+        return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'banned';
+      }
+
+      // [추가됨] 접근 허용 조건: 인증됨 AND 차단되지 않음
+      function isAuthenticatedAndNotBanned() {
+        return request.auth != null && !isBanned();
+      }
+
+      // 기존 규칙들을 isAuthenticatedAndNotBanned()를 사용하여 강화
+
+      // 사용자 컬렉션
+      match /users/{userId} {
+        allow create: if request.auth != null && request.auth.uid == userId;
+        // [수정] 차단된 유저는 본인 정보 수정/삭제 불가, 읽기도 불가
+        allow read, update, delete: if isAuthenticatedAndNotBanned() && request.auth.uid == userId;
+        // [수정] 다른 유저 정보 읽기도 차단된 유저는 불가
+        allow read: if isAuthenticatedAndNotBanned();
+
+        match /blocked_users/{blockedUserId} {
+          allow read, write: if isAuthenticatedAndNotBanned() && request.auth.uid == userId;
+        }
+      }
+
+      // 그룹 컬렉션
+      match /groups/{groupId} {
+        allow create: if isAuthenticatedAndNotBanned() && request.auth.uid == request.resource.data.ownerId;
+        allow read: if isAuthenticatedAndNotBanned();
+        // ... 나머지 규칙들도 request.auth != null 대신 isAuthenticatedAndNotBanned() 사용 권장
+      }
+
+      // 채팅방, 메시지, 초대장 등 다른 모든 컬렉션에도 동일하게 적용
+      // 예:
+      match /messages/{messageId} {
+        allow create: if isAuthenticatedAndNotBanned() && request.auth.uid == request.resource.data.senderId;
+        allow read: if isAuthenticatedAndNotBanned();
+        allow update, delete: if isAuthenticatedAndNotBanned() && request.auth.uid == resource.data.senderId;
+      }
+
     // 기본 규칙: 인증되지 않은 접근 차단
     match /{document=**} {
       allow read, write: if false;
