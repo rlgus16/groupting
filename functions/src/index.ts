@@ -398,3 +398,51 @@ export const checkPhoneNumber = onCall(async (request) => {
     throw new HttpsError("internal", "Error checking phone number availability.");
   }
 });
+
+// [관리자 기능] 사용자 제재 (계정 정지 및 강제 차단)
+export const banUserByAdmin = onCall(async (request) => {
+  // 1. 관리자 권한 확인 (보안을 위해 특정 이메일만 허용하는 로직 권장)
+  // const requesterEmail = request.auth?.token.email;
+  // if (requesterEmail !== 'admin@groupting.com') {
+  //   throw new HttpsError("permission-denied", "관리자만 수행할 수 있습니다.");
+  // }
+
+  const data = request.data;
+  const targetUserId = data.targetUserId; // 제재할 사용자 UID
+  const reportId = data.reportId;         // 처리할 신고 ID (선택사항)
+
+  if (!targetUserId) {
+    throw new HttpsError("invalid-argument", "targetUserId is required.");
+  }
+
+  try {
+    // 2. Firebase Auth 계정 비활성화 (로그인 차단)
+    await admin.auth().updateUser(targetUserId, { disabled: true });
+
+    // 3. Firestore 사용자 문서에 'banned' 플래그 설정 (데이터 접근 차단용)
+    // users 컬렉션에 status 필드를 업데이트합니다.
+    await db.collection("users").doc(targetUserId).update({
+      status: 'banned',
+      bannedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // 4. 신고 처리 상태 업데이트 (처리 완료)
+    if (reportId) {
+      await db.collection("reports").doc(reportId).update({
+        status: 'resolved',
+        actionTaken: 'banned',
+        processedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    // 5. (선택사항) 해당 유저의 모든 인증 토큰 만료 처리 (즉시 로그아웃 효과)
+    await admin.auth().revokeRefreshTokens(targetUserId);
+
+    console.log(`User ${targetUserId} has been banned by admin.`);
+    return { success: true, message: `User ${targetUserId} banned successfully.` };
+
+  } catch (error) {
+    console.error("Error banning user:", error);
+    throw new HttpsError("internal", "Failed to ban user.");
+  }
+});
