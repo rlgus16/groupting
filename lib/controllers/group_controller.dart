@@ -241,10 +241,14 @@ class GroupController extends ChangeNotifier {
     required int minAge,
     required int maxAge,
   }) async {
+    // 1. 그룹이 없으면 바로 실패 처리
     if (_currentGroup == null) return false;
 
+    // [중요] _setLoading(true); <-- 이 줄을 지우거나 주석 처리해야 합니다!
+    // 전체 화면 로딩을 막기 위함입니다.
+
     try {
-      // 1. 그룹 통계 계산 (평균 나이, 성별 구성)
+      // 그룹 통계 다시 계산 (나이, 성별 등)
       int totalAge = 0;
       int maleCount = 0;
       int femaleCount = 0;
@@ -258,12 +262,10 @@ class GroupController extends ChangeNotifier {
         }
       }
 
-      // 평균 나이 계산
       int averageAge = _groupMembers.isEmpty
           ? 0
           : (totalAge / _groupMembers.length).round();
 
-      // 그룹 성별 구성 판단
       String groupGender = '혼성';
       if (maleCount > 0 && femaleCount == 0) {
         groupGender = '남자';
@@ -271,7 +273,7 @@ class GroupController extends ChangeNotifier {
         groupGender = '여자';
       }
 
-      // 2. 그룹 문서 업데이트 (필터 및 통계 정보 저장)
+      // 2. Firebase 업데이트
       await _groupService.updateGroupSettings(_currentGroup!.id, {
         'preferredGender': preferredGender,
         'minAge': minAge,
@@ -280,14 +282,15 @@ class GroupController extends ChangeNotifier {
         'averageAge': averageAge,
       });
 
+      // 성공 시 true 반환 (화면 갱신은 자동으로 됨)
       return true;
+
     } catch (e) {
-      // [수정] 전체 화면 에러 전환 방지 (_setError 삭제)
-      // 대신 로그를 남기고 false를 반환하여 UI에서 처리
+      // [중요] 에러가 나도 전체 화면을 에러 페이지로 바꾸지 않음
+      // _setError(e.toString()); <-- 이 줄도 지워주세요!
       debugPrint('필터 저장 실패: $e');
-      return false;
+      return false; // 실패 시 false 반환 (UI에서 스낵바로 알림)
     }
-    // [수정] finally 블록 제거 (로딩 상태 변경 불필요)
   }
 
   Future<bool> startMatching() async {
