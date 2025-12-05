@@ -13,6 +13,11 @@ class GroupModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final int maxMembers;
+  final String preferredGender; // "남자", "여자", "혼성", "상관없음"
+  final int minAge;
+  final int maxAge;
+  final String groupGender;     // "남자", "여자", "혼성" (calculated)
+  final int averageAge;         // (calculated)
 
   GroupModel({
     required this.id,
@@ -25,6 +30,11 @@ class GroupModel {
     required this.createdAt,
     required this.updatedAt,
     this.maxMembers = 5,
+    this.preferredGender = '상관없음',
+    this.minAge = 20,
+    this.maxAge = 40,
+    this.groupGender = '혼성',
+    this.averageAge = 20,
   });
 
   // Firestore에서 데이터를 가져올 때 사용
@@ -44,6 +54,11 @@ class GroupModel {
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       updatedAt: (data['updatedAt'] as Timestamp).toDate(),
       maxMembers: data['maxMembers'] ?? 5,
+      preferredGender: data['preferredGender'] ?? '상관없음',
+      minAge: data['minAge'] ?? 20,
+      maxAge: data['maxAge'] ?? 40,
+      groupGender: data['groupGender'] ?? '혼성',
+      averageAge: data['averageAge'] ?? 20,
     );
   }
 
@@ -59,10 +74,14 @@ class GroupModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'maxMembers': maxMembers,
+      'preferredGender': preferredGender,
+      'minAge': minAge,
+      'maxAge': maxAge,
+      'groupGender': groupGender,
+      'averageAge': averageAge,
     };
   }
 
-  // 복사본 생성
   GroupModel copyWith({
     String? id,
     String? name,
@@ -74,6 +93,11 @@ class GroupModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     int? maxMembers,
+    String? preferredGender,
+    int? minAge,
+    int? maxAge,
+    String? groupGender,
+    int? averageAge,
   }) {
     return GroupModel(
       id: id ?? this.id,
@@ -86,6 +110,11 @@ class GroupModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       maxMembers: maxMembers ?? this.maxMembers,
+      preferredGender: preferredGender ?? this.preferredGender,
+      minAge: minAge ?? this.minAge,
+      maxAge: maxAge ?? this.maxAge,
+      groupGender: groupGender ?? this.groupGender,
+      averageAge: averageAge ?? this.averageAge,
     );
   }
 

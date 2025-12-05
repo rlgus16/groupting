@@ -255,9 +255,17 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
 
 // 매칭 필터 설정 다이얼로그
   void _showMatchFilterDialog() {
-    // 필터 상태 변수
-    RangeValues currentAgeRange = const RangeValues(20, 30);
-    String selectedGender = '상관없음';
+    // 그룹 컨트롤러에서 현재 그룹 정보를 가져옵니다.
+    final groupController = context.read<GroupController>();
+    final group = groupController.currentGroup;
+
+    // 그룹에 저장된 설정이 있으면 그 값을 사용하고, 없으면 기본값(20~30세, 상관없음)을 사용합니다.
+    RangeValues currentAgeRange = RangeValues(
+        group?.minAge.toDouble() ?? 20.0,
+        group?.maxAge.toDouble() ?? 30.0
+    );
+
+    String selectedGender = group?.preferredGender ?? '상관없음';
 
     showModalBottomSheet(
       context: context,
@@ -373,24 +381,47 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: () {
-                        // TODO: 실제 필터 설정 저장 로직 구현
+                      onPressed: () async {
+                        // [수정] 실제 필터 설정 저장 로직 구현
 
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('필터 적용: $selectedGender, ${currentAgeRange.start.round()}~${currentAgeRange.end.round() >= 60 ? "60+" : currentAgeRange.end.round()}세'),
-                            behavior: SnackBarBehavior.floating,
-                          ),
+                        // 1. 컨트롤러 가져오기
+                        final groupController = context.read<GroupController>();
+
+                        if (groupController.currentGroup == null) {
+                          Navigator.pop(context);
+                          return;
+                        }
+
+                        // 2. 필터 저장 요청 (await로 완료 대기)
+                        final success = await groupController.saveMatchFilters(
+                          preferredGender: selectedGender,
+                          minAge: currentAgeRange.start.round(),
+                          maxAge: currentAgeRange.end.round() >= 60 ? 100 : currentAgeRange.end.round(),
                         );
+
+                        if (!mounted) return;
+                        Navigator.pop(context); // 다이얼로그 닫기
+
+                        // 3. 결과 메시지 표시
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('필터가 적용되었습니다.'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(groupController.errorMessage ?? '필터 적용 실패'),
+                              backgroundColor: AppTheme.errorColor,
+                            ),
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
+                        // ... (스타일 코드 유지)
                       ),
                       child: const Text(
                         '적용하기',

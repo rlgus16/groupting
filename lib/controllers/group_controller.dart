@@ -235,6 +235,61 @@ class GroupController extends ChangeNotifier {
     }
   }
 
+// 필터 설정 저장 메서드
+  Future<bool> saveMatchFilters({
+    required String preferredGender,
+    required int minAge,
+    required int maxAge,
+  }) async {
+    if (_currentGroup == null) return false;
+
+    _setLoading(true);
+    try {
+      // 1. 그룹 통계 계산 (평균 나이, 성별 구성)
+      int totalAge = 0;
+      int maleCount = 0;
+      int femaleCount = 0;
+
+      for (var member in _groupMembers) {
+        totalAge += member.age;
+        if (member.gender == '남' || member.gender == '남자') {
+          maleCount++;
+        } else {
+          femaleCount++;
+        }
+      }
+
+      // 평균 나이 계산
+      int averageAge = _groupMembers.isEmpty
+          ? 0
+          : (totalAge / _groupMembers.length).round();
+
+      // 그룹 성별 구성 판단
+      String groupGender = '혼성';
+      if (maleCount > 0 && femaleCount == 0) {
+        groupGender = '남자';
+      } else if (femaleCount > 0 && maleCount == 0) {
+        groupGender = '여자';
+      }
+
+      // 2. 그룹 문서 업데이트 (필터 및 통계 정보 저장)
+      await _groupService.updateGroupSettings(_currentGroup!.id, {
+        'preferredGender': preferredGender,
+        'minAge': minAge,
+        'maxAge': maxAge,
+        'groupGender': groupGender,
+        'averageAge': averageAge,
+      });
+
+      return true;
+    } catch (e) {
+      _setError('필터 저장 실패: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<bool> startMatching() async {
     if (_currentGroup == null) return false;
     _setLoading(true);

@@ -182,6 +182,18 @@ class GroupService {
     }
   }
 
+  // 그룹 설정(필터) 업데이트 메서드
+  Future<void> updateGroupSettings(String groupId, Map<String, dynamic> data) async {
+    try {
+      await _groupsCollection.doc(groupId).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('그룹 설정 업데이트 실패: $e');
+    }
+  }
+
   Future<void> startMatching(String groupId) async {
     try {
       await _groupsCollection.doc(groupId).update({
