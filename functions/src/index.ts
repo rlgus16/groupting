@@ -10,27 +10,39 @@ const db = admin.firestore();
 interface GroupData {
   id: string;
   memberIds: string[];
-  [key: string]: any;
+  status: string;
+  // 필터 관련 필드 정의
+  preferredGender?: string;
+  minAge?: number;
+  maxAge?: number;
+  averageAge?: number;
+  groupGender?: string;
+  matchedGroupId?: string;
 }
 
 // 1. [MATCHING LOGIC]
 // Finds a match and updates statuses safely. No notifications are sent here.
 export const handleGroupUpdate = onDocumentUpdated("groups/{groupId}", async (event) => {
-    // In v2, the change object is in event.data
-    // event.data can be undefined if the document was deleted, so we check for it.
     if (!event.data) return;
 
-    const beforeData = event.data.before.data();
-    const afterData = event.data.after.data();
+    const beforeData = event.data.before.data() as GroupData;
+    const afterData = event.data.after.data() as GroupData;
     const groupId = event.params.groupId;
 
-    // Safety check: ensure data exists
     if (!beforeData || !afterData) return;
 
-    // Trigger only when status changes to "matching"
+    // 매칭 상태로 변경되었을 때만 로직 수행
     if (beforeData.status !== "matching" && afterData.status === "matching") {
-      console.log(`Group ${groupId} started matching. Looking for a pair.`);
+      console.log(`Group ${groupId} started matching with filters.`);
 
+      // 1. 현재 그룹의 정보 및 필터 가져오기
+      const myGender = afterData.groupGender || "혼성";
+      const myPrefGender = afterData.preferredGender || "상관없음";
+      const myAvgAge = afterData.averageAge || 0;
+      const myMinAge = afterData.minAge || 0;
+      const myMaxAge = afterData.maxAge || 100;
+
+      // 2. 매칭 중인 다른 그룹들 조회
       const matchingGroupsQuery = db.collection("groups")
         .where("status", "==", "matching")
         .where(admin.firestore.FieldPath.documentId(), "!=", groupId);
@@ -42,43 +54,64 @@ export const handleGroupUpdate = onDocumentUpdated("groups/{groupId}", async (ev
         return;
       }
 
-      // Logic to find a candidate with the same member count
+      // 3. 조건에 맞는 그룹 찾기
       let matchedCandidate: GroupData | null = null;
+
       for (const doc of querySnapshot.docs) {
-          const groupData = doc.data();
-          if (groupData.memberIds.length === afterData.memberIds.length) {
-            matchedCandidate = { id: doc.id, ...groupData } as GroupData;
-            break;
-          }
+          const targetData = doc.data() as GroupData;
+
+          // [기본 조건] 멤버 수가 같아야 함
+          if (targetData.memberIds.length !== afterData.memberIds.length) continue;
+
+          // ---------------------------------------------------------
+          // [필터 조건 1] 성별 매칭 (양방향 확인)
+          // ---------------------------------------------------------
+          const targetGender = targetData.groupGender || "혼성";
+          const targetPrefGender = targetData.preferredGender || "상관없음";
+
+          // 내가 원하는 상대 성별 확인
+          const isTargetGenderValid = (myPrefGender === "상관없음") || (myPrefGender === targetGender);
+          // 상대가 원하는 내 성별 확인
+          const isMyGenderValid = (targetPrefGender === "상관없음") || (targetPrefGender === myGender);
+
+          if (!isTargetGenderValid || !isMyGenderValid) continue;
+
+          // ---------------------------------------------------------
+          // [필터 조건 2] 나이 매칭 (평균 나이 기준, 양방향 확인)
+          // ---------------------------------------------------------
+          const targetAvgAge = targetData.averageAge || 0;
+          const targetMinAge = targetData.minAge || 0;
+          const targetMaxAge = targetData.maxAge || 100;
+
+          // 상대방의 평균 나이가 내 선호 범위 안에 있는지
+          const isTargetAgeValid = (targetAvgAge >= myMinAge) && (targetAvgAge <= myMaxAge);
+          // 내 평균 나이가 상대방의 선호 범위 안에 있는지
+          const isMyAgeValid = (myAvgAge >= targetMinAge) && (myAvgAge <= targetMaxAge);
+
+          if (!isTargetAgeValid || !isMyAgeValid) continue;
+
+          // [수정됨] 모든 조건을 만족하면 매칭 대상으로 선정 (순서 변경)
+          matchedCandidate = { ...targetData, id: doc.id } as GroupData;
+          break;
       }
 
+      // 4. 매칭 성사 처리 (기존 로직과 동일)
       if (matchedCandidate) {
-        console.log(`Attempting to match: ${groupId} and ${matchedCandidate.id}`);
+        console.log(`Matched! ${groupId} (${myGender}, avg:${myAvgAge}) <-> ${matchedCandidate.id} (${matchedCandidate.groupGender}, avg:${matchedCandidate.averageAge})`);
+
         const group1Ref = db.collection("groups").doc(groupId);
         const group2Ref = db.collection("groups").doc(matchedCandidate.id);
 
         try {
           await db.runTransaction(async (transaction) => {
-            // Read both documents INSIDE the transaction to prevent race conditions
             const group1Doc = await transaction.get(group1Ref);
             const group2Doc = await transaction.get(group2Ref);
 
-            if (!group1Doc.exists || !group2Doc.exists) {
-              throw new Error("One of the groups does not exist.");
+            if (!group1Doc.exists || !group2Doc.exists) throw "Group missing";
+            if (group1Doc.data()?.status !== "matching" || group2Doc.data()?.status !== "matching") {
+                throw "Status changed";
             }
 
-            const g1Data = group1Doc.data();
-            const g2Data = group2Doc.data();
-
-            // Validate that BOTH groups are still 'matching'
-            if (g1Data?.status !== "matching") {
-              throw new Error(`Self group ${groupId} is no longer matching.`);
-            }
-            if (g2Data?.status !== "matching") {
-              throw new Error(`Target group ${matchedCandidate!.id} is no longer available.`);
-            }
-
-            // Update statuses to 'matched'
             transaction.update(group1Ref, {
                 status: "matched",
                 matchedGroupId: matchedCandidate!.id
@@ -88,15 +121,12 @@ export const handleGroupUpdate = onDocumentUpdated("groups/{groupId}", async (ev
                matchedGroupId: groupId
             });
           });
-          console.log(`Successfully matched ${groupId} with ${matchedCandidate.id}`);
         } catch (e) {
-          console.log(`Transaction failed (race condition handled): ${e}`);
+          console.log(`Transaction failed: ${e}`);
         }
-      } else {
-        console.log("Found other matching groups, but none were compatible.");
       }
     }
-  });
+});
 
 // 2. [CHATROOM CREATION]
 // Creates the chatroom document. No notifications are sent here.

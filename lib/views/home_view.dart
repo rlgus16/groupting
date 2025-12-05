@@ -255,9 +255,9 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
 
 // 매칭 필터 설정 다이얼로그
   void _showMatchFilterDialog() {
-    // 예시 데이터 변수 (실제로는 Controller나 State로 관리 필요)
-    RangeValues _currentAgeRange = const RangeValues(20, 30);
-    bool _sameAreaOnly = true;
+    // 필터 상태 변수
+    RangeValues currentAgeRange = const RangeValues(20, 30);
+    String selectedGender = '상관없음';
 
     showModalBottomSheet(
       context: context,
@@ -279,6 +279,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 상단 헤더
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -297,41 +298,73 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                   ),
                   const SizedBox(height: 24),
 
-                  // 1. 나이대 설정
+                  // 1. 상대 그룹 성별 설정
                   const Text(
-                    '상대 그룹 평균 나이',
+                    '상대 그룹 성별',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8.0,
+                    runSpacing: 8.0,
                     children: [
-                      Text('${_currentAgeRange.start.round()}세'),
-                      Text('${_currentAgeRange.end.round()}세'),
+                      _buildGenderChip('남자', selectedGender, (val) {
+                        setModalState(() => selectedGender = val);
+                      }),
+                      _buildGenderChip('여자', selectedGender, (val) {
+                        setModalState(() => selectedGender = val);
+                      }),
+                      _buildGenderChip('혼성', selectedGender, (val) {
+                        setModalState(() => selectedGender = val);
+                      }),
+                      _buildGenderChip('상관없음', selectedGender, (val) {
+                        setModalState(() => selectedGender = val);
+                      }),
                     ],
-                  ),
-                  RangeSlider(
-                    values: _currentAgeRange,
-                    min: 19,
-                    max: 60,
-                    divisions: 20,
-                    activeColor: AppTheme.primaryColor,
-                    labels: RangeLabels(
-                      _currentAgeRange.start.round().toString(),
-                      _currentAgeRange.end.round().toString(),
-                    ),
-                    onChanged: (RangeValues values) {
-                      setModalState(() {
-                        _currentAgeRange = values;
-                      });
-                    },
                   ),
 
                   const SizedBox(height: 24),
 
+                  // 2. 나이대 설정
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        '선호 나이대',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        '${currentAgeRange.start.round()}세 - ${currentAgeRange.end.round() >= 60 ? "60세+" : "${currentAgeRange.end.round()}세"}',
+                        style: const TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  RangeSlider(
+                    values: currentAgeRange,
+                    min: 19,
+                    max: 60,
+                    divisions: 41,
+                    activeColor: AppTheme.primaryColor,
+                    inactiveColor: AppTheme.gray200,
+                    labels: RangeLabels(
+                      currentAgeRange.start.round().toString(),
+                      currentAgeRange.end.round() >= 60 ? "60+" : currentAgeRange.end.round().toString(),
+                    ),
+                    onChanged: (RangeValues values) {
+                      setModalState(() {
+                        currentAgeRange = values;
+                      });
+                    },
+                  ),
 
                   const SizedBox(height: 32),
 
@@ -341,12 +374,14 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: () {
-                        // TODO: 실제 필터 설정 저장 로직 구현 (GroupController 등 연동)
-                        // groupController.updateMatchFilters(...);
+                        // TODO: 실제 필터 설정 저장 로직 구현
 
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('매칭 필터가 적용되었습니다.')),
+                          SnackBar(
+                            content: Text('필터 적용: $selectedGender, ${currentAgeRange.start.round()}~${currentAgeRange.end.round() >= 60 ? "60+" : currentAgeRange.end.round()}세'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -355,6 +390,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        elevation: 0,
                       ),
                       child: const Text(
                         '적용하기',
@@ -368,6 +404,32 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
           },
         );
       },
+    );
+  }
+
+  // 성별 선택 칩 위젯 (헬퍼 메서드)
+  Widget _buildGenderChip(String label, String currentSelection, Function(String) onSelected) {
+    final bool isSelected = label == currentSelection;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (bool selected) {
+        if (selected) {
+          onSelected(label);
+        }
+      },
+      selectedColor: AppTheme.primaryColor.withOpacity(0.1),
+      backgroundColor: Colors.white,
+      labelStyle: TextStyle(
+        color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      side: BorderSide(
+        color: isSelected ? AppTheme.primaryColor : AppTheme.gray300,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
     );
   }
 
