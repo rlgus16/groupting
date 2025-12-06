@@ -5,6 +5,9 @@ import '../controllers/auth_controller.dart';
 import '../utils/app_theme.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_email_sender/flutter_email_sender.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../controllers/auth_controller.dart';
+import '../utils/app_theme.dart';
 
 // 설정 페이지
 class SettingsView extends StatefulWidget {
@@ -120,6 +123,14 @@ class _SettingsViewState extends State<SettingsView> {
                   title: '비밀번호 변경',
                   onTap: () {
                     _showChangePasswordDialog();
+                  },
+                ),
+                // [추가됨] 차단 관리 탭
+                _buildMenuTile(
+                  icon: Icons.person_off_outlined, // 차단 관련 아이콘
+                  title: '차단 관리',
+                  onTap: () {
+                    _showBlockedUsersDialog();
                   },
                 ),
                 _buildMenuTile(
@@ -651,6 +662,85 @@ class _SettingsViewState extends State<SettingsView> {
                   ],
           );
         },
+      ),
+    );
+  }
+
+  // 차단 관리 다이얼로그
+  void _showBlockedUsersDialog() {
+    final currentUser = context.read<AuthController>().currentUserModel;
+    if (currentUser == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('차단 관리'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300, // 리스트가 길어질 수 있으므로 높이 제한
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('blocks')
+                .where('blockerId', isEqualTo: currentUser.uid) // 내가 차단한 내역만 조회
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return const Center(child: Text('목록을 불러오는데 실패했습니다.'));
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final docs = snapshot.data?.docs ?? [];
+
+              if (docs.isEmpty) {
+                return const Center(
+                  child: Text(
+                    '차단한 사용자가 없습니다.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                shrinkWrap: true,
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final data = docs[index].data() as Map<String, dynamic>;
+                  final blockedName = data['blockedNickname'] ?? '알 수 없는 사용자';
+
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(
+                      backgroundColor: AppTheme.gray100,
+                      child: Icon(Icons.person_off, color: Colors.grey, size: 20),
+                    ),
+                    title: Text(blockedName),
+                    trailing: TextButton(
+                      onPressed: () async {
+                        // 차단 해제 로직 (DB 문서 삭제)
+                        await FirebaseFirestore.instance
+                            .collection('blocks')
+                            .doc(docs[index].id)
+                            .delete();
+                      },
+                      child: const Text(
+                        '해제',
+                        style: TextStyle(color: AppTheme.primaryColor),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('닫기'),
+          ),
+        ],
       ),
     );
   }
