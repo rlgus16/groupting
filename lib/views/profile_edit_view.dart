@@ -421,10 +421,10 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                       labelText: '소개글',
                       prefixIcon: Icon(Icons.edit),
                       alignLabelWithHint: true,
-                      helperText: '100자 이내',
+                      helperText: '200자 이내',
                     ),
-                    maxLines: 3,
-                    maxLength: 100,
+                    maxLines: 6,
+                    maxLength: 200,
                     // [수정됨] validator 로직 변경
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {

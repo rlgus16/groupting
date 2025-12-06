@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../controllers/auth_controller.dart';
 import '../utils/app_theme.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_email_sender/flutter_email_sender.dart';
 
 // 설정 페이지
 class SettingsView extends StatefulWidget {
@@ -653,43 +655,152 @@ class _SettingsViewState extends State<SettingsView> {
   // 버그 신고
   void _showBugReportDialog() {
     final bugReportController = TextEditingController();
+    final ImagePicker picker = ImagePicker();
+    XFile? attachedImage; // 첨부된 이미지 상태 관리
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('버그 신고'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('발견한 버그나 문제점을 알려주세요.'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: bugReportController,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                hintText: '버그 내용을 자세히 설명해 주세요...',
-                border: OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        // 다이얼로그 내부 상태(이미지 첨부 여부)를 갱신하기 위해 StatefulBuilder 사용
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('버그 신고'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('발견한 버그나 문제점을 알려주세요.'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: bugReportController,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                      hintText: '버그 내용을 자세히 설명해 주세요...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // 사진 첨부 버튼 및 미리보기
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          try {
+                            final XFile? image = await picker.pickImage(
+                              source: ImageSource.gallery,
+                            );
+                            if (image != null) {
+                              setState(() {
+                                attachedImage = image;
+                              });
+                            }
+                          } catch (e) {
+                            debugPrint('이미지 선택 오류: $e');
+                          }
+                        },
+                        icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                        label: const Text('사진 첨부'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[200],
+                          foregroundColor: Colors.black87,
+                          elevation: 0,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // 첨부된 파일명 표시
+                      if (attachedImage != null)
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check_circle,
+                                  color: Colors.green, size: 16),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  attachedImage!.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close,
+                                    size: 16, color: Colors.grey),
+                                onPressed: () {
+                                  setState(() {
+                                    attachedImage = null;
+                                  });
+                                },
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('버그 신고가 접수되었습니다.')),
-              );
-            },
-            child: const Text('신고하기'),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('취소'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (bugReportController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('내용을 입력해주세요.')),
+                    );
+                    return;
+                  }
+
+                  Navigator.pop(context); // 다이얼로그 닫기
+
+                  // 이메일 발송 함수 호출
+                  await _sendBugReportEmail(
+                    bugReportController.text,
+                    attachedImage?.path,
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                ),
+                child: const Text('보내기'),
+              ),
+            ],
+          );
+        },
       ),
     );
+  }
+
+  // [추가됨] 이메일 발송 로직
+  Future<void> _sendBugReportEmail(String body, String? attachmentPath) async {
+    // 개발자 이메일 주소 입력
+    const String developerEmail = 'sprt.groupting@gmail.com';
+
+    final Email email = Email(
+      body: '내용:\n$body\n\n----------------\n앱 버전: 1.0.0\n기기: ${Theme.of(context).platform}',
+      subject: '[그룹팅 버그 신고]',
+      recipients: [developerEmail],
+      attachmentPaths: attachmentPath != null ? [attachmentPath] : null,
+      isHTML: false,
+    );
+
+    try {
+      await FlutterEmailSender.send(email);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('이메일 앱을 열 수 없습니다. ($error)'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // 앱 평가

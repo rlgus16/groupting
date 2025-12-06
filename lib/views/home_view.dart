@@ -379,7 +379,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                     },
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 20),
 
                   // [수정된 부분] 적용 버튼 (로딩 상태 처리 추가)
                   SizedBox(
@@ -454,6 +454,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 50),
                 ],
               ),
             );

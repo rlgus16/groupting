@@ -89,7 +89,7 @@ class _LoginViewState extends State<LoginView> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    '친구들과 함께하는 소개팅',
+                    '친구들과 함께 즐기는 소개팅',
                     style: TextStyle(
                       fontSize: 16,
                       color: AppTheme.textSecondary,
