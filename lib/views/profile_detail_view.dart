@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
+import 'package:image_picker/image_picker.dart'; // 패키지 추가 필요
+import 'package:flutter_email_sender/flutter_email_sender.dart'; // 패키지 추가 필요
 import '../models/user_model.dart';
 import '../utils/app_theme.dart';
 import '../controllers/auth_controller.dart';
@@ -19,11 +21,15 @@ class ProfileDetailView extends StatefulWidget {
 
 class _ProfileDetailViewState extends State<ProfileDetailView> {
 
-  // 신고하기 기능
+  // [수정됨] 신고하기 기능 (메시지 필수, 사진 첨부, 이메일 전송)
   void _showReportDialog(BuildContext context) {
     final reasonController = TextEditingController();
     final reasons = ['부적절한 사진', '욕설/비하 발언', '스팸/홍보', '사칭/사기', '기타'];
     String selectedReason = reasons[0];
+
+    // 사진 첨부를 위한 변수
+    final ImagePicker picker = ImagePicker();
+    XFile? attachedImage;
 
     showDialog(
       context: context,
@@ -37,6 +43,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
               children: [
                 const Text('신고 사유를 선택해주세요.'),
                 const SizedBox(height: 16),
+                // 라디오 버튼 리스트
                 ...reasons.map((reason) => RadioListTile<String>(
                   title: Text(reason),
                   value: reason,
@@ -46,16 +53,76 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                   },
                   contentPadding: EdgeInsets.zero,
                   dense: true,
+                  activeColor: AppTheme.errorColor,
                 )),
-                if (selectedReason == '기타')
-                  TextField(
-                    controller: reasonController,
-                    decoration: const InputDecoration(
-                      hintText: '구체적인 사유를 입력해주세요',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 3,
+                const SizedBox(height: 8),
+                // [변경됨] 항상 보이는 상세 사유 입력창
+                TextField(
+                  controller: reasonController,
+                  decoration: const InputDecoration(
+                    hintText: '구체적인 신고 내용을 입력해주세요 (필수)',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
                   ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 16),
+
+                // [추가됨] 사진 첨부 버튼
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          final XFile? image = await picker.pickImage(
+                            source: ImageSource.gallery,
+                          );
+                          if (image != null) {
+                            setState(() {
+                              attachedImage = image;
+                            });
+                          }
+                        } catch (e) {
+                          debugPrint('이미지 선택 오류: $e');
+                        }
+                      },
+                      icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                      label: const Text('증거 사진 첨부'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[200],
+                        foregroundColor: Colors.black87,
+                        elevation: 0,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (attachedImage != null)
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                attachedImage!.name,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 16, color: Colors.grey),
+                              onPressed: () {
+                                setState(() {
+                                  attachedImage = null;
+                                });
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -66,29 +133,41 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
             ),
             ElevatedButton(
               onPressed: () async {
+                // 유효성 검사
+                if (reasonController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('구체적인 신고 내용을 입력해주세요.')),
+                  );
+                  return;
+                }
+
                 try {
                   final currentUser = context.read<AuthController>().currentUserModel;
                   if (currentUser == null) return;
 
-                  final description = selectedReason == '기타'
-                      ? reasonController.text.trim()
-                      : selectedReason;
+                  Navigator.pop(context); // 다이얼로그 닫기
 
-                  // Firestore 'reports' 컬렉션에 저장
+                  // 1. Firestore에 기록 (백업용)
                   await FirebaseFirestore.instance.collection('reports').add({
-                    'reporterId': currentUser.uid, // 신고자
-                    'reportedUserId': widget.user.uid, // 신고 대상
-                    'reason': description,
+                    'reporterId': currentUser.uid,
+                    'reportedUserId': widget.user.uid,
+                    'reportedUserNickname': widget.user.nickname,
+                    'category': selectedReason,
+                    'description': reasonController.text.trim(),
+                    'hasImage': attachedImage != null,
                     'createdAt': FieldValue.serverTimestamp(),
-                    'status': 'pending', // 처리 상태
+                    'status': 'pending',
                   });
 
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('신고가 접수되었습니다. 검토 후 조치하겠습니다.')),
-                    );
-                  }
+                  // 2. 이메일 발송 실행
+                  await _sendReportEmail(
+                    reporter: currentUser,
+                    targetUser: widget.user,
+                    category: selectedReason,
+                    description: reasonController.text.trim(),
+                    imagePath: attachedImage?.path,
+                  );
+
                 } catch (e) {
                   debugPrint('신고 실패: $e');
                   if (mounted) {
@@ -105,6 +184,62 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
         ),
       ),
     );
+  }
+
+  // [추가됨] 신고 이메일 발송 함수
+  Future<void> _sendReportEmail({
+    required UserModel reporter,
+    required UserModel targetUser,
+    required String category,
+    required String description,
+    String? imagePath,
+  }) async {
+    // 개발자 이메일 주소
+    const String developerEmail = 'sprt.groupting@gmail.com';
+
+    final String body = '''
+[사용자 신고 접수]
+
+1. 신고자 정보
+- 닉네임: ${reporter.nickname}
+- UID: ${reporter.uid}
+
+2. 신고 대상 정보
+- 닉네임: ${targetUser.nickname}
+- UID: ${targetUser.uid}
+
+3. 신고 내용
+- 카테고리: $category
+- 상세 내용: $description
+
+--------------------------------
+앱 버전: 1.0.0
+기기: ${Theme.of(context).platform}
+''';
+
+    final Email email = Email(
+      body: body,
+      subject: '[그룹팅 신고] ${targetUser.nickname} 사용자 신고',
+      recipients: [developerEmail],
+      attachmentPaths: imagePath != null ? [imagePath] : null,
+      isHTML: false,
+    );
+
+    try {
+      await FlutterEmailSender.send(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('신고 메일 작성 화면으로 이동합니다.')),
+        );
+      }
+    } catch (error) {
+      debugPrint('이메일 전송 오류: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('이메일 앱을 실행할 수 없습니다.')),
+        );
+      }
+    }
   }
 
   // 차단하기 기능

@@ -52,8 +52,18 @@ class _SettingsViewState extends State<SettingsView> {
                   },
                 ),
                 _buildSwitchTile(
-                  title: '메시지 알림',
-                  subtitle: '새로운 메시지 알림을 받습니다',
+                  title: '초대 알림',
+                  subtitle: '새로운 초대 알림을 받습니다',
+                  value: _matchingNotifications,
+                  onChanged: (value) {
+                    setState(() {
+                      _matchingNotifications = value;
+                    });
+                  },
+                ),
+                _buildSwitchTile(
+                  title: '메세지 알림',
+                  subtitle: '새로운 메세지 알림을 받습니다',
                   value: _messageNotifications,
                   onChanged: (value) {
                     setState(() {
@@ -480,7 +490,7 @@ class _SettingsViewState extends State<SettingsView> {
           '포함되는 데이터:\n'
           '- 프로필 정보\n'
           '- 매칭 기록\n'
-          '- 메시지 기록\n\n'
+          '- 메세지 기록\n\n'
           '다운로드를 요청하시겠습니까?',
         ),
         actions: [
@@ -515,7 +525,7 @@ class _SettingsViewState extends State<SettingsView> {
           '삭제되는 데이터:\n'
           '- 프로필 정보\n'
           '- 매칭 기록\n'
-          '- 메시지 기록\n'
+          '- 메세지 기록\n'
           '- 기타 모든 활동 기록\n\n'
           '이 작업은 되돌릴 수 없습니다. 정말로 계정을 삭제하시겠습니까?',
         ),

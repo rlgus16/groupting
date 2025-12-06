@@ -165,8 +165,8 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                 TextFormField(
                   controller: _messageController,
                   decoration: const InputDecoration(
-                    labelText: '초대 메시지 (선택사항)',
-                    hintText: '친구에게 전할 메시지를 입력하세요',
+                    labelText: '초대 메세지 (선택사항)',
+                    hintText: '친구에게 전할 메세지를 입력하세요',
                     prefixIcon: Icon(Icons.message_outlined),
                     alignLabelWithHint: true,
                   ),

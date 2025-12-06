@@ -205,8 +205,8 @@ class FCMService {
       // 채팅 메시지 전용 알림 채널
       const AndroidNotificationChannel messageChannel = AndroidNotificationChannel(
         'groupting_message', // id
-        '채팅 메시지 알림', // title
-        description: '새로운 채팅 메시지 알림을 받습니다',
+        '채팅 메세지 알림', // title
+        description: '새로운 채팅 메세지 알림을 받습니다',
         importance: Importance.high,
         playSound: true,
         enableVibration: true,
