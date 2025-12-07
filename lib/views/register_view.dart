@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'package:country_code_picker/country_code_picker.dart';
 import '../controllers/auth_controller.dart';
 import '../utils/app_theme.dart';
 
@@ -23,6 +24,7 @@ class _RegisterViewState extends State<RegisterView> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   String _selectedGender = '';
+  String _selectedCountryCode = '+82';
 
   // [추가됨] 약관 동의 상태 변수
   bool _agreedToTerms = false;
@@ -114,9 +116,25 @@ class _RegisterViewState extends State<RegisterView> {
     }
   }
 
-  // 전화번호 중복 검증
+// 1. 번호 포맷팅 헬퍼 함수
+  String _getFormattedPhoneNumber(String number) {
+    String cleanNumber = number.trim();
+    if (_selectedCountryCode == '+82' && cleanNumber.startsWith('0')) {
+      cleanNumber = cleanNumber.substring(1);
+    }
+    return '$_selectedCountryCode$cleanNumber';
+  }
+
+  // 2. 전화번호 중복 검증
   Future<void> _checkPhoneNumberDuplicate(String phoneNumber) async {
-    if (phoneNumber.isEmpty || !RegExp(r'^010\d{8}$').hasMatch(phoneNumber)) {
+    bool isValid = true;
+    if (_selectedCountryCode == '+82') {
+      if (!RegExp(r'^010\d{8}$').hasMatch(phoneNumber)) isValid = false;
+    } else {
+      if (phoneNumber.length < 7) isValid = false;
+    }
+
+    if (phoneNumber.isEmpty || !isValid) {
       if (mounted && _phoneValidationMessage != null) {
         setState(() {
           _phoneValidationMessage = null;
@@ -134,10 +152,12 @@ class _RegisterViewState extends State<RegisterView> {
     }
 
     try {
-      final authController =
-      context.read<AuthController>();
-      final isDuplicate =
-      await authController.isPhoneNumberDuplicate(phoneNumber);
+      final authController = context.read<AuthController>();
+
+      // 국가코드 포함된 전체 번호로 변환
+      String finalPhoneNumber = _getFormattedPhoneNumber(phoneNumber);
+
+      final isDuplicate = await authController.isPhoneNumberDuplicate(finalPhoneNumber);
 
       if (mounted) {
         final newMessage =
@@ -233,11 +253,14 @@ class _RegisterViewState extends State<RegisterView> {
 
     authController.clearError();
 
+    // 전체 번호 생성
+    final fullPhoneNumber = _getFormattedPhoneNumber(phoneNumber);
+
     // 3. 회원가입 시도
     final success = await authController.register(
       email: email,
       password: password,
-      phoneNumber: phoneNumber,
+      phoneNumber: fullPhoneNumber,
       birthDate: birthDate,
       gender: _selectedGender,
     );
@@ -461,20 +484,43 @@ class _RegisterViewState extends State<RegisterView> {
                         ],
                         decoration: InputDecoration(
                           labelText: '전화번호',
-                          prefixIcon: const Icon(Icons.phone),
+                          // ★ 핵심 변경: 입력창 내부에 국가 선택기 배치
+                          prefixIcon: Container(
+                            margin: const EdgeInsets.only(right: 8), // 숫자 입력과 간격 띄우기
+                            child: CountryCodePicker(
+                              onChanged: (country) {
+                                setState(() {
+                                  _selectedCountryCode = country.dialCode!;
+                                  // 국가 변경 시 유효성 재검사
+                                  if (_phoneController.text.isNotEmpty) {
+                                    _checkPhoneNumberDuplicate(_phoneController.text);
+                                  }
+                                });
+                              },
+                              initialSelection: 'KR',
+                              favorite: const ['KR'],
+                              showCountryOnly: false,
+                              showOnlyCountryWhenClosed: false,
+                              showFlag: false,
+                              alignLeft: false,
+                              // 아이콘 영역에 맞게 패딩과 텍스트 크기 조절
+                              padding: const EdgeInsets.only(left: 8.0),
+                              textStyle: const TextStyle(fontSize: 15, color: Colors.black),
+                            ),
+                          ),
+                          // 로딩 인디케이터 또는 잠금 아이콘
                           suffixIcon: _isCheckingPhone
                               ? const SizedBox(
                             width: 20,
                             height: 20,
                             child: Padding(
                               padding: EdgeInsets.all(14.0),
-                              child:
-                              CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             ),
                           )
-                              : const Icon(Icons.lock,
-                              color: AppTheme.textSecondary),
-                          helperText: '11자리 숫자만 입력 (예: 01012345678)',
+                              : const Icon(Icons.lock, color: AppTheme.textSecondary),
+                          helperText: '숫자만 입력',
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                         ),
                         onChanged: (value) {
                           _phoneDebounceTimer?.cancel();
@@ -491,15 +537,17 @@ class _RegisterViewState extends State<RegisterView> {
                           if (value == null || value.isEmpty) {
                             return '전화번호를 입력해주세요.';
                           }
-                          if (value.length != 11) {
-                            return '전화번호는 11자리여야 합니다.';
-                          }
-                          if (!RegExp(r'^010\d{8}$').hasMatch(value)) {
-                            return '010으로 시작하는 11자리 번호를 입력해주세요.';
+                          if (_selectedCountryCode == '+82') {
+                            if (value.length != 11) return '11자리여야 합니다.';
+                            if (!RegExp(r'^010\d{8}$').hasMatch(value)) {
+                              return '010으로 시작하는 번호';
+                            }
                           }
                           return null;
                         },
                       ),
+
+                      // 에러/성공 메시지
                       if (_phoneValidationMessage != null)
                         Padding(
                           padding: const EdgeInsets.only(left: 12, top: 4),
@@ -507,8 +555,7 @@ class _RegisterViewState extends State<RegisterView> {
                             _phoneValidationMessage!,
                             style: TextStyle(
                               fontSize: 12,
-                              color: _phoneValidationMessage ==
-                                  '사용 가능한 전화번호입니다.'
+                              color: _phoneValidationMessage!.contains('사용 가능한')
                                   ? Colors.green
                                   : Colors.red,
                             ),
