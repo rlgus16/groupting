@@ -21,7 +21,6 @@ class _SettingsViewState extends State<SettingsView> {
   bool _matchingNotifications = true;
   bool _invitationNotifications = true; // [수정] 별도 변수 분리
   bool _messageNotifications = true;
-  bool _allowLocationAccess = true;
 
   @override
   void initState() {
@@ -292,7 +291,7 @@ class _SettingsViewState extends State<SettingsView> {
       ),
       value: value,
       onChanged: onChanged,
-      activeColor: AppTheme.primaryColor,
+      activeThumbColor: AppTheme.primaryColor,
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
     );
   }
@@ -368,7 +367,6 @@ class _SettingsViewState extends State<SettingsView> {
     final currentPasswordController = TextEditingController();
     final newPasswordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
-    final authController = context.read<AuthController>();
 
     showDialog(
       context: context,
@@ -571,7 +569,6 @@ class _SettingsViewState extends State<SettingsView> {
 
   void _confirmAccountDeletion() {
     // 기존 코드 유지 (내용 생략)
-    final authController = context.read<AuthController>();
     showDialog(
       context: context,
       builder: (context) => Consumer<AuthController>(
