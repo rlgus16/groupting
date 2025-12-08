@@ -240,10 +240,10 @@ class GroupController extends ChangeNotifier {
     required String preferredGender,
     required int minAge,
     required int maxAge,
+    required int minHeight,
+    required int maxHeight,
   }) async {
     if (_currentGroup == null) return false;
-
-    // 전체 화면 로딩을 막기 위해 _setLoading(true)를 사용하지 않습니다.
 
     try {
       // 안정성을 위해 필터 저장 시점에 그룹 멤버 정보를 새로 가져옵니다.
@@ -251,11 +251,13 @@ class GroupController extends ChangeNotifier {
 
       // 그룹 통계 다시 계산
       int totalAge = 0;
+      int totalHeight = 0; // [추가] 키 합계
       int maleCount = 0;
       int femaleCount = 0;
 
       for (var member in members) {
         totalAge += member.age;
+        totalHeight += member.height; // [추가]
         if (member.gender == '남' || member.gender == '남자') {
           maleCount++;
         } else {
@@ -264,6 +266,8 @@ class GroupController extends ChangeNotifier {
       }
 
       int averageAge = members.isEmpty ? 0 : (totalAge / members.length).round();
+      // [추가] 평균 키 계산
+      int averageHeight = members.isEmpty ? 0 : (totalHeight / members.length).round();
 
       String groupGender = '혼성';
       if (maleCount > 0 && femaleCount == 0) {
@@ -277,15 +281,17 @@ class GroupController extends ChangeNotifier {
         'preferredGender': preferredGender,
         'minAge': minAge,
         'maxAge': maxAge,
+        // [추가] 키 정보 저장
+        'minHeight': minHeight,
+        'maxHeight': maxHeight,
+        'averageHeight': averageHeight,
         'groupGender': groupGender,
         'averageAge': averageAge,
       });
 
-      // 성공 시 true 반환 (UI 갱신은 스트림을 통해 자동으로 이루어집니다)
       return true;
 
     } catch (e) {
-      // 실패하더라도 전체 화면에 에러를 표시하지 않고, UI에서 스낵바로 알립니다.
       debugPrint('필터 저장 실패: $e');
       return false;
     }

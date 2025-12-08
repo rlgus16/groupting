@@ -14,10 +14,18 @@ class GroupModel {
   final DateTime updatedAt;
   final int maxMembers;
   final String preferredGender;
+
+  // 기존 나이 관련 필드
   final int minAge;
   final int maxAge;
-  final String groupGender;
   final int averageAge;
+
+  // [추가] 키 관련 필드
+  final int minHeight;      // 선호 최소 키
+  final int maxHeight;      // 선호 최대 키
+  final int averageHeight;  // 우리 그룹 평균 키
+
+  final String groupGender;
 
   GroupModel({
     required this.id,
@@ -33,11 +41,14 @@ class GroupModel {
     this.preferredGender = '상관없음',
     this.minAge = 20,
     this.maxAge = 40,
-    this.groupGender = '혼성',
     this.averageAge = 20,
+    // [추가] 기본값 설정
+    this.minHeight = 150,
+    this.maxHeight = 190,
+    this.averageHeight = 170,
+    this.groupGender = '혼성',
   });
 
-  // Firestore에서 데이터를 가져올 때 사용
   factory GroupModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
 
@@ -52,23 +63,25 @@ class GroupModel {
         orElse: () => GroupStatus.active,
       ),
       matchedGroupId: data['matchedGroupId'],
-      // [수정됨] Timestamp가 null이거나 타입이 맞지 않을 경우 안전하게 처리
       createdAt: data['createdAt'] is Timestamp
           ? (data['createdAt'] as Timestamp).toDate()
-          : DateTime.now(), // 데이터가 없으면 현재 시간으로 대체
+          : DateTime.now(),
       updatedAt: data['updatedAt'] is Timestamp
           ? (data['updatedAt'] as Timestamp).toDate()
-          : DateTime.now(), // 데이터가 없으면 현재 시간으로 대체
+          : DateTime.now(),
       maxMembers: data['maxMembers'] ?? 5,
       preferredGender: data['preferredGender'] ?? '상관없음',
       minAge: data['minAge'] ?? 20,
       maxAge: data['maxAge'] ?? 40,
-      groupGender: data['groupGender'] ?? '혼성',
       averageAge: data['averageAge'] ?? 20,
+      // [추가] Firestore에서 가져오기 (없으면 기본값)
+      minHeight: data['minHeight'] ?? 150,
+      maxHeight: data['maxHeight'] ?? 190,
+      averageHeight: data['averageHeight'] ?? 170,
+      groupGender: data['groupGender'] ?? '혼성',
     );
   }
 
-// Firestore에 저장할 때 사용
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,
@@ -83,8 +96,11 @@ class GroupModel {
       'preferredGender': preferredGender,
       'minAge': minAge,
       'maxAge': maxAge,
-      'groupGender': groupGender,
       'averageAge': averageAge,
+      'minHeight': minHeight,
+      'maxHeight': maxHeight,
+      'averageHeight': averageHeight,
+      'groupGender': groupGender,
     };
   }
 
@@ -102,8 +118,11 @@ class GroupModel {
     String? preferredGender,
     int? minAge,
     int? maxAge,
-    String? groupGender,
     int? averageAge,
+    int? minHeight,
+    int? maxHeight,
+    int? averageHeight,
+    String? groupGender,
   }) {
     return GroupModel(
       id: id ?? this.id,
@@ -119,16 +138,19 @@ class GroupModel {
       preferredGender: preferredGender ?? this.preferredGender,
       minAge: minAge ?? this.minAge,
       maxAge: maxAge ?? this.maxAge,
-      groupGender: groupGender ?? this.groupGender,
       averageAge: averageAge ?? this.averageAge,
+      minHeight: minHeight ?? this.minHeight,
+      maxHeight: maxHeight ?? this.maxHeight,
+      averageHeight: averageHeight ?? this.averageHeight,
+      groupGender: groupGender ?? this.groupGender,
     );
   }
 
-  // 헬퍼 메서드들
-  String get groupId => id; // id와 동일
+  // 헬퍼 메서드들 (기존 유지)
+  String get groupId => id;
   int get memberCount => memberIds.length;
   bool get isFull => memberIds.length >= maxMembers;
-  bool get canMatch => memberIds.length >= 1 && status == GroupStatus.active; // 1명부터 매칭 가능
+  bool get canMatch => memberIds.length >= 1 && status == GroupStatus.active;
   bool isOwner(String userId) => ownerId == userId;
   bool isMember(String userId) => memberIds.contains(userId);
 }

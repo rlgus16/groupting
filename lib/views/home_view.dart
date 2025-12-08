@@ -255,17 +255,20 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
 
 // 매칭 필터 설정 다이얼로그
   void _showMatchFilterDialog() {
-    // 1. 컨트롤러 가져오기
     final groupController = context.read<GroupController>();
     final group = groupController.currentGroup;
-//  DB에 저장된 100(60세 이상) 등의 값을 슬라이더 범위(19~60) 내로 보정
-    double initMin = (group?.minAge.toDouble() ?? 20.0).clamp(19.0, 60.0);
-    double initMax = (group?.maxAge.toDouble() ?? 30.0).clamp(19.0, 60.0);
 
-    // 만약 데이터 오류로 min이 max보다 큰 경우 처리
-    if (initMin > initMax) initMin = initMax;
+    // --- 나이 설정 초기값 ---
+    double initMinAge = (group?.minAge.toDouble() ?? 19.0).clamp(19.0, 60.0);
+    double initMaxAge = (group?.maxAge.toDouble() ?? 60.0).clamp(19.0, 60.0);
+    if (initMinAge > initMaxAge) initMinAge = initMaxAge;
+    RangeValues currentAgeRange = RangeValues(initMinAge, initMaxAge);
 
-    RangeValues currentAgeRange = RangeValues(initMin, initMax);
+    // --- [추가] 키 설정 초기값 (150cm ~ 190cm) ---
+    double initMinHeight = (group?.minHeight.toDouble() ?? 150.0).clamp(150.0, 190.0);
+    double initMaxHeight = (group?.maxHeight.toDouble() ?? 190.0).clamp(150.0, 190.0);
+    if (initMinHeight > initMaxHeight) initMinHeight = initMaxHeight;
+    RangeValues currentHeightRange = RangeValues(initMinHeight, initMaxHeight);
 
     String selectedGender = group?.preferredGender ?? '상관없음';
 
@@ -276,18 +279,13 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        // [중요] 다이얼로그 내부에서만 사용할 로딩 상태 변수
         bool isSaving = false;
 
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
             return Padding(
               padding: EdgeInsets.fromLTRB(
-                  24,
-                  24,
-                  24,
-                  MediaQuery.of(context).viewInsets.bottom + 24
-              ),
+                  24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,13 +294,8 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        '매칭 필터 설정',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      const Text('매칭 필터 설정',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                       IconButton(
                         icon: const Icon(Icons.close),
                         onPressed: () => Navigator.pop(context),
@@ -311,14 +304,9 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                   ),
                   const SizedBox(height: 24),
 
-                  // 1. 상대 그룹 성별 설정
-                  const Text(
-                    '상대 그룹 성별',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  // 1. 성별 설정
+                  const Text('상대 그룹 성별',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8.0,
@@ -345,19 +333,12 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        '상대 그룹 평균 나이',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      const Text('상대 그룹 평균 나이',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                       Text(
                         '${currentAgeRange.start.round()}세 - ${currentAgeRange.end.round() >= 60 ? "60세+" : "${currentAgeRange.end.round()}세"}',
                         style: const TextStyle(
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.bold,
-                        ),
+                            color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -373,88 +354,96 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                       currentAgeRange.end.round() >= 60 ? "60+" : currentAgeRange.end.round().toString(),
                     ),
                     onChanged: (RangeValues values) {
-                      setModalState(() {
-                        currentAgeRange = values;
-                      });
+                      setModalState(() => currentAgeRange = values);
                     },
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-                  // [수정된 부분] 적용 버튼 (로딩 상태 처리 추가)
+                  // 3. 키 설정
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('상대 그룹 평균 키',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      Text(
+                        '${currentHeightRange.start.round()}cm - ${currentHeightRange.end.round() >= 190 ? "190cm+" : "${currentHeightRange.end.round()}cm"}',
+                        style: const TextStyle(
+                            color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  RangeSlider(
+                    values: currentHeightRange,
+                    min: 150,
+                    max: 190,
+                    divisions: 40, // 1cm 단위
+                    activeColor: AppTheme.primaryColor,
+                    inactiveColor: AppTheme.gray200,
+                    labels: RangeLabels(
+                      currentHeightRange.start.round().toString(),
+                      currentHeightRange.end.round() >= 190 ? "190+" : currentHeightRange.end.round().toString(),
+                    ),
+                    onChanged: (RangeValues values) {
+                      setModalState(() => currentHeightRange = values);
+                    },
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  // 적용 버튼
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      // 저장 중일 때는 버튼 비활성화 (null 할당)
-                      onPressed: isSaving ? null : () async {
-                        // 1. 버튼을 로딩 상태로 변경
-                        setModalState(() {
-                          isSaving = true;
-                        });
-
+                      onPressed: isSaving
+                          ? null
+                          : () async {
+                        setModalState(() => isSaving = true);
                         try {
-                          // 2. 필터 저장 요청 (await로 기다림)
                           final success = await groupController.saveMatchFilters(
                             preferredGender: selectedGender,
                             minAge: currentAgeRange.start.round(),
-                            maxAge: currentAgeRange.end.round() >= 60 ? 100 : currentAgeRange.end.round(),
+                            maxAge: currentAgeRange.end.round() >= 60
+                                ? 100
+                                : currentAgeRange.end.round(),
+                            // [추가] 키 정보 전달
+                            minHeight: currentHeightRange.start.round(),
+                            maxHeight: currentHeightRange.end.round() >= 190
+                                ? 200 // 190 이상은 넉넉하게 200으로 저장
+                                : currentHeightRange.end.round(),
                           );
 
                           if (!mounted) return;
-
-                          // 3. 다이얼로그 닫기
                           Navigator.pop(context);
 
-                          // 4. 결과 메시지 표시
                           if (success) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('필터가 적용되었습니다.'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
+                              const SnackBar(content: Text('필터가 적용되었습니다.')),
                             );
                           } else {
-                            // 실패 시 에러 메시지
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(groupController.errorMessage ?? '필터 적용 실패'),
-                                backgroundColor: AppTheme.errorColor,
-                              ),
+                              SnackBar(content: Text(groupController.errorMessage ?? '필터 적용 실패')),
                             );
                           }
                         } catch (e) {
-                          // 예외 발생 시 처리
-                          if (mounted) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('오류가 발생했습니다.')),
-                            );
-                          }
+                          if (mounted) Navigator.pop(context);
                         }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
-                        // 비활성화 상태일 때의 색상 유지 (선택 사항)
-                        disabledBackgroundColor: AppTheme.primaryColor.withOpacity(0.6),
+                        disabledBackgroundColor: AppTheme.primaryColor.withValues(alpha:0.6),
                       ),
-                      // child를 조건부로 변경: 저장 중이면 로딩바, 아니면 텍스트
                       child: isSaving
                           ? const SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2
-                          )
-                      )
-                          : const Text(
-                        '적용하기',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('적용하기',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
-                  const SizedBox(height: 50),
+                  const SizedBox(height: 40),
                 ],
               ),
             );
@@ -475,7 +464,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
           onSelected(label);
         }
       },
-      selectedColor: AppTheme.primaryColor.withOpacity(0.1),
+      selectedColor: AppTheme.primaryColor.withValues(alpha:0.1),
       backgroundColor: Colors.white,
       labelStyle: TextStyle(
         color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,

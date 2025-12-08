@@ -203,7 +203,7 @@ class _ChatViewState extends State<ChatView> {
                     boxShadow: isKeyboardVisible
                         ? [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha:0.1),
                         blurRadius: 4,
                         offset: const Offset(0, -2),
                       ),
@@ -360,7 +360,7 @@ class _ChatViewState extends State<ChatView> {
           margin: const EdgeInsets.only(top: 12),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.1),
+            color: AppTheme.primaryColor.withValues(alpha:0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -400,7 +400,7 @@ class _ChatViewState extends State<ChatView> {
         margin: const EdgeInsets.only(top: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.1),
+          color: Colors.orange.withValues(alpha:0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(

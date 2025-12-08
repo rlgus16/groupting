@@ -197,7 +197,7 @@ class _InvitationListViewState extends State<InvitationListView> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.errorColor.withOpacity(0.1),
+                            color: AppTheme.errorColor.withValues(alpha:0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
