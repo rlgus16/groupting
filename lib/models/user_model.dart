@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserModel {
   final String uid; //  UID - 사용자의 고유 식별자
-  final String email; // 이메일 주소 
+  final String email; // 이메일 주소
   final String phoneNumber;
   final String birthDate; // YYYYMMDD format
   final String gender; // '남' or '여'
@@ -16,6 +16,11 @@ class UserModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isProfileComplete;
+
+  // [추가됨] 알림 설정 필드
+  final bool matchingNotification;
+  final bool invitationNotification;
+  final bool chatNotification;
 
   UserModel({
     required this.uid,
@@ -33,6 +38,10 @@ class UserModel {
     required this.createdAt,
     required this.updatedAt,
     required this.isProfileComplete,
+    // [추가됨] 기본값 true 설정
+    this.matchingNotification = true,
+    this.invitationNotification = true,
+    this.chatNotification = true,
   });
 
   // 나이 계산
@@ -64,12 +73,12 @@ class UserModel {
   // Firestore에서 데이터 가져오기
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data();
-    
+
     // 데이터가 null이거나 Map이 아닌 경우 에러 방지
     if (data == null) {
       throw Exception('Firestore 문서 데이터가 null입니다');
     }
-    
+
     final dataMap = data as Map<String, dynamic>;
     return UserModel(
       uid: doc.id, // Firestore 문서 ID uid로 사용
@@ -87,14 +96,18 @@ class UserModel {
       createdAt: (dataMap['createdAt'] as Timestamp? ?? Timestamp.now()).toDate(),
       updatedAt: (dataMap['updatedAt'] as Timestamp? ?? Timestamp.now()).toDate(),
       isProfileComplete: dataMap['isProfileComplete'] ?? false,
+      // [추가됨] 필드 가져오기 (없으면 true)
+      matchingNotification: dataMap['matchingNotification'] ?? true,
+      invitationNotification: dataMap['invitationNotification'] ?? true,
+      chatNotification: dataMap['chatNotification'] ?? true,
     );
   }
 
   // Firestore에 저장할 데이터 형태로 변환
   Map<String, dynamic> toFirestore() {
     return {
-      'uid': uid, // Firestore 보안 규칙 호환성을 위해 uid 필드 추가
-      'email': email, // 이메일 필드 추가 (Firebase Auth와 동기화)
+      'uid': uid,
+      'email': email,
       'phoneNumber': phoneNumber,
       'birthDate': birthDate,
       'gender': gender,
@@ -108,6 +121,10 @@ class UserModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'isProfileComplete': isProfileComplete,
+      // [추가됨] 저장 필드
+      'matchingNotification': matchingNotification,
+      'invitationNotification': invitationNotification,
+      'chatNotification': chatNotification,
     };
   }
 
@@ -128,6 +145,10 @@ class UserModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isProfileComplete,
+    // [추가됨]
+    bool? matchingNotification,
+    bool? invitationNotification,
+    bool? chatNotification,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -145,6 +166,10 @@ class UserModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isProfileComplete: isProfileComplete ?? this.isProfileComplete,
+      // [추가됨]
+      matchingNotification: matchingNotification ?? this.matchingNotification,
+      invitationNotification: invitationNotification ?? this.invitationNotification,
+      chatNotification: chatNotification ?? this.chatNotification,
     );
   }
 }
