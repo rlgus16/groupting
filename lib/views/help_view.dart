@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_theme.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_email_sender/flutter_email_sender.dart';
 
 class HelpView extends StatelessWidget {
   const HelpView({super.key});
@@ -100,6 +102,18 @@ class HelpView extends StatelessWidget {
                     ),
                   ),
                   _buildGuideItem(
+                    icon: Icons.tune,
+                    title: '필터 적용하기',
+                    description: '내가 원하는 그룹과 매칭되세요',
+                    onTap: () => _showGuideDetail(
+                      context,
+                      '필터 적용 가이드',
+                      '1. 그룹을 만든 후, 상단 우측 필터 버튼을 누르세요\n'
+                          '2. 필터를 조절 하세요\n'
+                          '3. 적용하기를 누르세요'
+                    ),
+                  ),
+                  _buildGuideItem(
                     icon: Icons.favorite,
                     title: '매칭하기',
                     description: '1:1 또는 그룹 매칭을 시작하세요',
@@ -164,7 +178,9 @@ class HelpView extends StatelessWidget {
                     icon: Icons.bug_report_outlined,
                     title: '버그 신고',
                     subtitle: '앱 사용 중 문제가 발생했나요?',
-                    onTap: () => _showBugReportDialog(context),
+                    onTap: () {
+                      _showBugReportDialog();
+                    },
                   ),
                 ],
               ),
@@ -428,46 +444,105 @@ class HelpView extends StatelessWidget {
   }
 
 
-  void _showBugReportDialog(BuildContext context) {
+  void _showBugReportDialog() {
+    // 기존 코드 유지
     final bugReportController = TextEditingController();
+    final ImagePicker picker = ImagePicker();
+    XFile? attachedImage;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('버그 신고'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('발견한 버그나 문제점을 자세히 설명해 주세요.'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: bugReportController,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                hintText: '버그 내용, 발생 상황, 기기 정보 등을 포함해 주세요...',
-                border: OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('버그 신고'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('발견한 버그나 문제점을 알려주세요.'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: bugReportController,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                      hintText: '버그 내용을 자세히 설명해 주세요...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          try {
+                            final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                            if (image != null) setState(() => attachedImage = image);
+                          } catch (e) { /* ignore */ }
+                        },
+                        icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                        label: const Text('사진 첨부'),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[200], foregroundColor: Colors.black87, elevation: 0),
+                      ),
+                      const SizedBox(width: 12),
+                      if (attachedImage != null)
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                              const SizedBox(width: 4),
+                              Expanded(child: Text(attachedImage!.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12))),
+                              IconButton(
+                                icon: const Icon(Icons.close, size: 16, color: Colors.grey),
+                                onPressed: () => setState(() => attachedImage = null),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('버그 신고가 접수되었습니다. 빠른 시일 내에 확인하겠습니다.'),
-                ),
-              );
-            },
-            child: const Text('신고하기'),
-          ),
-        ],
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+              ElevatedButton(
+                onPressed: () async {
+                  if (bugReportController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('내용을 입력해주세요.')));
+                    return;
+                  }
+                  Navigator.pop(context);
+                  await _sendBugReportEmail(bugReportController.text, attachedImage?.path);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
+                child: const Text('보내기'),
+              ),
+            ],
+          );
+        },
       ),
     );
+  }
+
+  Future<void> _sendBugReportEmail(String body, String? attachmentPath) async {
+    const String developerEmail = 'sprt.groupting@gmail.com';
+    final Email email = Email(
+      body: '내용:\n$body\n\n----------------\n앱 버전: 1.0.0\n기기: ${Theme.of(context).platform}',
+      subject: '[그룹팅 버그 신고]',
+      recipients: [developerEmail],
+      attachmentPaths: attachmentPath != null ? [attachmentPath] : null,
+      isHTML: false,
+    );
+    try {
+      await FlutterEmailSender.send(email);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('이메일 앱을 열 수 없습니다. ($error)'), backgroundColor: Colors.red));
+      }
+    }
   }
 } 

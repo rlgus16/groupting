@@ -80,18 +80,31 @@ class _LocationPickerViewState extends State<LocationPickerView> {
       List<Placemark> placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
-        localeIdentifier: 'ko_KR',
+        localeIdentifier: 'ko_KR', // 한국어 설정 확인
       );
 
       if (!mounted) return;
 
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-        // 주소 조합 (null 문자열 제거 및 공백 정리)
-        String address = '${place.administrativeArea} ${place.locality} ${place.thoroughfare}'
-            .replaceAll('null', '')
-            .trim();
 
+        // 한국 주소 체계에 맞는 순서로 요소 배열 (시/도 -> 시/군/구 -> 읍/면/동 -> 상세)
+        // subLocality(구)가 포함되어야 정확한 주소가 나옵니다.
+        List<String?> addressParts = [
+          place.administrativeArea, // 예: 서울특별시, 경기도
+          place.locality,           // 예: 성남시 (광역시의 경우 null일 수 있음)
+          place.subLocality,        // 예: 분당구 (현재 코드에서 빠져있음)
+        ];
+
+        // 1. null이나 빈 문자열 제거
+        // 2. 중복 제거 (예: '서울특별시'가 administrativeArea와 locality에 모두 잡히는 경우 방지)
+        // 3. 공백으로 연결
+        String address = addressParts
+            .where((part) => part != null && part.trim().isNotEmpty) // 유효한 값만 필터링
+            .toSet() // 중복 제거 (순서 보장됨)
+            .join(' '); // 공백으로 연결
+
+        // 만약 조합된 주소가 비어있다면 street(전체 주소) 사용
         if (address.isEmpty) {
           address = place.street ?? '주소 정보 없음';
         }
@@ -102,6 +115,7 @@ class _LocationPickerViewState extends State<LocationPickerView> {
       }
     } catch (e) {
       if (mounted) {
+        debugPrint("주소 변환 오류: $e");
         setState(() {
           _selectedAddress = '주소를 찾을 수 없습니다.';
         });
