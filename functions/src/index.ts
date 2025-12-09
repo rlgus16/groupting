@@ -17,6 +17,9 @@ interface GroupData {
   maxAge?: number;
   averageAge?: number;
   groupGender?: string;
+  minHeight?: number;
+  maxHeight?: number;
+  averageHeight?: number;
   matchedGroupId?: string;
 }
 
@@ -41,6 +44,9 @@ export const handleGroupUpdate = onDocumentUpdated("groups/{groupId}", async (ev
       const myAvgAge = afterData.averageAge || 0;
       const myMinAge = afterData.minAge || 0;
       const myMaxAge = afterData.maxAge || 100;
+      const myAvgHeight = afterData.averageHeight || 0;
+      const myMinHeight = afterData.minHeight || 0;
+      const myMaxHeight = afterData.maxHeight || 200;
 
       // 2. 매칭 중인 다른 그룹들 조회
       const matchingGroupsQuery = db.collection("groups")
@@ -89,6 +95,18 @@ export const handleGroupUpdate = onDocumentUpdated("groups/{groupId}", async (ev
           const isMyAgeValid = (myAvgAge >= targetMinAge) && (myAvgAge <= targetMaxAge);
 
           if (!isTargetAgeValid || !isMyAgeValid) continue;
+
+          const targetAvgHeight = targetData.averageHeight || 0;
+          const targetMinHeight = targetData.minHeight || 0;
+          const targetMaxHeight = targetData.maxHeight || 200;
+
+          // 1. 상대방의 평균 키가 내 선호 범위 안에 있는지 확인
+          const isTargetHeightValid = (targetAvgHeight >= myMinHeight) && (targetAvgHeight <= myMaxHeight);
+
+          // 2. 내 평균 키가 상대방의 선호 범위 안에 있는지 확인
+          const isMyHeightValid = (myAvgHeight >= targetMinHeight) && (myAvgHeight <= targetMaxHeight);
+
+          if (!isTargetHeightValid || !isMyHeightValid) continue;
 
           // [수정됨] 모든 조건을 만족하면 매칭 대상으로 선정 (순서 변경)
           matchedCandidate = { ...targetData, id: doc.id } as GroupData;
