@@ -40,6 +40,10 @@ class _RegisterViewState extends State<RegisterView> {
   String? _phoneValidationMessage;
   Timer? _phoneDebounceTimer;
 
+  // 전화번호 인증 관련 변수
+  final _codeController = TextEditingController();
+  bool _isCodeSent = false;
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +56,7 @@ class _RegisterViewState extends State<RegisterView> {
   void dispose() {
     _emailDebounceTimer?.cancel();
     _phoneDebounceTimer?.cancel();
+    _codeController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -127,11 +132,18 @@ class _RegisterViewState extends State<RegisterView> {
 
   // 2. 전화번호 중복 검증
   Future<void> _checkPhoneNumberDuplicate(String phoneNumber) async {
+    // 번호 변경 시 인증 상태 초기화
+    final authController = context.read<AuthController>();
+    if (authController.isPhoneVerified) {
+      authController.resetPhoneVerification();
+      setState(() {
+        _isCodeSent = false;
+        _codeController.clear();
+      });
+    }
     bool isValid = true;
     if (_selectedCountryCode == '+82') {
-      if (!RegExp(r'^010\d{8}$').hasMatch(phoneNumber)) isValid = false;
-    } else {
-      if (phoneNumber.length < 7) isValid = false;
+      if (phoneNumber.length < 10) isValid = false;
     }
 
     if (phoneNumber.isEmpty || !isValid) {
@@ -174,6 +186,53 @@ class _RegisterViewState extends State<RegisterView> {
           _phoneValidationMessage = '전화번호 확인 중 오류가 발생했습니다.';
         });
       }
+    }
+  }
+
+  // 인증번호 전송 핸들러
+  void _sendVerificationCode() async {
+    final phoneNumber = _phoneController.text.trim();
+    if (phoneNumber.isEmpty || _phoneValidationMessage?.contains('사용 가능') != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('올바른 전화번호를 입력 후 중복 확인을 완료해주세요.')),
+      );
+      return;
+    }
+
+    final fullPhoneNumber = _getFormattedPhoneNumber(phoneNumber);
+    final authController = context.read<AuthController>();
+
+    await authController.sendVerificationCode(
+      phoneNumber: fullPhoneNumber,
+      onCodeSent: () {
+        setState(() {
+          _isCodeSent = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('인증번호가 전송되었습니다.')),
+        );
+      },
+      onError: (msg) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg)),
+        );
+      },
+    );
+  }
+
+  // 인증번호 확인 핸들러
+  void _verifySmsCode() async {
+    final code = _codeController.text.trim();
+    if (code.length < 6) return;
+
+    final authController = context.read<AuthController>();
+    final success = await authController.verifySmsCode(code);
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('전화번호 인증이 완료되었습니다.')),
+      );
+      setState(() {}); // UI 갱신
     }
   }
 
@@ -472,89 +531,157 @@ class _RegisterViewState extends State<RegisterView> {
                   const SizedBox(height: 16),
 
                   // 전화번호 입력
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
-                        ],
-                        decoration: InputDecoration(
-                          labelText: '전화번호',
-                          // ★ 핵심 변경: 입력창 내부에 국가 선택기 배치
-                          prefixIcon: Container(
-                            margin: const EdgeInsets.only(right: 8), // 숫자 입력과 간격 띄우기
-                            child: CountryCodePicker(
-                              onChanged: (country) {
-                                setState(() {
-                                  _selectedCountryCode = country.dialCode!;
-                                  // 국가 변경 시 유효성 재검사
-                                  if (_phoneController.text.isNotEmpty) {
-                                    _checkPhoneNumberDuplicate(_phoneController.text);
-                                  }
-                                });
-                              },
-                              initialSelection: 'KR',
-                              favorite: const ['KR'],
-                              showCountryOnly: false,
-                              showOnlyCountryWhenClosed: false,
-                              showFlag: false,
-                              alignLeft: false,
-                              // 아이콘 영역에 맞게 패딩과 텍스트 크기 조절
-                              padding: const EdgeInsets.only(left: 8.0),
-                              textStyle: const TextStyle(fontSize: 15, color: Colors.black),
-                            ),
+                  Consumer<AuthController>(
+                    builder: (context, authController, child) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _phoneController,
+                                  enabled: !authController.isPhoneVerified, // 인증 완료 시 잠금
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
+                                  ],
+                                  decoration: InputDecoration(
+                                    labelText: '전화번호',
+                                    prefixIcon: Container(
+                                      margin: const EdgeInsets.only(right: 8),
+                                      child: CountryCodePicker(
+                                        onChanged: (country) {
+                                          if (!authController.isPhoneVerified) {
+                                            setState(() {
+                                              _selectedCountryCode = country.dialCode!;
+                                              if (_phoneController.text.isNotEmpty) {
+                                                _checkPhoneNumberDuplicate(_phoneController.text);
+                                              }
+                                            });
+                                          }
+                                        },
+                                        enabled: !authController.isPhoneVerified,
+                                        initialSelection: 'KR',
+                                        favorite: const ['KR'],
+                                        showCountryOnly: false,
+                                        showOnlyCountryWhenClosed: false,
+                                        showFlag: false,
+                                        padding: const EdgeInsets.only(left: 8.0),
+                                        textStyle: const TextStyle(fontSize: 15, color: Colors.black),
+                                      ),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                                  ),
+                                  onChanged: (value) {
+                                    _phoneDebounceTimer?.cancel();
+                                    _phoneDebounceTimer = Timer(
+                                        const Duration(milliseconds: 800), () {
+                                      if (mounted &&
+                                          _phoneController.text == value &&
+                                          value.isNotEmpty) {
+                                        _checkPhoneNumberDuplicate(value);
+                                      }
+                                    });
+                                  },
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) return '전화번호를 입력해주세요.';
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // 인증 버튼 또는 상태 표시
+                              if (!authController.isPhoneVerified)
+                                SizedBox(
+                                  height: 56,
+                                  child: ElevatedButton(
+                                    onPressed: _isCheckingPhone ||
+                                        authController.isLoading ||
+                                        _phoneValidationMessage?.contains('사용 가능') != true
+                                        ? null
+                                        : _sendVerificationCode,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primaryColor,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    child: authController.isLoading
+                                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                        : const Text('인증'),
+                                  ),
+                                )
+                              else
+                                Container(
+                                  height: 56,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.green),
+                                  ),
+                                  child: const Text('인증됨', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                                ),
+                            ],
                           ),
-                          // 로딩 인디케이터 또는 잠금 아이콘
-                          suffixIcon: _isCheckingPhone
-                              ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: Padding(
-                              padding: EdgeInsets.all(14.0),
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                              : const Icon(Icons.lock, color: AppTheme.textSecondary),
-                          helperText: '숫자만 입력',
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                        ),
-                        onChanged: (value) {
-                          _phoneDebounceTimer?.cancel();
-                          _phoneDebounceTimer = Timer(
-                              const Duration(milliseconds: 800), () {
-                            if (mounted &&
-                                _phoneController.text == value &&
-                                value.isNotEmpty) {
-                              _checkPhoneNumberDuplicate(value);
-                            }
-                          });
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return '전화번호를 입력해주세요.';
-                          }
-                          return null;
-                        },
-                      ),
 
-                      // 에러/성공 메시지
-                      if (_phoneValidationMessage != null)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 12, top: 4),
-                          child: Text(
-                            _phoneValidationMessage!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _phoneValidationMessage!.contains('사용 가능한')
-                                  ? Colors.green
-                                  : Colors.red,
+                          // 유효성 검사 메시지
+                          if (_phoneValidationMessage != null && !authController.isPhoneVerified)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 12, top: 4),
+                              child: Text(
+                                _phoneValidationMessage!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: _phoneValidationMessage!.contains('사용 가능한')
+                                      ? Colors.green
+                                      : Colors.red,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                    ],
+
+                          // 인증번호 입력 필드 (전송됨 && 미인증 시 표시)
+                          if (_isCodeSent && !authController.isPhoneVerified)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: _codeController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        labelText: '인증번호 6자리',
+                                        prefixIcon: Icon(Icons.sms_outlined),
+                                        hintText: '000000',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SizedBox(
+                                    height: 56,
+                                    child: ElevatedButton(
+                                      onPressed: authController.isLoading ? null : _verifySmsCode,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.grey[800],
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      child: const Text('확인'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
 
@@ -687,7 +814,7 @@ class _RegisterViewState extends State<RegisterView> {
                                         vertical: 12),
                                     decoration: BoxDecoration(
                                       color: _selectedGender == '여'
-                                          ? AppTheme.primaryColor
+                                          ? AppTheme.secondaryColor
                                           : Colors.grey[200],
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -809,7 +936,15 @@ class _RegisterViewState extends State<RegisterView> {
                       }
 
                       return ElevatedButton(
-                        onPressed: _register,
+                        onPressed: () {
+                          if (!authController.isPhoneVerified) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('전화번호 인증을 완료해주세요.')),
+                            );
+                            return;
+                          }
+                          _register();
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
                           foregroundColor: Colors.white,

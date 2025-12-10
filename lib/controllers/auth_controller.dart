@@ -37,6 +37,10 @@ class AuthController extends ChangeNotifier {
   // 회원가입 진행 중 플래그
   bool _isRegistrationInProgress = false;
 
+  // 전화번호 인증 관련 변수
+  String? _verificationId;
+  bool _isPhoneVerified = false;
+
   // 차단 목록 관리 변수
   List<String> _blockedUserIds = [];
   List<String> get blockedUserIds => _blockedUserIds;
@@ -51,6 +55,7 @@ class AuthController extends ChangeNotifier {
   UserModel? get currentUserModel => _currentUserModel;
   bool get isInitialized => _isInitialized;
   bool get isLoggedIn => _firebaseService.currentUser != null;
+  bool get isPhoneVerified => _isPhoneVerified;
   Map<String, dynamic>? get tempRegistrationData => _tempRegistrationData;
   Map<String, dynamic>? get tempProfileData => _tempProfileData;
 
@@ -133,6 +138,14 @@ class AuthController extends ChangeNotifier {
       _setError(null);
       _isRegistrationInProgress = true; // Auth 리스너 오작동 방지
 
+      // 전화번호 인증 확인
+      if (!_isPhoneVerified) {
+        _setError('전화번호 인증을 완료해주세요.');
+        _setLoading(false);
+        _isRegistrationInProgress = false;
+        return false;
+      }
+
       // 1. 중복 확인
       final duplicates = await checkDuplicates(
         email: email,
@@ -194,6 +207,105 @@ class AuthController extends ChangeNotifier {
       _setError(_getKoreanRegisterErrorMessage(e));
       _setLoading(false);
       return false;
+    }
+  }
+
+  // 전화번호 인증 관련 메서드
+  // 인증번호 전송
+  Future<void> sendVerificationCode({
+    required String phoneNumber,
+    required Function() onCodeSent,
+    required Function(String) onError,
+  }) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      await _firebaseService.auth.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // 안드로이드 자동 인증 시 처리
+          await _verifyCredential(credential);
+          notifyListeners();
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          _setLoading(false);
+          String msg = '인증번호 전송 실패';
+          if (e.code == 'invalid-phone-number') msg = '잘못된 전화번호 형식입니다.';
+          else if (e.code == 'too-many-requests') msg = '너무 많은 요청이 발생했습니다. 잠시 후 다시 시도해주세요.';
+          onError(msg);
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          _verificationId = verificationId;
+          _setLoading(false);
+          onCodeSent();
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _verificationId = verificationId;
+        },
+      );
+    } catch (e) {
+      _setLoading(false);
+      onError('오류가 발생했습니다: $e');
+    }
+  }
+
+  // 인증번호 확인
+  Future<bool> verifySmsCode(String smsCode) async {
+    if (_verificationId == null) {
+      _setError('인증 정보가 없습니다. 다시 시도해주세요.');
+      return false;
+    }
+
+    _setLoading(true);
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: smsCode,
+      );
+      return await _verifyCredential(credential);
+    } catch (e) {
+      _setLoading(false);
+      if (e is FirebaseAuthException && e.code == 'invalid-verification-code') {
+        _setError('인증번호가 올바르지 않습니다.');
+      } else {
+        _setError('인증 확인 중 오류가 발생했습니다.');
+      }
+      return false;
+    }
+  }
+
+  // 내부 인증 처리 (로그인 -> 삭제 -> 인증완료 처리)
+  Future<bool> _verifyCredential(PhoneAuthCredential credential) async {
+    try {
+      // 1. 해당 자격 증명으로 로그인 시도 (실제 번호 소유 확인)
+      final userCredential = await _firebaseService.auth.signInWithCredential(credential);
+
+      if (userCredential.user != null) {
+        // 2. 인증 목적으로 생성된/로그인된 계정이므로 삭제
+        try {
+          await userCredential.user!.delete();
+        } catch (_) {
+          await _firebaseService.auth.signOut();
+        }
+
+        _isPhoneVerified = true;
+        _setLoading(false);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // 전화번호 변경 시 인증 상태 초기화
+  void resetPhoneVerification() {
+    if (_isPhoneVerified) {
+      _isPhoneVerified = false;
+      _verificationId = null;
+      notifyListeners();
     }
   }
 
