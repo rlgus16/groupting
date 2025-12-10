@@ -168,6 +168,11 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
                         .length -
                         1 -
                         index];
+
+                    if (message.senderId == 'system') {
+                      return _buildSystemMessage(message);
+                    }
+
                     final senderProfile = message.senderId != 'system'
                         ? chatController.matchedGroupMembers
                         .where(
@@ -493,6 +498,28 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
             ),
           ],
         ],
+      ),
+    );
+  }
+  Widget _buildSystemMessage(dynamic message) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      alignment: Alignment.center,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+        decoration: BoxDecoration(
+          color: AppTheme.gray100,
+          borderRadius: BorderRadius.circular(20.0),
+        ),
+        child: Text(
+          message.content,
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 12.0,
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
+        ),
       ),
     );
   }
