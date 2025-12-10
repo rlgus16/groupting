@@ -57,19 +57,22 @@ class _SettingsViewState extends State<SettingsView> {
     });
 
     try {
-      // 모델 업데이트
-      final updatedUser = user.copyWith(
-        matchingNotification: matching,
-        invitationNotification: invitation,
-        chatNotification: chat,
-      );
+      // ✅ 수정됨: 변경된 필드만 골라서 부분 업데이트 (Partial Update)
+      // 이렇게 하면 currentGroupId 같은 중요 정보는 건드리지 않습니다.
+      final Map<String, dynamic> updates = {};
+      if (matching != null) updates['matchingNotification'] = matching;
+      if (invitation != null) updates['invitationNotification'] = invitation;
+      if (chat != null) updates['chatNotification'] = chat;
 
-      // DB 저장
-      await UserService().updateUser(updatedUser);
-      // 로컬 데이터 갱신
+      if (updates.isNotEmpty) {
+        // UserService의 컬렉션 접근자를 통해 직접 update 호출
+        await UserService().usersCollection.doc(user.uid).update(updates);
+      }
+
+      // 로컬 데이터 갱신 (최신 데이터로 동기화)
       await authController.refreshCurrentUser();
     } catch (e) {
-      // 실패 시 롤백 (선택 사항, 여기서는 간단히 에러 메시지)
+      // 실패 시 롤백 (선택 사항)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('설정 저장에 실패했습니다.')),

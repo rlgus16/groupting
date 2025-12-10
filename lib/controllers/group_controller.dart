@@ -112,21 +112,22 @@ class GroupController extends ChangeNotifier {
   }
 
   void _startGroupStream(String groupId) {
-    _targetGroupId = groupId; // [FIX] Set target immediately
+    _targetGroupId = groupId;
 
     _groupStreamSubscription?.cancel();
     _groupStreamSubscription = _groupService.getGroupStream(groupId).listen(
           (group) async {
-        // [FIX] Ignore updates for old groups
         if (_targetGroupId != groupId) return;
 
         final oldStatus = _currentGroup?.status;
         _currentGroup = group;
+
         if (group != null) {
           await _loadGroupMembers();
 
+          // ✅ 수정됨: 반드시 '매칭 중(matching)' 상태였던 경우에만 알림 발생
           if (oldStatus != null &&
-              oldStatus != GroupStatus.matched &&
+              oldStatus == GroupStatus.matching && // 이 조건 추가
               group.status == GroupStatus.matched) {
             onMatchingCompleted?.call();
           }
@@ -137,7 +138,7 @@ class GroupController extends ChangeNotifier {
         notifyListeners();
       },
       onError: (error) async {
-        // [Existing race condition fix preserved]
+        // 에러 처리 로직 유지
         final userId = _firebaseService.currentUserId;
         if (userId != null) {
           final user = await _userService.getUserById(userId);
