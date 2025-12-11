@@ -37,95 +37,101 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
         builder: (context, setState) => AlertDialog(
           title: const Text('사용자 신고'),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('신고 사유를 선택해주세요.'),
-                const SizedBox(height: 16),
-                // 라디오 버튼 리스트
-                ...reasons.map((reason) => RadioListTile<String>(
-                  title: Text(reason),
-                  value: reason,
-                  groupValue: selectedReason,
-                  onChanged: (value) {
-                    setState(() => selectedReason = value!);
-                  },
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  activeColor: AppTheme.errorColor,
-                )),
-                const SizedBox(height: 8),
-                // [변경됨] 항상 보이는 상세 사유 입력창
-                TextField(
-                  controller: reasonController,
-                  decoration: const InputDecoration(
-                    hintText: '구체적인 신고 내용을 입력해주세요 (필수)',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 16),
+            child: RadioGroup<String>(
+              groupValue: selectedReason, // 그룹 전체의 값을 여기서 관리합니다.
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => selectedReason = value);
+                }
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('신고 사유를 선택해주세요.'),
+                  const SizedBox(height: 16),
 
-                // [추가됨] 사진 첨부 버튼
-                Row(
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        try {
-                          final XFile? image = await picker.pickImage(
-                            source: ImageSource.gallery,
-                          );
-                          if (image != null) {
-                            setState(() {
-                              attachedImage = image;
-                            });
-                          }
-                        } catch (e) {
-                          debugPrint('이미지 선택 오류: $e');
-                        }
-                      },
-                      icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                      label: const Text('증거 사진 첨부'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[200],
-                        foregroundColor: Colors.black87,
-                        elevation: 0,
-                      ),
+                  // [2] 개별 버튼에서는 groupValue와 onChanged를 제거합니다.
+                  ...reasons.map((reason) => RadioListTile<String>(
+                    title: Text(reason),
+                    value: reason,
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    activeColor: AppTheme.errorColor,
+                  )),
+
+                  const SizedBox(height: 8),
+                  // [3] 나머지 입력창과 버튼들은 그대로 유지됩니다.
+                  TextField(
+                    controller: reasonController,
+                    decoration: const InputDecoration(
+                      hintText: '구체적인 신고 내용을 입력해주세요 (필수)',
+                      border: OutlineInputBorder(),
+                      alignLabelWithHint: true,
                     ),
-                    const SizedBox(width: 8),
-                    if (attachedImage != null)
-                      Expanded(
-                        child: Row(
-                          children: [
-                            const Icon(Icons.check_circle, color: Colors.green, size: 16),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                attachedImage!.name,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close, size: 16, color: Colors.grey),
-                              onPressed: () {
-                                setState(() {
-                                  attachedImage = null;
-                                });
-                              },
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                          ],
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  // 사진 첨부 버튼 영역 (기존 코드와 동일)
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          try {
+                            final XFile? image = await picker.pickImage(
+                              source: ImageSource.gallery,
+                            );
+                            if (image != null) {
+                              setState(() {
+                                attachedImage = image;
+                              });
+                            }
+                          } catch (e) {
+                            debugPrint('이미지 선택 오류: $e');
+                          }
+                        },
+                        icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                        label: const Text('증거 사진 첨부'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[200],
+                          foregroundColor: Colors.black87,
+                          elevation: 0,
                         ),
                       ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 8),
+                      if (attachedImage != null)
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  attachedImage!.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close, size: 16, color: Colors.grey),
+                                onPressed: () {
+                                  setState(() {
+                                    attachedImage = null;
+                                  });
+                                },
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
+
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -219,7 +225,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
 
     final Email email = Email(
       body: body,
-      subject: '[그룹팅 신고] ${targetUser.nickname} 사용자 신고',
+      subject: '[그룹팅 신고]',
       recipients: [developerEmail],
       attachmentPaths: imagePath != null ? [imagePath] : null,
       isHTML: false,
@@ -347,6 +353,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
         foregroundColor: AppTheme.textPrimary,
         actions: isMe ? [] : [
           PopupMenuButton<String>(
+            iconSize: 30,
             onSelected: (value) {
               if (value == 'report') {
                 _showReportDialog(context);

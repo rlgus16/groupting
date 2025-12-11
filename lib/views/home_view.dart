@@ -16,6 +16,7 @@ import 'my_page_view.dart';
 import 'chat_view.dart';
 import 'profile_edit_view.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // 프로필 검증 결과 클래스
 class ProfileValidationResult {
@@ -926,7 +927,14 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('그룹팅'),
+        title: Text(
+          '그룹팅',
+          style: GoogleFonts.gugi(
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryColor,
+          ),
+        ),
         actions: [
           // [수정됨] 매칭 필터 버튼 표시 조건 강화
           Consumer<GroupController>(
@@ -937,6 +945,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                   !groupController.isMatching) { // 3. 매칭 진행 중 상태가 아니어야 함 (!isMatching)
                 return IconButton(
                   icon: const Icon(Icons.tune),
+                  iconSize: 30,
                   tooltip: '매칭 필터',
                   onPressed: _showMatchFilterDialog,
                 );
@@ -949,6 +958,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
           // 더보기 메뉴
           IconButton(
             icon: const Icon(Icons.more_vert),
+            iconSize: 30,
             onPressed: _showMoreOptions,
           ),
         ],
