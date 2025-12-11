@@ -428,7 +428,7 @@ class HelpView extends StatelessWidget {
     final Uri emailUri = Uri(
       scheme: 'mailto',
       path: 'sprt.groupting@gmail.com',
-      query: 'subject=그룹팅 앱 문의&body=문의 내용을 작성해 주세요.',
+      query: 'subject=[그룹팅 문의]&body=문의 내용:\n',
     );
 
     try {
@@ -468,7 +468,7 @@ class HelpView extends StatelessWidget {
 
             // 이메일 전송 함수
             Future<void> _sendEmail() async {
-              String body = "버그 내용:\n${_contentController.text}\n\n";
+              String body = "버그 내용:\n${_contentController.text}";
 
               // 이메일 객체 생성
               final Email email = Email(

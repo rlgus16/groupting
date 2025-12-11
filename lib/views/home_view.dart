@@ -15,6 +15,7 @@ import 'group_members_view.dart';
 import 'my_page_view.dart';
 import 'chat_view.dart';
 import 'profile_edit_view.dart';
+import 'package:shimmer/shimmer.dart';
 
 // 프로필 검증 결과 클래스
 class ProfileValidationResult {
@@ -1402,6 +1403,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
           children: [
             Row(
               children: [
+                // 1. 아이콘 부분 (기존과 동일)
                 Icon(
                   groupController.isMatched
                       ? Icons.favorite
@@ -1415,19 +1417,34 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                       : AppTheme.primaryColor,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  groupController.isMatched
-                      ? '매칭 완료!'
-                      : groupController.isMatching
-                      ? '매칭 중...'
-                      : '그룹 대기',
+
+                groupController.isMatched
+                    ? Text(
+                  '매칭 완료!',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: groupController.isMatched
-                        ? AppTheme.successColor
-                        : groupController.isMatching
-                        ? Colors.orange
-                        : AppTheme.textPrimary,
+                    color: AppTheme.successColor,
+                  ),
+                )
+                    : groupController.isMatching
+                    ? Shimmer.fromColors(
+                  // 매칭 중일 때만 이 코드가 실행됩니다 (반짝이는 효과)
+                  baseColor: Colors.orange, // 기존 텍스트 색상
+                  highlightColor: Colors.white, // 빛나는 색상
+                  period: const Duration(seconds: 2), // 2초 간격
+                  child: Text(
+                    '매칭 중...',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.orange,
+                    ),
+                  ),
+                )
+                    : Text(
+                  '그룹 대기',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
               ],

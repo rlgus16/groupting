@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/auth_controller.dart';
 import '../utils/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -78,12 +79,14 @@ class _LoginViewState extends State<LoginView> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // 로고/타이틀
-                  const Text(
+                  Text(
                     '그룹팅',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
+                    style: GoogleFonts.gugi( // 독특한 디자인 폰트
+                      textStyle: TextStyle(
+                        fontSize: 40, // 이 폰트는 조금 커야 멋있습니다
+                        color: AppTheme.primaryColor,
+                        letterSpacing: 2.0, // 자간을 넓혀서 로고 같은 느낌 강조
+                      ),
                     ),
                     textAlign: TextAlign.center,
                   ),
