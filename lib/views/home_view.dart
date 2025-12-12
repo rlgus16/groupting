@@ -11,7 +11,6 @@ import '../models/invitation_model.dart';
 import 'invite_friend_view.dart';
 import 'invitation_list_view.dart';
 import 'profile_detail_view.dart';
-import 'group_members_view.dart';
 import 'my_page_view.dart';
 import 'chat_view.dart';
 import 'profile_edit_view.dart';
@@ -1521,43 +1520,6 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
-                ),
-                Row(
-                  children: [
-                    // [UPDATED] 멤버 추가 버튼 (방장이고, 매칭 전이며, 멤버가 5명 미만일 때만 표시)
-                    if (groupController.isOwner &&
-                        !groupController.isMatched &&
-                        groupController.groupMembers.length < 5)
-                      TextButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const InviteFriendView(),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.person_add, size: 16),
-                        label: const Text('초대'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppTheme.primaryColor,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                        ),
-                      ),
-                    // 전체 보기 버튼
-                    if (groupController.groupMembers.length > 3)
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const GroupMembersView(),
-                            ),
-                          );
-                        },
-                        child: const Text('전체 보기'),
-                      ),
-                  ],
                 ),
               ],
             ),
