@@ -127,7 +127,7 @@ class GroupController extends ChangeNotifier {
 
           // 반드시 '매칭 중(matching)' 상태였던 경우에만 알림 발생
           if (oldStatus != null &&
-              oldStatus == GroupStatus.matching && // 이 조건 추가
+              oldStatus == GroupStatus.matching &&
               group.status == GroupStatus.matched) {
             onMatchingCompleted?.call();
           }
@@ -252,13 +252,13 @@ class GroupController extends ChangeNotifier {
 
       // 그룹 통계 다시 계산
       int totalAge = 0;
-      int totalHeight = 0; // [추가] 키 합계
+      int totalHeight = 0;
       int maleCount = 0;
       int femaleCount = 0;
 
       for (var member in members) {
         totalAge += member.age;
-        totalHeight += member.height; // [추가]
+        totalHeight += member.height;
         if (member.gender == '남' || member.gender == '남자') {
           maleCount++;
         } else {
@@ -267,7 +267,6 @@ class GroupController extends ChangeNotifier {
       }
 
       int averageAge = members.isEmpty ? 0 : (totalAge / members.length).round();
-      // [추가] 평균 키 계산
       int averageHeight = members.isEmpty ? 0 : (totalHeight / members.length).round();
 
       String groupGender = '혼성';
@@ -282,7 +281,6 @@ class GroupController extends ChangeNotifier {
         'preferredGender': preferredGender,
         'minAge': minAge,
         'maxAge': maxAge,
-        // [추가] 키 정보 저장
         'minHeight': minHeight,
         'maxHeight': maxHeight,
         'averageHeight': averageHeight,

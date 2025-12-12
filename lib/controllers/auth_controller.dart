@@ -769,7 +769,7 @@ class AuthController extends ChangeNotifier {
     _listenToBothBlockStreams(uid);
   }
 
-  // [신규 추가] 양방향(내가 차단/나를 차단) 스트림 관리 함수
+  // 양방향(내가 차단/나를 차단) 스트림 관리 함수
   void _listenToBothBlockStreams(String uid) {
     List<String> myBlocks = [];   // 내가 차단한 사람 ID들
     List<String> blockedBy = [];  // 나를 차단한 사람 ID들

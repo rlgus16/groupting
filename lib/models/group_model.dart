@@ -20,7 +20,7 @@ class GroupModel {
   final int maxAge;
   final int averageAge;
 
-  // [추가] 키 관련 필드
+  // 키 관련 필드
   final int minHeight;      // 선호 최소 키
   final int maxHeight;      // 선호 최대 키
   final int averageHeight;  // 우리 그룹 평균 키
@@ -39,10 +39,9 @@ class GroupModel {
     required this.updatedAt,
     this.maxMembers = 5,
     this.preferredGender = '상관없음',
-    this.minAge = 20,
-    this.maxAge = 40,
+    this.minAge = 19,
+    this.maxAge = 60,
     this.averageAge = 20,
-    // [추가] 기본값 설정
     this.minHeight = 150,
     this.maxHeight = 190,
     this.averageHeight = 170,
@@ -74,7 +73,6 @@ class GroupModel {
       minAge: data['minAge'] ?? 20,
       maxAge: data['maxAge'] ?? 40,
       averageAge: data['averageAge'] ?? 20,
-      // [추가] Firestore에서 가져오기 (없으면 기본값)
       minHeight: data['minHeight'] ?? 150,
       maxHeight: data['maxHeight'] ?? 190,
       averageHeight: data['averageHeight'] ?? 170,

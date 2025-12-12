@@ -262,7 +262,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
     if (initMinAge > initMaxAge) initMinAge = initMaxAge;
     RangeValues currentAgeRange = RangeValues(initMinAge, initMaxAge);
 
-    // --- [추가] 키 설정 초기값 (150cm ~ 190cm) ---
+    // 키 설정 초기값 (150cm ~ 190cm)
     double initMinHeight = (group?.minHeight.toDouble() ?? 150.0).clamp(150.0, 190.0);
     double initMaxHeight = (group?.maxHeight.toDouble() ?? 190.0).clamp(150.0, 190.0);
     if (initMinHeight > initMaxHeight) initMinHeight = initMaxHeight;
@@ -405,7 +405,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                             maxAge: currentAgeRange.end.round() >= 60
                                 ? 100
                                 : currentAgeRange.end.round(),
-                            // [추가] 키 정보 전달
+                            // 키 정보 전달
                             minHeight: currentHeightRange.start.round(),
                             maxHeight: currentHeightRange.end.round() >= 190
                                 ? 200 // 190 이상은 넉넉하게 200으로 저장
@@ -1540,7 +1540,6 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                       );
                     },
                     child: Column(
-                      // mainAxisSize: MainAxisSize.min, // 필요 시 추가
                       children: [
                         MemberAvatar(
                           imageUrl: member.mainProfileImage,
@@ -1557,9 +1556,9 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                       ],
                     ),
                   );
-                }), // .toList()는 Dart 최신 버전에서는 생략 가능 (... spread operator 사용 시)
+                }),
 
-                // [Part 2] 친구 초대 버튼 ("+추가" 슬롯)
+                // 친구 초대 버튼
                 // 조건: 방장이고, 매칭 전이며, 멤버가 5명 미만일 때
                 if (groupController.isOwner &&
                     !groupController.isMatched &&

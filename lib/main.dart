@@ -54,7 +54,19 @@ void main() async {
 // FCM 백그라운드 메시지 핸들러
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // 백그라운드 메시지 처리 로직
+  // 시스템 메시지(senderId가 'system')인 경우 백그라운드 처리 중단
+  if (message.data['senderId'] == 'system') {
+    debugPrint('백그라운드: 시스템 메시지 무시됨 (알림 미표시)');
+    return;
+  }
+
+  // Firebase 초기화 (백그라운드에서 Firebase 기능 사용 시 필요)
+  // 시스템 메시지가 아닌 경우에만 실행됩니다.
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  debugPrint('백그라운드 메시지 수신: ${message.messageId}');
 }
 
 class MyApp extends StatelessWidget {

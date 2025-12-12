@@ -152,7 +152,7 @@ class ChatroomModel {
     };
   }
 
-  // 새 메시지 추가
+  // 새 메시지
   ChatroomModel addMessage(ChatMessage message) {
     final updatedMessages = [...messages, message];
     

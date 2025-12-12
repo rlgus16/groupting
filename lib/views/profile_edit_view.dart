@@ -421,7 +421,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                       labelText: '활동지역',
                       hintText: '지도를 눌러 위치를 선택하세요',
                       prefixIcon: Icon(Icons.location_on_outlined),
-                      suffixIcon: Icon(Icons.map_outlined), // 지도 아이콘 추가
+                      suffixIcon: Icon(Icons.map_outlined),
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {

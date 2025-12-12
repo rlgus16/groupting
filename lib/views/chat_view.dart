@@ -473,7 +473,7 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
             ),
           ),
 
-          // [UPDATED] 방장 권한 체크 추가
+          // 방장 권한 체크
           if (!isMatched && memberCount == 1 && groupController.isOwner) ...[
             const SizedBox(height: 20),
             ElevatedButton.icon(

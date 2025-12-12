@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../controllers/auth_controller.dart';
-import '../services/user_service.dart'; // [추가] UserService import
+import '../services/user_service.dart';
 import '../utils/app_theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -23,10 +23,10 @@ class _SettingsViewState extends State<SettingsView> {
   @override
   void initState() {
     super.initState();
-    _loadSettings(); // [추가] 설정 불러오기
+    _loadSettings();
   }
 
-  // [추가] 사용자 모델에서 설정 값 로드
+  // 사용자 모델에서 설정 값 로드
   void _loadSettings() {
     final user = context.read<AuthController>().currentUserModel;
     if (user != null) {
@@ -38,7 +38,7 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
-  // [추가] 설정 업데이트 및 저장 로직
+  // 설정 업데이트 및 저장 로직
   Future<void> _updateNotificationSetting({
     bool? matching,
     bool? invitation,

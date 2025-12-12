@@ -174,7 +174,7 @@ class InvitationService {
     }
   }
 
-// 초대 수락 (기존 그룹 매칭 취소 로직 추가)
+// 초대 수락
   Future<void> acceptInvitation(String invitationId) async {
     final currentUser = _firebaseService.currentUser;
     if (currentUser == null) {

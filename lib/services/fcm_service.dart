@@ -104,7 +104,6 @@ class FCMService {
       debugPrint('포그라운드 메시지 핸들러 설정...');
       FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-      // 백그라운드 메시지 핸들러는 main.dart에서 설정됩니다.
 
       // 앱이 알림으로 열렸을 때 처리
       debugPrint('알림 탭 핸들러 설정...');
@@ -342,6 +341,11 @@ class FCMService {
     debugPrint('전체 데이터: ${message.data}');
     debugPrint('메시지 ID: ${message.messageId}');
     debugPrint('전송 시간: ${message.sentTime}');
+
+    if (message.data['senderId'] == 'system') {
+      debugPrint('시스템 메시지이므로 알림을 표시하지 않습니다.');
+      return;
+    }
     
     final messageType = message.data['type'];
     debugPrint('메시지 타입: $messageType');
