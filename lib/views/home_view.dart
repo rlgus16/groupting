@@ -974,7 +974,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                 ] else if (groupController.currentGroup != null) ...[
                   _buildGroupStatusCard(groupController),
                   const SizedBox(height: 16),
-                  _buildGroupMembersSection(groupController),
+                  _buildGroupMembersSection(groupController, authController),
                   const SizedBox(height: 16),
                   _buildActionButtons(groupController),
                 ] else ...[
@@ -1396,7 +1396,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildGroupMembersSection(GroupController groupController) {
+  Widget _buildGroupMembersSection(GroupController groupController, AuthController authController) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1416,11 +1416,13 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
             ),
             const SizedBox(height: 12),
             Wrap(
-              spacing: 12.0,    // 아이템 사이의 가로 간격 (기존 Padding right 12 대체)
-              runSpacing: 16.0, // 줄바꿈 되었을 때 세로 간격
+              spacing: 12.0,
+              runSpacing: 16.0,
               children: [
-                // [Part 1] 기존 멤버 리스트 표시
                 ...groupController.groupMembers.map((member) {
+                  // 차단 여부 확인
+                  final isBlocked = authController.blockedUserIds.contains(member.uid);
+
                   return GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -1433,7 +1435,8 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                     child: Column(
                       children: [
                         MemberAvatar(
-                          imageUrl: member.mainProfileImage,
+                          // 차단된 경우 이미지를 null로 설정
+                          imageUrl: isBlocked ? null : member.mainProfileImage,
                           name: member.nickname,
                           isOwner: groupController.currentGroup!.isOwner(member.uid),
                           size: 50,
@@ -1450,7 +1453,6 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                 }),
 
                 // 친구 초대 버튼
-                // 조건: 방장이고, 매칭 전이며, 멤버가 5명 미만일 때
                 if (groupController.isOwner &&
                     !groupController.isMatched &&
                     groupController.groupMembers.length < 5)
