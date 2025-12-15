@@ -441,7 +441,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
                             maxHeight: currentHeightRange.end.round() >= 190
                                 ? 200 // 190 이상은 넉넉하게 200으로 저장
                                 : currentHeightRange.end.round(),
-                            maxDistance: currentDistance.round(),
+                            maxDistance: currentDistance.round() >= 100 ? 50000 : currentDistance.round(),
                           );
 
                           if (!mounted) return;
