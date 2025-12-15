@@ -238,7 +238,7 @@ class ProfileController extends ChangeNotifier {
         longitude: longitude,
         profileImages: profileImages ?? currentUserModel.profileImages,
         updatedAt: DateTime.now(),
-        isProfileComplete: true, // 여기가 중요합니다!
+        isProfileComplete: true,
       );
 
       await _userService.updateUser(updatedUser);

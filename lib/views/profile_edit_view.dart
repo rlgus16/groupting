@@ -418,15 +418,23 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                         ),
                       );
 
-                      // 반환된 결과가 Map인 경우 처리
-                      if (result != null && result is Map<String, dynamic>) {
-                        setState(() {
-                          _activityAreaController.text = result['address'];
-                          _latitude = result['latitude'];
-                          _longitude = result['longitude'];
-                        });
+                      // Map 타입 처리 추가
+                      if (result != null) {
+                        if (result is Map<String, dynamic>) {
+                          setState(() {
+                            _activityAreaController.text = result['address'];
+                            _latitude = result['latitude'];
+                            _longitude = result['longitude'];
+                          });
+                        } else if (result is String) {
+                          // 하위 호환성 (혹시 모를 에러 방지)
+                          setState(() {
+                            _activityAreaController.text = result;
+                          });
+                        }
                       }
                     },
+
                     decoration: const InputDecoration(
                       labelText: '활동지역',
                       hintText: '지도를 눌러 위치를 선택하세요',
