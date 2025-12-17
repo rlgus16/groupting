@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import Firebase
+import GoogleMaps
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -8,6 +9,10 @@ import Firebase
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+
+    // Google Maps API 키 설정 (Firebase 설정보다 먼저 혹은 같이 호출)
+    GMSServices.provideAPIKey("AIzaSyCVQHVPAYg2fmIRzCEZtxifaMhL3-wKWO4")
+
     // Firebase 초기화
     FirebaseApp.configure()
     
