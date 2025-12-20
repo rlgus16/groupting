@@ -26,21 +26,17 @@ class _RegisterViewState extends State<RegisterView> {
   String _selectedGender = '';
   String _selectedCountryCode = '+82';
 
-  // 약관 동의 상태 변수
   bool _agreedToTerms = false;
   bool _agreedToPrivacy = false;
 
-  // 이메일 중복 검증 상태
   bool _isCheckingEmail = false;
   String? _emailValidationMessage;
   Timer? _emailDebounceTimer;
 
-  // 전화번호 중복 검증 상태
   bool _isCheckingPhone = false;
   String? _phoneValidationMessage;
   Timer? _phoneDebounceTimer;
 
-  // 전화번호 인증 관련 변수
   final _codeController = TextEditingController();
   bool _isCodeSent = false;
 
@@ -121,7 +117,6 @@ class _RegisterViewState extends State<RegisterView> {
     }
   }
 
-// 1. 번호 포맷팅 헬퍼 함수
   String _getFormattedPhoneNumber(String number) {
     String cleanNumber = number.trim();
     if (_selectedCountryCode == '+82' && cleanNumber.startsWith('0')) {
@@ -130,9 +125,7 @@ class _RegisterViewState extends State<RegisterView> {
     return '$_selectedCountryCode$cleanNumber';
   }
 
-  // 2. 전화번호 중복 검증
   Future<void> _checkPhoneNumberDuplicate(String phoneNumber) async {
-    // 번호 변경 시 인증 상태 초기화
     final authController = context.read<AuthController>();
     if (authController.isPhoneVerified) {
       authController.resetPhoneVerification();
@@ -165,15 +158,11 @@ class _RegisterViewState extends State<RegisterView> {
 
     try {
       final authController = context.read<AuthController>();
-
-      // 국가코드 포함된 전체 번호로 변환
       String finalPhoneNumber = _getFormattedPhoneNumber(phoneNumber);
-
       final isDuplicate = await authController.isPhoneNumberDuplicate(finalPhoneNumber);
 
       if (mounted) {
-        final newMessage =
-        isDuplicate ? '이미 사용 중인 전화번호입니다.' : '사용 가능한 전화번호입니다.';
+        final newMessage = isDuplicate ? '이미 사용 중인 전화번호입니다.' : '사용 가능한 전화번호입니다.';
         setState(() {
           _isCheckingPhone = false;
           _phoneValidationMessage = newMessage;
@@ -189,7 +178,6 @@ class _RegisterViewState extends State<RegisterView> {
     }
   }
 
-  // 인증번호 전송 핸들러
   void _sendVerificationCode() async {
     final phoneNumber = _phoneController.text.trim();
     if (phoneNumber.isEmpty || _phoneValidationMessage?.contains('사용 가능') != true) {
@@ -220,7 +208,6 @@ class _RegisterViewState extends State<RegisterView> {
     );
   }
 
-  // 인증번호 확인 핸들러
   void _verifySmsCode() async {
     final code = _codeController.text.trim();
     if (code.length < 6) return;
@@ -232,23 +219,24 @@ class _RegisterViewState extends State<RegisterView> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('전화번호 인증이 완료되었습니다.')),
       );
-      setState(() {}); // UI 갱신
+      setState(() {});
     }
   }
 
-  // 약관 내용 보기 다이얼로그
   void _showTermsDialog(String title, String content) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         content: SingleChildScrollView(
-          child: Text(content, style: const TextStyle(fontSize: 14)),
+          child: Text(content, style: const TextStyle(fontSize: 14, height: 1.5, color: AppTheme.textSecondary)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('확인'),
+            child: const Text('확인', style: TextStyle(color: AppTheme.primaryColor)),
           ),
         ],
       ),
@@ -256,23 +244,16 @@ class _RegisterViewState extends State<RegisterView> {
   }
 
   Future<void> _register() async {
-    // 1. 폼 유효성 검사
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedGender.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('성별을 선택해주세요.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('성별을 선택해주세요.')));
       return;
     }
 
-    // 약관 동의 확인 로직
     if (!_agreedToTerms || !_agreedToPrivacy) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('서비스 이용약관 및 개인정보 처리방침에 동의해주세요.'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('서비스 이용약관 및 개인정보 처리방침에 동의해주세요.'), backgroundColor: AppTheme.errorColor),
       );
       return;
     }
@@ -282,40 +263,21 @@ class _RegisterViewState extends State<RegisterView> {
     final phoneNumber = _phoneController.text.trim();
     final birthDate = _birthDateController.text.trim();
 
-    if (email.isEmpty ||
-        password.isEmpty ||
-        phoneNumber.isEmpty ||
-        birthDate.isEmpty ||
-        _selectedGender.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('모든 필수 정보를 입력해주세요.')),
-      );
-      return;
-    }
-
     final authController = context.read<AuthController>();
 
-    // 2. 중복 검사 확인
     if (_emailValidationMessage == '이미 사용 중인 이메일입니다.') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이미 사용 중인 이메일입니다. 다른 이메일을 사용해주세요.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이미 사용 중인 이메일입니다.')));
       return;
     }
 
     if (_phoneValidationMessage == '이미 사용 중인 전화번호입니다.') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이미 사용 중인 전화번호입니다. 다른 번호를 사용해주세요.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이미 사용 중인 전화번호입니다.')));
       return;
     }
 
     authController.clearError();
-
-    // 전체 번호 생성
     final fullPhoneNumber = _getFormattedPhoneNumber(phoneNumber);
 
-    // 3. 회원가입 시도
     final success = await authController.register(
       email: email,
       password: password,
@@ -339,681 +301,569 @@ class _RegisterViewState extends State<RegisterView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: AppTheme.gray50, // 배경색 변경
       appBar: AppBar(
         title: const Text('회원가입'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.gray50,
         elevation: 0,
+        foregroundColor: AppTheme.textPrimary,
       ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // 안내 메시지
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 24),
+
+                // 1. 계정 정보 섹션
+                _buildSectionLabel('계정 정보'),
+                _buildCardContainer(
+                  children: [
+                    _buildTextField(
+                      controller: _emailController,
+                      label: '이메일',
+                      hint: 'example@email.com',
+                      icon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
+                      suffix: _isCheckingEmail
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          : null,
+                      onChanged: (value) {
+                        _emailDebounceTimer?.cancel();
+                        _emailDebounceTimer = Timer(const Duration(milliseconds: 800), () {
+                          if (mounted && _emailController.text == value && value.isNotEmpty) {
+                            _checkEmailDuplicate(value);
+                          }
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return '이메일을 입력해주세요.';
+                        if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(value)) {
+                          return '올바른 이메일 형식을 입력해주세요.';
+                        }
+                        return null;
+                      },
+                      validationMessage: _emailValidationMessage,
                     ),
-                    child: Column(
-                      children: [
-                        const Icon(
-                          Icons.info_outline,
-                          color: AppTheme.primaryColor,
-                          size: 24,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '그룹팅에 오신 것을 환영합니다!\n이메일로 간편하게 가입해보세요.',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: AppTheme.textPrimary),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _passwordController,
+                      label: '비밀번호',
+                      hint: '8자 이상 입력',
+                      icon: Icons.lock_outline,
+                      obscureText: _obscurePassword,
+                      suffix: IconButton(
+                        icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: AppTheme.gray400),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return '비밀번호를 입력해주세요.';
+                        if (value.length < 8) return '비밀번호는 8자 이상이어야 합니다.';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _confirmPasswordController,
+                      label: '비밀번호 확인',
+                      hint: '비밀번호 재입력',
+                      icon: Icons.check_circle_outline,
+                      obscureText: _obscureConfirmPassword,
+                      suffix: IconButton(
+                        icon: Icon(_obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: AppTheme.gray400),
+                        onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return '비밀번호를 다시 입력해주세요.';
+                        if (value != _passwordController.text) return '비밀번호가 일치하지 않습니다.';
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // 2. 개인 정보 섹션
+                _buildSectionLabel('개인 정보'),
+                _buildCardContainer(
+                  children: [
+                    _buildPhoneVerificationSection(),
+                    const SizedBox(height: 20),
+                    _buildTextField(
+                      controller: _birthDateController,
+                      label: '생년월일',
+                      hint: '19950315',
+                      icon: Icons.calendar_today_outlined,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
+                        LengthLimitingTextInputFormatter(8),
+                      ],
+                      helperText: 'YYYYMMDD 형태로 입력해주세요',
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return '생년월일을 입력해주세요.';
+                        if (value.length != 8) return '8자리여야 합니다.';
+                        // (기존 날짜 및 나이 검증 로직 유지)
+                        try {
+                          final year = int.parse(value.substring(0, 4));
+                          final month = int.parse(value.substring(4, 6));
+                          final day = int.parse(value.substring(6, 8));
+                          final now = DateTime.now();
+                          if (year < 1900 || year > now.year) return '유효한 연도를 입력해주세요.';
+                          if (month < 1 || month > 12) return '유효한 월을 입력해주세요.';
+                          if (day < 1 || day > 31) return '유효한 일을 입력해주세요.';
+
+                          final birthDate = DateTime(year, month, day);
+                          int age = now.year - birthDate.year;
+                          if (now.month < birthDate.month || (now.month == birthDate.month && now.day < birthDate.day)) age--;
+                          if (age < 18) return '만 18세 미만은 이용할 수 없습니다.';
+                        } catch (e) {
+                          return '유효한 날짜를 입력해주세요.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    _buildGenderSelection(),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // 3. 약관 동의 섹션
+                _buildSectionLabel('약관 동의'),
+                _buildCardContainer(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    _buildTermItem(
+                      title: '[필수] 서비스 이용약관 동의',
+                      value: _agreedToTerms,
+                      onChanged: (v) => setState(() => _agreedToTerms = v ?? false),
+                      onTapDetail: () => _showTermsDialog(
+                        '서비스 이용약관 (EULA)',
+                        '제1조 (목적)\n'
+                            '이 약관은 그룹팅 서비스 이용과 관련하여 회사와 이용자의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.\n\n'
+
+                            '제2조 (부적절한 콘텐츠에 대한 무관용 원칙)\n'
+                            '1. 그룹팅은 건전한 소통을 위해 욕설, 비방, 음란물, 폭력적인 내용 등 부적절한 콘텐츠(Objectionable Content)에 대해 **무관용 원칙(No Tolerance)**을 적용합니다.\n'
+                            '2. 위와 같은 콘텐츠를 게시하거나 타인에게 불쾌감을 주는 사용자는 **사전 경고 없이 즉시 차단**되며, 서비스 이용이 영구적으로 정지됩니다.\n'
+                            '3. 사용자는 불쾌한 콘텐츠나 사용자를 발견 시 신고 기능을 통해 신고할 수 있으며, 회사는 신고 접수 후 **24시간 이내**에 해당 콘텐츠를 삭제하고 사용자를 제재합니다.\n\n'
+
+                            '제3조 (서비스 제공)\n'
+                            '회사는 그룹 매칭 서비스를 제공합니다.\n\n'
+                            '(자세한 내용은 앱 설정의 이용약관 전문을 참고하세요)',
+                      ),
+                    ),
+                    const Divider(height: 1, color: AppTheme.gray100),
+                    _buildTermItem(
+                      title: '[필수] 개인정보 처리방침 동의',
+                      value: _agreedToPrivacy,
+                      onChanged: (v) => setState(() => _agreedToPrivacy = v ?? false),
+                      onTapDetail: () => _showTermsDialog(
+                        '개인정보 처리방침',
+                        '1. 수집하는 개인정보\n- 이메일, 전화번호, 생년월일, 성별 등\n\n'
+                            '2. 이용목적\n- 본인 확인 및 서비스 제공\n\n'
+                            '3. 보유기간\n- 회원 탈퇴 시까지\n\n'
+                            '(자세한 내용은 앱 설정을 참고하세요)',
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 32),
+
+                // 회원가입 버튼
+                Consumer<AuthController>(
+                  builder: (context, authController, _) {
+                    return ElevatedButton(
+                      onPressed: authController.isLoading
+                          ? null
+                          : () {
+                        if (!authController.isPhoneVerified) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('전화번호 인증을 완료해주세요.')),
+                          );
+                          return;
+                        }
+                        _register();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        minimumSize: const Size(double.infinity, 54),
+                      ),
+                      child: authController.isLoading
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('회원가입', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    );
+                  },
+                ),
+
+                // 에러 메시지
+                Consumer<AuthController>(
+                  builder: (context, authController, _) {
+                    if (authController.errorMessage != null) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: Text(
+                          authController.errorMessage!,
                           textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.lock,
-                                size: 16, color: AppTheme.textSecondary),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                '자물쇠 표시된 정보는 가입 후 변경할 수 없습니다',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: AppTheme.textSecondary),
-                                textAlign: TextAlign.center,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // 이메일 입력
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: InputDecoration(
-                          labelText: '이메일',
-                          prefixIcon: const Icon(Icons.email),
-                          suffixIcon: _isCheckingEmail
-                              ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: Padding(
-                              padding: EdgeInsets.all(14.0),
-                              child:
-                              CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                              : const Icon(Icons.lock,
-                              color: AppTheme.textSecondary),
-                          helperText: '로그인 및 비밀번호 찾기에 사용할 이메일',
-                        ),
-                        onChanged: (value) {
-                          _emailDebounceTimer?.cancel();
-                          _emailDebounceTimer = Timer(
-                              const Duration(milliseconds: 800), () {
-                            if (mounted &&
-                                _emailController.text == value &&
-                                value.isNotEmpty) {
-                              _checkEmailDuplicate(value);
-                            }
-                          });
-                        },
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return '이메일을 입력해주세요.';
-                          }
-                          if (!RegExp(
-                              r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-                              .hasMatch(value)) {
-                            return '올바른 이메일 형식을 입력해주세요.';
-                          }
-                          return null;
-                        },
-                      ),
-                      if (_emailValidationMessage != null)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 12, top: 4),
-                          child: Text(
-                            _emailValidationMessage!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _emailValidationMessage ==
-                                  '사용 가능한 이메일입니다.'
-                                  ? Colors.green
-                                  : Colors.red,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 비밀번호 입력
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: '비밀번호',
-                      prefixIcon: const Icon(Icons.lock),
-                      helperText: '8자 이상',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return '비밀번호를 입력해주세요.';
-                      }
-                      if (value.length < 8) {
-                        return '비밀번호는 8자 이상이어야 합니다.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 비밀번호 확인
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    obscureText: _obscureConfirmPassword,
-                    decoration: InputDecoration(
-                      labelText: '비밀번호 확인',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirmPassword
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureConfirmPassword =
-                            !_obscureConfirmPassword;
-                          });
-                        },
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return '비밀번호를 다시 입력해주세요.';
-                      }
-                      if (value != _passwordController.text) {
-                        return '비밀번호가 일치하지 않습니다.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 전화번호 입력
-                  Consumer<AuthController>(
-                    builder: (context, authController, child) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _phoneController,
-                                  enabled: !authController.isPhoneVerified, // 인증 완료 시 잠금
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
-                                  ],
-                                  decoration: InputDecoration(
-                                    labelText: '전화번호',
-                                    prefixIcon: Container(
-                                      margin: const EdgeInsets.only(right: 8),
-                                      child: CountryCodePicker(
-                                        onChanged: (country) {
-                                          if (!authController.isPhoneVerified) {
-                                            setState(() {
-                                              _selectedCountryCode = country.dialCode!;
-                                              if (_phoneController.text.isNotEmpty) {
-                                                _checkPhoneNumberDuplicate(_phoneController.text);
-                                              }
-                                            });
-                                          }
-                                        },
-                                        enabled: !authController.isPhoneVerified,
-                                        initialSelection: 'KR',
-                                        favorite: const ['KR'],
-                                        showCountryOnly: false,
-                                        showOnlyCountryWhenClosed: false,
-                                        showFlag: false,
-                                        padding: const EdgeInsets.only(left: 8.0),
-                                        textStyle: const TextStyle(fontSize: 15, color: Colors.black),
-                                      ),
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                                  ),
-                                  onChanged: (value) {
-                                    _phoneDebounceTimer?.cancel();
-                                    _phoneDebounceTimer = Timer(
-                                        const Duration(milliseconds: 800), () {
-                                      if (mounted &&
-                                          _phoneController.text == value &&
-                                          value.isNotEmpty) {
-                                        _checkPhoneNumberDuplicate(value);
-                                      }
-                                    });
-                                  },
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) return '전화번호를 입력해주세요.';
-                                    return null;
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // 인증 버튼 또는 상태 표시
-                              if (!authController.isPhoneVerified)
-                                SizedBox(
-                                  height: 56,
-                                  child: ElevatedButton(
-                                    onPressed: _isCheckingPhone ||
-                                        authController.isLoading ||
-                                        _phoneValidationMessage?.contains('사용 가능') != true
-                                        ? null
-                                        : _sendVerificationCode,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppTheme.primaryColor,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    child: authController.isLoading
-                                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                        : const Text('인증'),
-                                  ),
-                                )
-                              else
-                                Container(
-                                  height: 56,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.green),
-                                  ),
-                                  child: const Text('인증됨', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                                ),
-                            ],
-                          ),
-
-                          // 유효성 검사 메시지
-                          if (_phoneValidationMessage != null && !authController.isPhoneVerified)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 12, top: 4),
-                              child: Text(
-                                _phoneValidationMessage!,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: _phoneValidationMessage!.contains('사용 가능한')
-                                      ? Colors.green
-                                      : Colors.red,
-                                ),
-                              ),
-                            ),
-
-                          // 인증번호 입력 필드 (전송됨 && 미인증 시 표시)
-                          if (_isCodeSent && !authController.isPhoneVerified)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 16),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _codeController,
-                                      keyboardType: TextInputType.number,
-                                      decoration: const InputDecoration(
-                                        labelText: '인증번호 6자리',
-                                        prefixIcon: Icon(Icons.sms_outlined),
-                                        hintText: '000000',
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  SizedBox(
-                                    height: 56,
-                                    child: ElevatedButton(
-                                      onPressed: authController.isLoading ? null : _verifySmsCode,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.grey[800],
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                      ),
-                                      child: const Text('확인'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 생년월일 입력 (18세 미만 차단 로직 포함)
-                  TextFormField(
-                    controller: _birthDateController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
-                      LengthLimitingTextInputFormatter(8),
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: '생년월일',
-                      prefixIcon: Icon(Icons.calendar_today),
-                      suffixIcon:
-                      Icon(Icons.lock, color: AppTheme.textSecondary),
-                      helperText: '8자리 숫자 (예: 19950315)',
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return '생년월일을 입력해주세요.';
-                      }
-                      if (value.length != 8) {
-                        return '생년월일은 8자리여야 합니다.';
-                      }
-
-                      try {
-                        final year = int.parse(value.substring(0, 4));
-                        final month = int.parse(value.substring(4, 6));
-                        final day = int.parse(value.substring(6, 8));
-
-                        final now = DateTime.now();
-                        if (year < 1900 || year > now.year) {
-                          return '유효한 연도를 입력해주세요.';
-                        }
-                        if (month < 1 || month > 12) {
-                          return '유효한 월을 입력해주세요.';
-                        }
-                        if (day < 1 || day > 31) {
-                          return '유효한 일을 입력해주세요.';
-                        }
-
-                        // 만 18세 미만 체크
-                        final birthDate = DateTime(year, month, day);
-                        int age = now.year - birthDate.year;
-                        if (now.month < birthDate.month ||
-                            (now.month == birthDate.month &&
-                                now.day < birthDate.day)) {
-                          age--;
-                        }
-
-                        if (age < 18) {
-                          return '만 18세 미만은 이용할 수 없습니다.';
-                        }
-                      } catch (e) {
-                        return '유효한 날짜를 입력해주세요.';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 성별 선택
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[400]!),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.person_outline,
-                                  color: AppTheme.textSecondary),
-                              const SizedBox(width: 8),
-                              const Text('성별'),
-                              const Spacer(),
-                              const Icon(Icons.lock,
-                                  color: AppTheme.textSecondary),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedGender = '남';
-                                    });
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: _selectedGender == '남'
-                                          ? AppTheme.primaryColor
-                                          : Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      '남성',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: _selectedGender == '남'
-                                            ? Colors.white
-                                            : Colors.black,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedGender = '여';
-                                    });
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: _selectedGender == '여'
-                                          ? AppTheme.secondaryColor
-                                          : Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      '여성',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: _selectedGender == '여'
-                                            ? Colors.white
-                                            : Colors.black,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // 약관 동의 체크박스 섹션
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppTheme.gray200),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        CheckboxListTile(
-                          title: Row(
-                            children: [
-                              const Text(
-                                '[필수] 서비스 이용약관 동의',
-                                style: TextStyle(fontSize: 14),
-                              ),
-                              const Spacer(),
-                              TextButton(
-                                onPressed: () {
-                                  _showTermsDialog(
-                                    '서비스 이용약관 (EULA)',
-                                    '제1조 (목적)\n'
-                                        '이 약관은 그룹팅 서비스 이용과 관련하여 회사와 이용자의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.\n\n'
-
-                                        '제2조 (부적절한 콘텐츠에 대한 무관용 원칙)\n'
-                                        '1. 그룹팅은 건전한 소통을 위해 욕설, 비방, 음란물, 폭력적인 내용 등 부적절한 콘텐츠(Objectionable Content)에 대해 **무관용 원칙(No Tolerance)**을 적용합니다.\n'
-                                        '2. 위와 같은 콘텐츠를 게시하거나 타인에게 불쾌감을 주는 사용자는 **사전 경고 없이 즉시 차단**되며, 서비스 이용이 영구적으로 정지됩니다.\n'
-                                        '3. 사용자는 불쾌한 콘텐츠나 사용자를 발견 시 신고 기능을 통해 신고할 수 있으며, 회사는 신고 접수 후 **24시간 이내**에 해당 콘텐츠를 삭제하고 사용자를 제재합니다.\n\n'
-
-                                        '제3조 (서비스 제공)\n'
-                                        '회사는 그룹 매칭 서비스를 제공합니다.\n\n'
-                                        '(자세한 내용은 앱 설정의 이용약관 전문을 참고하세요)',
-                                  );
-                                },
-                                child: const Text('보기',
-                                    style: TextStyle(fontSize: 12)),
-                              ),
-                            ],
-                          ),
-                          value: _agreedToTerms,
-                          onChanged: (value) {
-                            setState(() {
-                              _agreedToTerms = value ?? false;
-                            });
-                          },
-                          controlAffinity: ListTileControlAffinity.leading,
-                          dense: true,
-                          activeColor: AppTheme.primaryColor,
-                        ),
-                        const Divider(height: 1),
-                        CheckboxListTile(
-                          title: Row(
-                            children: [
-                              const Text(
-                                '[필수] 개인정보 처리방침 동의',
-                                style: TextStyle(fontSize: 14),
-                              ),
-                              const Spacer(),
-                              TextButton(
-                                onPressed: () {
-                                  _showTermsDialog(
-                                    '개인정보 처리방침',
-                                    '1. 수집하는 개인정보\n- 이메일, 전화번호, 생년월일, 성별 등\n\n'
-                                        '2. 이용목적\n- 본인 확인 및 서비스 제공\n\n'
-                                        '3. 보유기간\n- 회원 탈퇴 시까지\n\n'
-                                        '(자세한 내용은 앱 설정을 참고하세요)',
-                                  );
-                                },
-                                child: const Text('보기',
-                                    style: TextStyle(fontSize: 12)),
-                              ),
-                            ],
-                          ),
-                          value: _agreedToPrivacy,
-                          onChanged: (value) {
-                            setState(() {
-                              _agreedToPrivacy = value ?? false;
-                            });
-                          },
-                          controlAffinity: ListTileControlAffinity.leading,
-                          dense: true,
-                          activeColor: AppTheme.primaryColor,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // 회원가입 버튼
-                  Consumer<AuthController>(
-                    builder: (context, authController, _) {
-                      if (authController.isLoading) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-
-                      return ElevatedButton(
-                        onPressed: () {
-                          if (!authController.isPhoneVerified) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('전화번호 인증을 완료해주세요.')),
-                            );
-                            return;
-                          }
-                          _register();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          minimumSize: const Size(double.infinity, 50),
-                        ),
-                        child: const Text(
-                          '회원가입',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: AppTheme.errorColor, fontSize: 14),
                         ),
                       );
-                    },
-                  ),
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
 
-                  // 에러 메시지 표시
-                  Consumer<AuthController>(
-                    builder: (context, authController, _) {
-                      if (authController.errorMessage != null) {
-                        return Container(
-                          margin: const EdgeInsets.only(top: 16),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha:0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border:
-                            Border.all(color: Colors.red.withValues(alpha:0.3)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.error_outline,
-                                color: Colors.red,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  authController.errorMessage!,
-                                  style: const TextStyle(
-                                    color: Colors.red,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                  const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-                  // 로그인 버튼
-                  TextButton(
-                    onPressed: () {
-                      final authController = context.read<AuthController>();
-                      authController.clearError();
-                      Navigator.pushNamed(context, '/login');
-                    },
-                    child: const Text('이미 계정이 있으신가요? 로그인하기'),
-                  ),
-                ],
-              ),
+                // 로그인 링크
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('이미 계정이 있으신가요?', style: TextStyle(color: AppTheme.textSecondary)),
+                    TextButton(
+                      onPressed: () {
+                        context.read<AuthController>().clearError();
+                        Navigator.pushNamed(context, '/login');
+                      },
+                      child: const Text('로그인하기', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  // --- UI Components ---
+
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '환영합니다!',
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '새로운 인연을 만날 준비가 되셨나요?\n간단한 정보 입력으로 시작해보세요.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: AppTheme.textSecondary,
+            height: 1.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textPrimary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardContainer({required List<Widget> children, EdgeInsetsGeometry? padding}) {
+    return Container(
+      padding: padding ?? const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppTheme.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    String? hint,
+    IconData? icon,
+    bool obscureText = false,
+    TextInputType? keyboardType,
+    Widget? suffix,
+    String? helperText,
+    String? validationMessage,
+    ValueChanged<String>? onChanged,
+    String? Function(String?)? validator,
+    List<TextInputFormatter>? inputFormatters,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          onChanged: onChanged,
+          validator: validator,
+          inputFormatters: inputFormatters,
+          style: const TextStyle(fontSize: 15),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(color: AppTheme.gray400, fontSize: 14),
+            prefixIcon: icon != null ? Icon(icon, color: AppTheme.gray400, size: 20) : null,
+            suffixIcon: suffix,
+            helperText: helperText,
+            filled: true,
+            fillColor: AppTheme.gray50,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5)),
+            errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.errorColor)),
+          ),
+        ),
+        if (validationMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              validationMessage,
+              style: TextStyle(
+                fontSize: 12,
+                color: validationMessage.contains('사용 가능') ? AppTheme.successColor : AppTheme.errorColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPhoneVerificationSection() {
+    return Consumer<AuthController>(
+      builder: (context, authController, child) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('전화번호', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.gray50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: CountryCodePicker(
+                    onChanged: (country) {
+                      if (!authController.isPhoneVerified) {
+                        setState(() {
+                          _selectedCountryCode = country.dialCode!;
+                          if (_phoneController.text.isNotEmpty) {
+                            _checkPhoneNumberDuplicate(_phoneController.text);
+                          }
+                        });
+                      }
+                    },
+                    enabled: !authController.isPhoneVerified,
+                    initialSelection: 'KR',
+                    favorite: const ['KR'],
+                    showFlag: false,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    textStyle: const TextStyle(fontSize: 14, color: AppTheme.textPrimary),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextFormField(
+                    controller: _phoneController,
+                    enabled: !authController.isPhoneVerified,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9]'))],
+                    decoration: InputDecoration(
+                      hintText: '01012345678',
+                      hintStyle: const TextStyle(color: AppTheme.gray400, fontSize: 14),
+                      filled: true,
+                      fillColor: AppTheme.gray50,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                    onChanged: (value) {
+                      _phoneDebounceTimer?.cancel();
+                      _phoneDebounceTimer = Timer(const Duration(milliseconds: 800), () {
+                        if (mounted && _phoneController.text == value && value.isNotEmpty) {
+                          _checkPhoneNumberDuplicate(value);
+                        }
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _isCheckingPhone || authController.isLoading || _phoneValidationMessage?.contains('사용 가능') != true || authController.isPhoneVerified
+                        ? null
+                        : _sendVerificationCode,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    child: authController.isLoading
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Text(authController.isPhoneVerified ? '완료' : '인증'),
+                  ),
+                ),
+              ],
+            ),
+
+            if (_phoneValidationMessage != null && !authController.isPhoneVerified)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 4),
+                child: Text(
+                  _phoneValidationMessage!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _phoneValidationMessage!.contains('사용 가능한') ? AppTheme.successColor : AppTheme.errorColor,
+                  ),
+                ),
+              ),
+
+            // 인증번호 입력 필드
+            if (_isCodeSent && !authController.isPhoneVerified)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _codeController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: '인증번호 6자리',
+                          prefixIcon: const Icon(Icons.sms_outlined, color: AppTheme.gray400, size: 20),
+                          filled: true,
+                          fillColor: AppTheme.gray50,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: authController.isLoading ? null : _verifySmsCode,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.gray800,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('확인'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildGenderSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('성별', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _buildGenderButton('남', '남성', AppTheme.primaryColor)),
+            const SizedBox(width: 12),
+            Expanded(child: _buildGenderButton('여', '여성', AppTheme.secondaryColor)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGenderButton(String value, String label, Color color) {
+    final isSelected = _selectedGender == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedGender = value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.1) : AppTheme.gray50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? color : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isSelected ? color : AppTheme.textSecondary,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 15,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTermItem({
+    required String title,
+    required bool value,
+    required ValueChanged<bool?> onChanged,
+    required VoidCallback onTapDetail,
+  }) {
+    return CheckboxListTile(
+      value: value,
+      onChanged: onChanged,
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(title, style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
+          ),
+          TextButton(
+            onPressed: onTapDetail,
+            child: const Text('보기', style: TextStyle(fontSize: 12, color: AppTheme.gray500)),
+          ),
+        ],
+      ),
+      activeColor: AppTheme.primaryColor,
+      controlAffinity: ListTileControlAffinity.leading,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+      visualDensity: VisualDensity.compact,
     );
   }
 }
