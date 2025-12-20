@@ -549,7 +549,6 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  // 계정 삭제
 // 계정 삭제 (방장 위임 후 삭제)
   Future<bool> deleteAccount() async {
     try {
@@ -566,9 +565,6 @@ class AuthController extends ChangeNotifier {
       final userId = currentUser.uid;
       final firestore = FirebaseFirestore.instance;
 
-      // ---------------------------------------------------------
-      // 1. Firebase Storage 프로필 사진 삭제
-      // ---------------------------------------------------------
       try {
         final storageRef = FirebaseStorage.instance.ref().child('profile_images/$userId');
         final listResult = await storageRef.listAll();
@@ -580,9 +576,6 @@ class AuthController extends ChangeNotifier {
         debugPrint('프로필 사진 삭제 실패 (무시함): $e');
       }
 
-      // ---------------------------------------------------------
-      // 2. 활동 내역 정리 (그룹 탈퇴 및 초대장 삭제)
-      // ---------------------------------------------------------
       try {
         // (1) 내가 속한 그룹에서 나가기 (Service의 leaveGroup 사용 -> 방장 자동 위임됨)
         final groupQuery = await firestore
@@ -596,7 +589,7 @@ class AuthController extends ChangeNotifier {
           await _groupService.leaveGroup(doc.id, userId);
         }
 
-        // (2) 매칭된 채팅방에서도 나가기
+        // 매칭된 채팅방에서도 나가기
         final chatroomQuery = await firestore
             .collection('chatrooms')
             .where('participants', arrayContains: userId)
@@ -606,7 +599,7 @@ class AuthController extends ChangeNotifier {
           await _groupService.leaveGroup(doc.id, userId);
         }
 
-        // (3) 초대장 삭제
+        // 초대장 삭제
         final sentInvites = await firestore
             .collection('invitations')
             .where('fromUserId', isEqualTo: userId)
@@ -626,34 +619,38 @@ class AuthController extends ChangeNotifier {
         debugPrint('활동 내역 정리 중 일부 실패: $e');
       }
 
-      // ---------------------------------------------------------
-      // 3. 내 정보 데이터 삭제 (Users 컬렉션)
-      // ---------------------------------------------------------
       try {
         await _userService.deleteUser(userId);
       } catch (e) {
         debugPrint('Firestore 사용자 데이터 삭제 실패: $e');
       }
 
-      // ---------------------------------------------------------
-      // 4. 선점된 데이터 삭제 (닉네임, 전화번호)
-      // ---------------------------------------------------------
       try {
-        if (_currentUserModel != null) {
-          if (_currentUserModel!.nickname.isNotEmpty) {
-            await _firebaseService.getDocument('nicknames/${_currentUserModel!.nickname}').delete();
-          }
-          if (_currentUserModel!.phoneNumber.isNotEmpty) {
-            await _firebaseService.getDocument('phoneNumbers/${_currentUserModel!.phoneNumber}').delete();
-          }
+        // 닉네임 삭제
+        final nicknameQuery = await firestore
+            .collection('nicknames')
+            .where('uid', isEqualTo: userId)
+            .get();
+
+        for (final doc in nicknameQuery.docs) {
+          await doc.reference.delete();
         }
+
+        // 전화번호 삭제
+        final phoneQuery = await firestore
+            .collection('phoneNumbers')
+            .where('uid', isEqualTo: userId)
+            .get();
+
+        for (final doc in phoneQuery.docs) {
+          await doc.reference.delete();
+        }
+
       } catch (e) {
         debugPrint('선점 데이터 삭제 실패: $e');
       }
 
-      // ---------------------------------------------------------
-      // 5. Firebase Auth 계정 삭제 (최종)
-      // ---------------------------------------------------------
+      // Firebase Auth 계정 삭제 (최종)
       await currentUser.delete();
 
       // 로그아웃 처리 및 상태 정리
