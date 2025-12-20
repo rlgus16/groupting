@@ -1435,7 +1435,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                   Text(
                     isMatched
                         ? '새로운 인연과 대화를 시작해보세요'
-                        : (isMatching ? '매칭할 그룹을 찾고 있어요' : '친구들과 대화 해보세요'),
+                        : (isMatching ? '매칭 상대를 찾고 있어요...' : '친구들과 대화 해보세요'),
                     style: TextStyle(
                       color: isMatched ? Colors.white.withValues(alpha: 0.9) : AppTheme.gray600,
                       fontSize: 13,

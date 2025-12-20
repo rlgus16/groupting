@@ -25,7 +25,7 @@ class AppTheme {
   // 그림자
   static List<BoxShadow> get softShadow => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.05),
+      color: Colors.black.withValues(alpha:0.05),
       blurRadius: 10,
       offset: const Offset(0, 4),
     ),
@@ -246,7 +246,7 @@ class AppTheme {
         side: const BorderSide(color: gray200),
       ),
       color: backgroundColor,
-      shadowColor: Colors.black.withOpacity(0.05),
+      shadowColor: Colors.black.withValues(alpha:0.05),
     ),
 
     // Chip 테마

@@ -24,9 +24,7 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    // 앱 상태 감지 옵저버 등록
     WidgetsBinding.instance.addObserver(this);
-    // FCM 서비스에 현재 채팅방 설정
     FCMService().setCurrentChatRoom(widget.groupId);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -45,24 +43,19 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // ChatController 참조를 안전하게 저장
     if (_chatController == null) {
       try {
         _chatController = context.read<ChatController>();
       } catch (e) {
-        // ChatController 참조 저장 실패: $e
+        // ChatController 참조 저장 실패
       }
     }
   }
 
   @override
   void dispose() {
-    // 옵저버 해제
     WidgetsBinding.instance.removeObserver(this);
-    // FCM 서비스에서 현재 채팅방 해제
     FCMService().clearCurrentChatRoom();
-
-    // 안전하게 ChatController 정리 (dispose 중임을 알림)
     try {
       _chatController?.clearData(fromDispose: true);
     } catch (e) {
@@ -72,54 +65,66 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // 앱 상태 변경 감지 메서드 추가
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
-      // 앱이 백그라운드로 감 (홈 버튼 누름) -> "나 채팅방 안 보고 있음" 처리
       FCMService().clearCurrentChatRoom();
     } else if (state == AppLifecycleState.resumed) {
-      // 앱이 다시 켜짐 -> "나 다시 채팅방 보고 있음" 처리
       FCMService().setCurrentChatRoom(widget.groupId);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // MediaQuery로 키보드 높이 감지
     final mediaQuery = MediaQuery.of(context);
     final isKeyboardVisible = mediaQuery.viewInsets.bottom > 0;
 
     return Scaffold(
-      resizeToAvoidBottomInset: true, // 키보드가 올라올 때 화면 크기 조정
+      backgroundColor: const Color(0xFFF5F6F8), // 부드러운 배경색
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Consumer<GroupController>(
           builder: (context, groupController, _) {
             if (groupController.currentGroup == null) {
               return const Text('채팅');
             }
-            return Text(
-              groupController.isMatched ? '매칭 채팅' : '그룹 채팅',
+            return Column(
+              children: [
+                Text(
+                  groupController.isMatched ? '매칭 채팅' : '그룹 채팅',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                ),
+                if (!groupController.isMatched)
+                  Text(
+                    '${groupController.groupMembers.length}명 참여 중',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary.withValues(alpha:0.8),
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+              ],
             );
           },
         ),
         backgroundColor: Colors.white,
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
+        centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: AppTheme.gray200, height: 1),
+        ),
       ),
       body: Consumer3<GroupController, ChatController, AuthController>(
         builder: (context, groupController, chatController, authController, _) {
-
-          // 차단 목록 동기화
           if (authController.isLoggedIn) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               chatController.updateBlockedUsers(authController.blockedUserIds);
             });
           }
 
-          // 로그인 상태 실시간 체크 (회원탈퇴 후 즉시 리다이렉트)
           if (!authController.isLoggedIn) {
-            debugPrint('채팅 화면 - 로그인 상태 해제 감지, 로그인 화면으로 이동');
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 Navigator.of(context).pushNamedAndRemoveUntil(
@@ -128,46 +133,26 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
                 );
               }
             });
-            // 로그인 화면 이동 중 빈 화면 표시
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('로그인 화면으로 이동 중...'),
-                ],
-              ),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           return Column(
             children: [
-              // 채팅 상태 헤더 (매칭 전/후에 따라 다른 UI)
-              if (groupController.currentGroup != null)
-                _buildChatHeader(context, groupController, chatController),
+              // 헤더 (초대/매칭 상태)
+              if (groupController.currentGroup != null && !groupController.isMatched)
+                _buildStickyHeader(context, groupController),
 
-              // 채팅 메시지 영역
+              // 메시지 리스트
               Expanded(
                 child: chatController.messages.isEmpty
                     ? _buildEmptyMessageView(groupController)
                     : ListView.builder(
                   reverse: true,
-                  padding: EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    top: 16,
-                    // 키보드가 보일 때는 하단 패딩을 줄여서 오버플로우 방지
-                    bottom: isKeyboardVisible ? 4 : 16,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                   itemCount: chatController.messages.length,
                   itemBuilder: (context, index) {
-                    final message =
-                    chatController.messages[chatController
-                        .messages
-                        .length -
-                        1 -
-                        index];
+                    final message = chatController.messages[
+                    chatController.messages.length - 1 - index];
 
                     if (message.senderId == 'system') {
                       return _buildSystemMessage(message);
@@ -175,122 +160,40 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
 
                     final senderProfile = message.senderId != 'system'
                         ? chatController.matchedGroupMembers
-                        .where(
-                          (member) =>
-                      member.uid == message.senderId,
-                    )
+                        .where((member) => member.uid == message.senderId)
                         .firstOrNull
                         : null;
 
-                    return MessageBubble(
-                      message: message,
-                      isMe: chatController.isMyMessage(message),
-                      senderProfile: senderProfile,
-                      onTap: message.senderId != 'system'
-                          ? () {
-                        final member = groupController
-                            .getMemberById(message.senderId);
-                        if (member != null &&
-                            member.uid.isNotEmpty) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  ProfileDetailView(user: member),
-                            ),
-                          );
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 4.0), // 말풍선 간 간격 미세 조정
+                      child: MessageBubble(
+                        message: message,
+                        isMe: chatController.isMyMessage(message),
+                        senderProfile: senderProfile,
+                        onTap: message.senderId != 'system'
+                            ? () {
+                          final member = groupController
+                              .getMemberById(message.senderId);
+                          if (member != null &&
+                              member.uid.isNotEmpty) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    ProfileDetailView(user: member),
+                              ),
+                            );
+                          }
                         }
-                      }
-                          : null,
+                            : null,
+                      ),
                     );
                   },
                 ),
               ),
 
-              // 메시지 입력 영역 - SafeArea 적용으로 안전한 영역 확보
-              SafeArea(
-                child: Container(
-                  padding: EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    top: 8,
-                    bottom: isKeyboardVisible ? 4 : 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border(top: BorderSide(color: AppTheme.gray200)),
-                    // 키보드가 올라올 때 약간의 그림자 추가로 분리감 제공
-                    boxShadow: isKeyboardVisible
-                        ? [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha:0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, -2),
-                      ),
-                    ]
-                        : null,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            // 키보드가 올라올 때 TextField 높이 제한으로 오버플로우 방지
-                            maxHeight: isKeyboardVisible ? 100 : 120,
-                          ),
-                          child: TextField(
-                            controller: chatController.messageController,
-                            decoration: InputDecoration(
-                              hintText: '메시지를 입력하세요',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: BorderSide.none,
-                              ),
-                              filled: true,
-                              fillColor: AppTheme.gray100,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: isKeyboardVisible ? 8 : 12, // 키보드 상태에 따라 패딩 조정
-                              ),
-                              // 키보드가 올라올 때 힌트 텍스트 크기 조정
-                              hintStyle: TextStyle(
-                                fontSize: isKeyboardVisible ? 14 : 16,
-                              ),
-                            ),
-                            maxLines: isKeyboardVisible ? 3 : 5, // 키보드 상태에 따라 최대 줄 수 제한
-                            minLines: 1,
-                            textInputAction: TextInputAction.send,
-                            style: TextStyle(
-                              fontSize: isKeyboardVisible ? 14 : 16, // 키보드 상태에 따라 폰트 크기 조정
-                            ),
-                            onSubmitted: (_) async {
-                              await chatController.sendMessage();
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton.filled(
-                        onPressed: () async {
-                          await chatController.sendMessage();
-                        },
-                        icon: Icon(
-                          Icons.send,
-                          size: isKeyboardVisible ? 20 : 24, // 키보드 상태에 따라 아이콘 크기 조정
-                        ),
-                        style: IconButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          padding: EdgeInsets.all(isKeyboardVisible ? 8 : 12), // 키보드 상태에 따라 패딩 조정
-                          minimumSize: Size(
-                            isKeyboardVisible ? 40 : 48,
-                            isKeyboardVisible ? 40 : 48,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              // 입력창 영역
+              _buildInputArea(isKeyboardVisible, chatController),
             ],
           );
         },
@@ -298,224 +201,268 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
     );
   }
 
-  // 채팅 헤더 (매칭 전/후 상태에 따라 다른 UI)
-  Widget _buildChatHeader(
-      BuildContext context,
-      GroupController groupController,
-      ChatController chatController,
-      ) {
-    final isMatched = groupController.isMatched;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        border: Border(bottom: BorderSide(color: AppTheme.gray200)),
-      ),
-      child: Column(
-        children: [
-          // 헤더 타이틀
-          Row(
-            children: [
-              Icon(
-                isMatched ? Icons.favorite : Icons.group,
-                color: isMatched ? AppTheme.successColor : AppTheme.primaryColor,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                isMatched ? '매칭된 상대방과 대화' : '그룹 채팅',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '총 ${groupController.groupMembers.length}명',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // 매칭 전: 현재 그룹 멤버들 + 초대 상태
-          if (!isMatched) ...[_buildInvitationStatus(context, groupController)],
-        ],
-      ),
-    );
-  }
-
-  // 초대 상태 표시
-  Widget _buildInvitationStatus(
-      BuildContext context,
-      GroupController groupController,
-      ) {
+  // 매칭 전 상단 상태 표시 (스티키 헤더 느낌)
+  Widget _buildStickyHeader(BuildContext context, GroupController groupController) {
     final sentInvitations = groupController.sentInvitations;
     final pendingCount = sentInvitations
         .where((inv) => inv.status.toString().split('.').last == 'pending')
         .length;
 
-    // [UPDATED] 매칭 중이거나, (방장이고 + 대기중인 초대 없고 + 인원 미달일 때) 표시
+    Widget? content;
+
+    // 1. 매칭 중이거나 초대 가능 상태
     if (groupController.isMatching ||
-        (groupController.isOwner && // 방장 권한 체크 추가
+        (groupController.isOwner &&
             pendingCount == 0 &&
             groupController.currentGroup!.memberIds.length < 5)) {
-      return GestureDetector(
+      content = GestureDetector(
         onTap: () {
-          // 매칭 중이 아닐 때만(즉, 초대 버튼일 때만) 클릭 허용
           if (!groupController.isMatching) {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const InviteFriendView(),
-              ),
+              MaterialPageRoute(builder: (context) => const InviteFriendView()),
             );
           }
         },
-        child: Container(
-          margin: const EdgeInsets.only(top: 12),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withValues(alpha:0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                groupController.isMatching
-                    ? Icons.hourglass_empty
-                    : Icons.person_add,
-                color: groupController.isMatching
-                    ? Colors.orange
-                    : AppTheme.primaryColor,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  groupController.isMatching
-                      ? '매칭 중...'
-                      : '친구를 더 초대해보세요! (${groupController.currentGroup!.memberIds.length}/5명)',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: groupController.isMatching
-                        ? Colors.orange
-                        : AppTheme.primaryColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // 초대 대기 중인 경우
-    if (pendingCount > 0) {
-      return Container(
-        margin: const EdgeInsets.only(top: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.orange.withValues(alpha:0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.hourglass_empty, color: Colors.orange, size: 20),
+            Icon(
+              groupController.isMatching ? Icons.hourglass_top_rounded : Icons.person_add_rounded,
+              size: 16,
+              color: groupController.isMatching ? Colors.orange[700] : AppTheme.primaryColor,
+            ),
             const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                '$pendingCount명의 친구가 초대 응답을 기다리고 있습니다',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.orange,
-                  fontWeight: FontWeight.w500,
-                ),
+            Text(
+              groupController.isMatching
+                  ? '매칭 상대를 찾고 있어요...'
+                  : '친구 초대하기 (${groupController.currentGroup!.memberIds.length}/5)',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: groupController.isMatching ? Colors.orange[800] : AppTheme.primaryColor,
               ),
             ),
+            if (!groupController.isMatching)
+              const Icon(Icons.chevron_right, size: 16, color: AppTheme.primaryColor),
           ],
         ),
       );
     }
+    // 2. 초대 대기 중
+    else if (pendingCount > 0) {
+      content = Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.mark_email_unread_outlined, size: 16, color: Colors.orange[700]),
+          const SizedBox(width: 8),
+          Text(
+            '$pendingCount명의 친구가 응답 대기 중입니다',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.orange[800],
+            ),
+          ),
+        ],
+      );
+    }
 
-    // 아무 상태도 아닐 때 빈 공간 반환 (필수)
-    return const SizedBox.shrink();
+    if (content == null) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      decoration: BoxDecoration(
+        color: groupController.isMatching || pendingCount > 0
+            ? Colors.orange.withValues(alpha:0.08)
+            : AppTheme.primaryColor.withValues(alpha:0.08),
+        border: Border(
+          bottom: BorderSide(
+            color: groupController.isMatching || pendingCount > 0
+                ? Colors.orange.withValues(alpha:0.1)
+                : AppTheme.primaryColor.withValues(alpha:0.1),
+          ),
+        ),
+      ),
+      child: content,
+    );
   }
 
-  // 빈 메시지 뷰 (매칭 전/후에 따라 다른 메시지)
+  // 개선된 입력창 영역
+  Widget _buildInputArea(bool isKeyboardVisible, ChatController chatController) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(16, 12, 16, isKeyboardVisible ? 12 : 30),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha:0.03),
+            offset: const Offset(0, -2),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 120),
+              decoration: BoxDecoration(
+                color: AppTheme.gray100,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: TextField(
+                controller: chatController.messageController,
+                maxLines: null,
+                minLines: 1,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline, // 엔터로 줄바꿈 허용 시
+                style: const TextStyle(fontSize: 15, height: 1.4),
+                decoration: const InputDecoration(
+                  hintText: '메시지 보내기',
+                  hintStyle: TextStyle(color: AppTheme.gray500, fontSize: 15),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  isDense: true,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // 전송 버튼
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            margin: const EdgeInsets.only(bottom: 2),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.primaryColor,
+              // 그라디언트를 원하면 아래 주석 해제
+              /* gradient: AppTheme.primaryGradient, */
+            ),
+            child: IconButton(
+              onPressed: () async {
+                await chatController.sendMessage();
+              },
+              icon: const Icon(Icons.arrow_upward_rounded, size: 24),
+              color: Colors.white,
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              style: IconButton.styleFrom(
+                shape: const CircleBorder(),
+                padding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmptyMessageView(GroupController groupController) {
     final isMatched = groupController.isMatched;
     final memberCount = groupController.groupMembers.length;
 
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            isMatched ? Icons.chat_bubble_outline : Icons.group_outlined,
-            size: 64,
-            color: AppTheme.gray400,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            isMatched
-                ? '매칭이 성공했습니다!\n상대방과 대화를 시작해보세요!'
-                : memberCount > 1
-                ? '그룹 채팅이 시작되었습니다!\n친구들과 대화를 나누세요!'
-                : '아직 그룹에 혼자 있습니다.\n친구들을 초대해보세요!',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 16,
-              height: 1.4,
-            ),
-          ),
-
-          // 방장 권한 체크
-          if (!isMatched && memberCount == 1 && groupController.isOwner) ...[
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const InviteFriendView(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.person_add),
-              label: const Text('친구 초대하기'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withValues(alpha:0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    )
+                  ],
+                ),
+                child: Icon(
+                  isMatched ? Icons.favorite_rounded : Icons.chat_bubble_rounded,
+                  size: 48,
+                  color: isMatched ? AppTheme.successColor : AppTheme.primaryColor,
                 ),
               ),
-            ),
-          ],
-        ],
+              const SizedBox(height: 24),
+              Text(
+                isMatched ? '매칭 성공! 🎉' : '그룹 채팅 시작 👋',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isMatched
+                    ? '설레는 대화를 시작해보세요.\n서로에 대해 알아가는 시간이 되길 바래요!'
+                    : memberCount > 1
+                    ? '친구들과 그룹 채팅방이 만들어졌어요.\n자유롭게 대화를 나눠보세요!'
+                    : '아직 그룹에 혼자 있어요.\n친구들을 초대 해보세요!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 15,
+                  height: 1.5,
+                ),
+              ),
+              if (!isMatched && memberCount == 1 && groupController.isOwner) ...[
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const InviteFriendView(),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      '친구 초대하기',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
+
   Widget _buildSystemMessage(dynamic message) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
+    return Align(
       alignment: Alignment.center,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+        margin: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: AppTheme.gray100,
-          borderRadius: BorderRadius.circular(20.0),
+          color: Colors.black.withValues(alpha:0.05),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           message.content,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 12.0,
+          style: TextStyle(
+            color: AppTheme.textSecondary.withValues(alpha:0.8),
+            fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
           textAlign: TextAlign.center,
