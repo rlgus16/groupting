@@ -93,7 +93,7 @@ class _MyPageViewState extends State<MyPageView> {
                   child: Text(
                     '로그아웃',
                     style: TextStyle(
-                      color: AppTheme.textSecondary,
+                      color: AppTheme.errorColor,
                       fontSize: 14,
                       decoration: TextDecoration.underline,
                     ),

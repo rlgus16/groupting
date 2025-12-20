@@ -26,18 +26,15 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   final _heightController = TextEditingController();
   final _activityAreaController = TextEditingController();
 
-  // 좌표 저장 변수
   double _latitude = 0.0;
   double _longitude = 0.0;
-  
-  // 이미지 관리 관련
-  List<dynamic> _imageSlots = List.filled(6, null); // 통합 이미지 슬롯
-  List<String> _imagesToDelete = []; // 삭제할 이미지 URL 저장
+
+  List<dynamic> _imageSlots = List.filled(6, null);
+  List<String> _imagesToDelete = [];
   final ImagePicker _picker = ImagePicker();
   bool _isPickerActive = false;
-  int _mainProfileIndex = 0; // 메인 프로필 이미지 인덱스 (기본값: 0번)
-  
-  // 닉네임 중복 검증 관련
+  int _mainProfileIndex = 0;
+
   bool _isCheckingNickname = false;
   String? _nicknameValidationMessage;
   String _originalNickname = '';
@@ -54,21 +51,18 @@ class _ProfileEditViewState extends State<ProfileEditView> {
 
     if (user != null) {
       _nicknameController.text = user.nickname;
-      _originalNickname = user.nickname; // 기존 닉네임 저장
+      _originalNickname = user.nickname;
       _introductionController.text = user.introduction;
       _heightController.text = user.height.toString();
       _activityAreaController.text = user.activityArea;
 
-      // 기존 좌표 정보 로드
       _latitude = user.latitude;
       _longitude = user.longitude;
-      
-      // 기존 이미지들 로드 (유효한 URL만 필터링)
+
       List<String> _originalImages = user.profileImages.where((imageUrl) {
         return imageUrl.startsWith('http://') || imageUrl.startsWith('https://');
       }).toList();
-      
-      // 통합 이미지 슬롯에 기존 이미지 할당
+
       for (int i = 0; i < _imageSlots.length; i++) {
         if (i < _originalImages.length) {
           _imageSlots[i] = _originalImages[i];
@@ -88,9 +82,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     super.dispose();
   }
 
-  // 닉네임 중복 검증 (실시간)
   Future<void> _checkNicknameDuplicate(String nickname) async {
-    // 기존 닉네임과 같거나 조건 미달 시 검증 안함
     if (nickname.isEmpty || nickname.length < 2 || nickname.trim() == _originalNickname) {
       setState(() {
         _nicknameValidationMessage = null;
@@ -107,7 +99,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     try {
       final profileController = context.read<ProfileController>();
       final isDuplicate = await profileController.isNicknameDuplicate(nickname);
-      
+
       if (mounted) {
         setState(() {
           _isCheckingNickname = false;
@@ -124,24 +116,14 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     }
   }
 
-  // 이미지 선택 메서드
   Future<void> _selectSingleImage(int index) async {
     if (_isPickerActive) return;
 
-    // Android의 경우에만 권한을 수동으로 체크합니다.
-    // iOS는 image_picker가 내부적으로 처리(iOS 14+ PHPicker 등)하므로 수동 체크를 제거합니다.
     if (!kIsWeb && Platform.isAndroid) {
-      PermissionStatus status;
-
-      // Android 버전에 따라 권한 분기
-      status = await Permission.photos.request();
-
-      // Android 12 이하 대응 (photos가 거부되면 storage 요청)
+      PermissionStatus status = await Permission.photos.request();
       if (status.isDenied || status.isPermanentlyDenied) {
         status = await Permission.storage.request();
       }
-
-      // 권한이 거부되었거나 영구적으로 거부된 경우 (Android만 해당)
       if (status.isDenied || status.isPermanentlyDenied) {
         if (mounted) _showPermissionDialog();
         return;
@@ -150,7 +132,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
 
     try {
       _isPickerActive = true;
-      // iOS에서는 권한 체크 없이 바로 피커를 실행하면 됩니다.
       final image = await _picker.pickImage(source: ImageSource.gallery);
 
       if (image != null) {
@@ -163,8 +144,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       }
     } catch (e) {
       if (mounted) {
-        // iOS에서 사용자가 권한을 명시적으로 거부하여 피커 실행이 실패할 경우를 대비할 수 있습니다.
-        // 다만 PHPicker(iOS 14+)는 권한 거부 예외가 거의 발생하지 않습니다.
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('이미지 선택 중 오류가 발생했습니다.')),
         );
@@ -174,7 +153,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     }
   }
 
-// 권한 설정 유도 다이얼로그
   void _showPermissionDialog() {
     showDialog(
       context: context,
@@ -189,7 +167,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              openAppSettings(); // permission_handler 기능: 앱 설정 화면으로 이동
+              openAppSettings();
             },
             child: const Text('설정으로 이동'),
           ),
@@ -198,22 +176,17 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     );
   }
 
-  // 이미지 슬롯 삭제
   void _removeImageFromSlot(int index) {
     setState(() {
       final currentImage = _imageSlots[index];
       if (currentImage is String) {
-        // 기존 이미지(URL)라면 삭제 목록에 추가
         _imagesToDelete.add(currentImage);
       }
-      // 슬롯을 비움
       _imageSlots[index] = null;
-      
-      // 메인 프로필 인덱스 조정
+
       if (_mainProfileIndex == index) {
-        // 첫 번째 유효한 이미지를 새 메인 프로필로 설정
         _mainProfileIndex = _imageSlots.indexWhere((img) => img != null);
-        if (_mainProfileIndex == -1) _mainProfileIndex = 0; // 이미지가 없으면 0으로 초기화
+        if (_mainProfileIndex == -1) _mainProfileIndex = 0;
       }
     });
   }
@@ -221,23 +194,31 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.gray50, // 전체 배경색 변경
       appBar: AppBar(
         title: const Text('프로필 편집'),
         elevation: 0,
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.gray50,
         foregroundColor: AppTheme.textPrimary,
         actions: [
           Consumer<ProfileController>(
             builder: (context, profileController, _) {
-              return TextButton(
-                onPressed: profileController.isLoading ? null : _saveProfile,
-                child: profileController.isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('저장'),
+              return Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: TextButton(
+                  onPressed: profileController.isLoading ? null : _saveProfile,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.primaryColor,
+                    textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  child: profileController.isLoading
+                      ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                      : const Text('완료'),
+                ),
               );
             },
           ),
@@ -246,300 +227,157 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       body: Consumer2<AuthController, ProfileController>(
         builder: (context, authController, profileController, _) {
           final user = authController.currentUserModel;
-
-          if (user == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
+          if (user == null) return const Center(child: CircularProgressIndicator());
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 프로필 사진 섹션
-                  Text(
-                    '프로필 사진',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '최대 6장 사진을 등록해주세요.',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    '이미지를 길게 눌러서 대표 프로필로 설정할 수 있습니다.',
-                    style: TextStyle(
-                      color: AppTheme.primaryColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // 프로필 이미지 그리드 (3x2)
+                  // 1. 프로필 사진 섹션
+                  _buildSectionHeader('프로필 사진'),
+                  _buildImageSection(),
+
+                  const SizedBox(height: 24),
+
+                  // 2. 기본 정보 섹션
+                  _buildSectionHeader('기본 정보'),
                   Container(
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      border: Border.all(color: AppTheme.gray300),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          // 첫 번째 줄 (1, 2, 3번)
-                          Row(
-                            children: [
-                              Expanded(child: _buildImageGridSlot(0)),
-                              const SizedBox(width: 8),
-                              Expanded(child: _buildImageGridSlot(1)),
-                              const SizedBox(width: 8),
-                              Expanded(child: _buildImageGridSlot(2)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          // 두 번째 줄 (4, 5, 6번)
-                          Row(
-                            children: [
-                              Expanded(child: _buildImageGridSlot(3)),
-                              const SizedBox(width: 8),
-                              Expanded(child: _buildImageGridSlot(4)),
-                              const SizedBox(width: 8),
-                              Expanded(child: _buildImageGridSlot(5)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // 닉네임 입력
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextFormField(
-                        controller: _nicknameController,
-                        decoration: InputDecoration(
-                          labelText: '닉네임',
-                          hintText: '닉네임을 입력하세요',
-                          prefixIcon: const Icon(Icons.person_outline),
-                          suffixIcon: _isCheckingNickname
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : null,
-                        ),
-                        maxLength: 10,
-                        onChanged: (value) {
-                          // 디바운싱을 위해 타이머 사용
-                          Future.delayed(const Duration(milliseconds: 500), () {
-                            if (_nicknameController.text == value) {
-                              _checkNicknameDuplicate(value);
-                            }
-                          });
-                        },
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return '닉네임을 입력해주세요.';
-                          }
-                          if (value.trim().length < 2) {
-                            return '닉네임은 2자 이상이어야 합니다.';
-                          }
-                          return null;
-                        },
-                      ),
-                      if (_nicknameValidationMessage != null)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 12, top: 4),
-                          child: Text(
-                            _nicknameValidationMessage!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _nicknameValidationMessage == '사용 가능한 닉네임입니다.'
-                                  ? Colors.green
-                                  : Colors.red,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // 키 입력
-                  TextFormField(
-                    controller: _heightController,
-                    decoration: const InputDecoration(
-                      labelText: '키 (cm)',
-                      hintText: '키를 입력하세요',
-                      prefixIcon: Icon(Icons.height),
-                      suffixText: 'cm',
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return '키를 입력해주세요.';
-                      }
-                      final height = int.tryParse(value.trim());
-                      if (height == null || height < 140 || height > 220) {
-                        return '올바른 키를 입력해주세요. (140-220cm)';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // 활동지역 입력
-                  TextFormField(
-                    controller: _activityAreaController,
-                    readOnly: true, // 키보드가 올라오지 않게 설정
-                    onTap: () async {
-                      // 지도 화면으로 이동하고 결과값 받기
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LocationPickerView(),
-                        ),
-                      );
-
-                      // Map 타입 처리 추가
-                      if (result != null) {
-                        if (result is Map<String, dynamic>) {
-                          setState(() {
-                            _activityAreaController.text = result['address'];
-                            _latitude = result['latitude'];
-                            _longitude = result['longitude'];
-                          });
-                        } else if (result is String) {
-                          // 하위 호환성 (혹시 모를 에러 방지)
-                          setState(() {
-                            _activityAreaController.text = result;
-                          });
-                        }
-                      }
-                    },
-
-                    decoration: const InputDecoration(
-                      labelText: '활동지역',
-                      hintText: '지도를 눌러 위치를 선택하세요',
-                      prefixIcon: Icon(Icons.location_on_outlined),
-                      suffixIcon: Icon(Icons.map_outlined),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return '활동지역을 선택해주세요.';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // 소개글 입력
-                  TextFormField(
-                    controller: _introductionController,
-                    decoration: const InputDecoration(
-                      labelText: '소개글',
-                      prefixIcon: Icon(Icons.edit),
-                      alignLabelWithHint: true,
-                      helperText: '200자 이내',
-                    ),
-                    maxLines: 6,
-                    maxLength: 200,
-                    // validator 로직 변경
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return '소개글을 입력해주세요.';
-                      }
-                      // 5자 미만 체크 추가
-                      if (value.trim().length < 5) {
-                        return '소개글은 5자 이상 작성해주세요.';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // 수정 불가능한 정보 표시
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.gray50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.gray200),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: AppTheme.softShadow,
                     ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.lock_outline,
-                              size: 18,
-                              color: AppTheme.textSecondary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '수정 불가능한 정보',
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(
-                                    color: AppTheme.textSecondary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                          ],
+                        _buildTextField(
+                          controller: _nicknameController,
+                          label: '닉네임',
+                          hint: '닉네임을 입력하세요 (2~10자)',
+                          icon: Icons.person_outline,
+                          maxLength: 10,
+                          onChanged: (value) {
+                            Future.delayed(const Duration(milliseconds: 500), () {
+                              if (_nicknameController.text == value) {
+                                _checkNicknameDuplicate(value);
+                              }
+                            });
+                          },
+                          suffix: _isCheckingNickname
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                              : null,
+                          validationMessage: _nicknameValidationMessage,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) return '닉네임을 입력해주세요.';
+                            if (value.trim().length < 2) return '닉네임은 2자 이상이어야 합니다.';
+                            return null;
+                          },
                         ),
-                        const SizedBox(height: 12),
-                        _buildReadOnlyInfo('아이디', 
-                          context.read<AuthController>().firebaseService.currentUser?.email ?? ''),
-                        _buildReadOnlyInfo('전화번호', _formatPhoneNumber(user.phoneNumber)),
-                        _buildReadOnlyInfo('생년월일', _formatBirthDate(user.birthDate)),
-                        _buildReadOnlyInfo('성별', user.gender),
+                        const SizedBox(height: 20),
+                        _buildTextField(
+                          controller: _heightController,
+                          label: '키 (cm)',
+                          hint: '키를 입력하세요',
+                          icon: Icons.height,
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) return '키를 입력해주세요.';
+                            final height = int.tryParse(value.trim());
+                            if (height == null || height < 140 || height > 220) return '140-220cm 사이로 입력해주세요.';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                        _buildLocationField(),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
 
-                  // 에러 메시지
-                  Consumer<ProfileController>(
-                    builder: (context, profileController, _) {
-                      if (profileController.errorMessage != null) {
-                        return Container(
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: AppTheme.errorColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: AppTheme.errorColor.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Text(
-                            profileController.errorMessage!,
-                            style: const TextStyle(
-                              color: AppTheme.errorColor,
-                              fontSize: 14,
-                            ),
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
+                  // 3. 자기소개 섹션
+                  _buildSectionHeader('자기소개'),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: AppTheme.softShadow,
+                    ),
+                    child: TextFormField(
+                      controller: _introductionController,
+                      decoration: InputDecoration(
+                        hintText: '나를 표현하는 멋진 소개글을 작성해보세요.\n(취미, 관심사, 성격 등)',
+                        hintStyle: const TextStyle(color: AppTheme.gray400, fontSize: 14),
+                        filled: true,
+                        fillColor: AppTheme.gray50,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.all(16),
+                      ),
+                      maxLines: 5,
+                      maxLength: 200,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) return '소개글을 입력해주세요.';
+                        if (value.trim().length < 5) return '5자 이상 작성해주세요.';
+                        return null;
+                      },
+                    ),
                   ),
+
+                  const SizedBox(height: 24),
+
+                  // 4. 계정 정보 섹션 (Read-only)
+                  _buildSectionHeader('계정 정보'),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: AppTheme.softShadow,
+                    ),
+                    child: Column(
+                      children: [
+                        _buildReadOnlyRow('아이디', context.read<AuthController>().firebaseService.currentUser?.email ?? ''),
+                        const Divider(height: 1, color: AppTheme.gray100),
+                        _buildReadOnlyRow('전화번호', _formatPhoneNumber(user.phoneNumber)),
+                        const Divider(height: 1, color: AppTheme.gray100),
+                        _buildReadOnlyRow('생년월일', _formatBirthDate(user.birthDate)),
+                        const Divider(height: 1, color: AppTheme.gray100),
+                        _buildReadOnlyRow('성별', user.gender),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // 에러 메시지 표시
+                  if (profileController.errorMessage != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.errorColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              profileController.errorMessage!,
+                              style: const TextStyle(color: AppTheme.errorColor, fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -549,35 +387,286 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     );
   }
 
-  Widget _buildReadOnlyInfo(String label, String value) {
+  // --- UI 컴포넌트 메서드 ---
+
+  Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.textPrimary,
+        ),
+      ),
+    );
+  }
+
+  // 이미지 섹션 UI
+  Widget _buildImageSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppTheme.softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                color: AppTheme.textSecondary,
-                fontSize: 14,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '대표 사진은 길게 눌러 설정하세요',
+                style: TextStyle(color: AppTheme.primaryColor, fontSize: 13, fontWeight: FontWeight.w500),
               ),
-            ),
+              Text(
+                '${_imageSlots.where((e) => e != null).length}/6',
+                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+              ),
+            ],
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 14,
-              ),
-            ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // 3열 그리드 계산
+              final itemWidth = (constraints.maxWidth - 16) / 3;
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: List.generate(6, (index) {
+                  return SizedBox(
+                    width: itemWidth,
+                    height: itemWidth,
+                    child: _buildImageGridSlot(index),
+                  );
+                }),
+              );
+            },
           ),
         ],
       ),
     );
   }
+
+  Widget _buildImageGridSlot(int index) {
+    final imageData = _imageSlots[index];
+    final hasImage = imageData != null;
+    final isMainProfile = index == _mainProfileIndex && hasImage;
+
+    return GestureDetector(
+      onTap: !hasImage ? () => _selectSingleImage(index) : null,
+      onLongPress: hasImage ? () => _setMainProfile(index) : null,
+      child: Container(
+        decoration: BoxDecoration(
+          color: hasImage ? Colors.white : AppTheme.gray50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isMainProfile ? AppTheme.primaryColor : AppTheme.gray200,
+            width: isMainProfile ? 2 : 1,
+          ),
+        ),
+        child: Stack(
+          children: [
+            // 이미지 표시
+            if (hasImage)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: _buildImageWidget(imageData),
+              )
+            else
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.add_a_photo_outlined, color: AppTheme.gray400, size: 24),
+                    const SizedBox(height: 4),
+                    Text(
+                      '사진 추가',
+                      style: TextStyle(color: AppTheme.gray400, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+
+            // 삭제 버튼
+            if (hasImage)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: GestureDetector(
+                  onTap: () => _removeImageFromSlot(index),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close, color: Colors.white, size: 12),
+                  ),
+                ),
+              ),
+
+            // 대표 태그
+            if (isMainProfile)
+              Positioned(
+                bottom: 6,
+                left: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    '대표',
+                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 커스텀 텍스트 필드 빌더
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    TextInputType? keyboardType,
+    int? maxLength,
+    ValueChanged<String>? onChanged,
+    Widget? suffix,
+    String? validationMessage,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLength: maxLength,
+          onChanged: onChanged,
+          validator: validator,
+          style: const TextStyle(fontSize: 15),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(color: AppTheme.gray400, fontSize: 14),
+            prefixIcon: Icon(icon, color: AppTheme.gray400, size: 20),
+            suffixIcon: suffix,
+            filled: true,
+            fillColor: AppTheme.gray50,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            counterText: '', // maxLength 카운터 숨김
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.errorColor),
+            ),
+          ),
+        ),
+        if (validationMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              validationMessage,
+              style: TextStyle(
+                fontSize: 12,
+                color: validationMessage.contains('사용 가능') ? AppTheme.successColor : AppTheme.errorColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // 위치 선택 필드
+  Widget _buildLocationField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('활동지역', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const LocationPickerView()),
+            );
+            if (result != null) {
+              if (result is Map<String, dynamic>) {
+                setState(() {
+                  _activityAreaController.text = result['address'];
+                  _latitude = result['latitude'];
+                  _longitude = result['longitude'];
+                });
+              } else if (result is String) {
+                setState(() => _activityAreaController.text = result);
+              }
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppTheme.gray50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.location_on_outlined, color: AppTheme.gray400, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _activityAreaController.text.isEmpty ? '지도를 눌러 위치를 선택하세요' : _activityAreaController.text,
+                    style: TextStyle(
+                      color: _activityAreaController.text.isEmpty ? AppTheme.gray400 : AppTheme.textPrimary,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: AppTheme.gray400),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReadOnlyRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+          Text(value, style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  // --- 기존 로직 메서드들 (변경 없음) ---
 
   String _formatPhoneNumber(String phoneNumber) {
     if (phoneNumber.length == 11) {
@@ -593,24 +682,67 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     return birthDate;
   }
 
+  Widget _buildImageWidget(dynamic imageData) {
+    if (imageData is XFile) {
+      if (kIsWeb) {
+        return FutureBuilder<Uint8List>(
+          future: imageData.readAsBytes(),
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              return Image.memory(snapshot.data!, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
+            }
+            return Container(color: AppTheme.gray100, child: const Center(child: CircularProgressIndicator()));
+          },
+        );
+      } else {
+        return Image.file(File(imageData.path), fit: BoxFit.cover, width: double.infinity, height: double.infinity);
+      }
+    } else if (imageData is String) {
+      return _buildProfileImage(imageData);
+    }
+    return const SizedBox();
+  }
+
+  Widget _buildProfileImage(String imageUrl) {
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        placeholder: (context, url) => Container(color: AppTheme.gray100, child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
+        errorWidget: (context, url, error) => const Icon(Icons.person, color: AppTheme.textSecondary),
+      );
+    } else {
+      return const Icon(Icons.person, color: AppTheme.textSecondary);
+    }
+  }
+
+  void _setMainProfile(int index) {
+    setState(() {
+      _mainProfileIndex = index;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('대표 프로필 사진이 변경되었습니다.'),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
   Future<void> _saveProfile() async {
-    // 1. 폼 유효성 검사
     if (!_formKey.currentState!.validate()) return;
 
-    // 2. 닉네임 중복 체크 확인
     if (_nicknameValidationMessage == '이미 사용 중인 닉네임입니다.') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이미 사용 중인 닉네임입니다. 다른 닉네임을 사용해주세요.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이미 사용 중인 닉네임입니다.')));
       return;
     }
 
-    // 3. 이미지 최소 1장 필수 체크
     final hasImages = _imageSlots.any((image) => image != null);
     if (!hasImages) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('사진을 최소 1장 등록해주세요.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('사진을 최소 1장 등록해주세요.')));
       return;
     }
 
@@ -619,21 +751,17 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     final user = authController.currentUserModel;
     if (user == null) return;
 
-    // 4. 삭제할 이미지들 Firebase Storage에서 삭제
     for (String imageUrl in _imagesToDelete) {
       try {
         await FirebaseStorage.instance.refFromURL(imageUrl).delete();
       } catch (e) {
-        // 이미지 삭제 실패는 무시하고 진행 (이미 없는 경우 등)
         debugPrint('이미지 삭제 실패: $e');
       }
     }
 
-    // 5. 최종 이미지 목록 생성 및 업로드
     List<String> finalImages = [];
     List<dynamic> sortedImageSlots = List.from(_imageSlots);
 
-    // 메인 프로필(대표 사진)을 목록의 맨 앞으로 이동
     if (_mainProfileIndex >= 0 && _mainProfileIndex < sortedImageSlots.length) {
       final mainImage = sortedImageSlots.removeAt(_mainProfileIndex);
       if (mainImage != null) {
@@ -641,13 +769,10 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       }
     }
 
-    // 이미지 리스트 순회하며 URL 수집 또는 업로드
     for (final image in sortedImageSlots) {
       if (image is String) {
-        // 기존 이미지 URL
         finalImages.add(image);
       } else if (image is XFile) {
-        // 새로 추가된 이미지 파일 -> 업로드 진행
         try {
           final fileName = '${user.uid}_profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
           final ref = FirebaseStorage.instance.ref().child('profile_images').child(user.uid).child(fileName);
@@ -665,16 +790,13 @@ class _ProfileEditViewState extends State<ProfileEditView> {
           finalImages.add(downloadUrl);
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('이미지 업로드에 실패했습니다.')),
-            );
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이미지 업로드 실패')));
           }
           return;
         }
       }
     }
 
-    // 컨트롤러를 통해 프로필 정보 업데이트 요청
     final success = await profileController.updateProfile(
       nickname: _nicknameController.text.trim(),
       introduction: _introductionController.text.trim(),
@@ -685,152 +807,11 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       profileImages: finalImages,
     );
 
-    // 성공 시 처리
     if (success && mounted) {
-      await authController.refreshCurrentUser(); // 현재 사용자 정보 새로고침
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('프로필이 성공적으로 업데이트되었습니다.')));
-      Navigator.pop(context); // 화면 닫기
+      await authController.refreshCurrentUser();
+      Navigator.pop(context);
     } else if (mounted && profileController.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(profileController.errorMessage!)),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(profileController.errorMessage!)));
     }
-  }
-
-  Widget _buildImageWidget(dynamic imageData) {
-    if (imageData is XFile) {
-      // 새로 선택된 이미지 (XFile)
-      if (kIsWeb) {
-        return FutureBuilder<Uint8List>(
-          future: imageData.readAsBytes(),
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              return Image.memory(snapshot.data!, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
-            }
-            return const Center(child: CircularProgressIndicator());
-          },
-        );
-      } else {
-        return Image.file(File(imageData.path), fit: BoxFit.cover, width: double.infinity, height: double.infinity);
-      }
-    } else if (imageData is String) {
-      // 기존 저장된 이미지 (URL)
-      return _buildProfileImage(imageData);
-    } else {
-      // 빈 슬롯
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.add, color: AppTheme.gray300, size: 24),
-          const SizedBox(height: 4),
-          Text('${_imageSlots.indexOf(imageData) + 1}번', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-        ],
-      );
-    }
-  }
-
-  Widget _buildProfileImage(String imageUrl) {
-    // 유효한 네트워크 이미지만 표시
-    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-      return CachedNetworkImage(
-        imageUrl: imageUrl,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-        errorWidget: (context, url, error) => const Icon(Icons.person, color: AppTheme.textSecondary),
-      );
-    } else {
-      return const Icon(Icons.person, color: AppTheme.textSecondary);
-    }
-  }
-
-  // 메인 프로필 설정 메서드
-  void _setMainProfile(int index) {
-    setState(() {
-      _mainProfileIndex = index;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${index + 1}번 이미지가 대표 프로필로 설정되었습니다.')),
-    );
-  }
-
-  // 새로운 그리드 이미지 슬롯 빌더
-  Widget _buildImageGridSlot(int index) {
-    final imageData = _imageSlots[index];
-    final hasImage = imageData != null;
-    final isMainProfile = index == _mainProfileIndex && hasImage;
-    
-    return AspectRatio(
-      aspectRatio: 1.0, // 정사각형 비율
-      child: GestureDetector(
-        onTap: !hasImage ? () => _selectSingleImage(index) : null,
-        onLongPress: hasImage ? () => _setMainProfile(index) : null,
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: isMainProfile 
-                  ? AppTheme.primaryColor
-                  : hasImage 
-                      ? AppTheme.gray300 
-                      : AppTheme.gray200,
-              width: isMainProfile ? 2 : 1,
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: hasImage
-              ? Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: _buildImageWidget(imageData),
-                    ),
-                    if (isMainProfile)
-                      Positioned(
-                        bottom: 4,
-                        left: 4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text('대표', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    Positioned(
-                      top: -8,
-                      right: -8,
-                      child: GestureDetector(
-                        onTap: () => _removeImageFromSlot(index),
-                        child: Container(
-                          width: 24,
-                          height: 24,
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.close, color: Colors.white, size: 16),
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : GestureDetector(
-                  onTap: () => _selectSingleImage(index),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.add, color: AppTheme.gray300, size: 24),
-                      const SizedBox(height: 4),
-                      Text('${index + 1}번', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-                    ],
-                  ),
-                ),
-        ),
-      ),
-    );
   }
 }
