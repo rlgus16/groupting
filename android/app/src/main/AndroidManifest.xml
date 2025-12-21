@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
@@ -40,11 +41,12 @@
 
     <application
         android:label="Groupting"
-        android:name="${applicationName}"
+        android:name="android.app.Application"
         android:icon="@mipmap/launcher_icon"
         android:enableOnBackInvokedCallback="true">
+
         <activity
-            android:name=".MainActivity"
+            android:name="com.rlgus16.groupting.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
@@ -61,6 +63,7 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
