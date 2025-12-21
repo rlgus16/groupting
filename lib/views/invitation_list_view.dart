@@ -13,41 +13,42 @@ class InvitationListView extends StatefulWidget {
 }
 
 class _InvitationListViewState extends State<InvitationListView> {
-  // 개별 초대의 로딩 상태 관리
   final Set<String> _processingInvitations = <String>{};
 
   Future<void> _handleInvitation(String invitationId, bool accept) async {
-    // 이미 처리 중이면 무시
     if (_processingInvitations.contains(invitationId)) return;
 
     final groupController = context.read<GroupController>();
 
-    // 초대를 수락할 때, 이미 그룹이 있다면 확인 다이얼로그 표시
     if (accept && groupController.currentGroup != null) {
       final bool? confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('그룹 이동'),
-          content: const Text(
-            '현재 그룹을 떠나고 새 그룹으로 이동하시겠습니까?',
-          ),
+          content: const Text('현재 그룹을 떠나고 새 그룹으로 이동하시겠습니까?'),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
+              style: TextButton.styleFrom(foregroundColor: AppTheme.gray600),
               child: const Text('취소'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
               style: TextButton.styleFrom(
-                foregroundColor: AppTheme.errorColor, // 기존 그룹을 떠나는 것이므로 경고색 사용
+                foregroundColor: AppTheme.errorColor,
+                // [수정] fontWeight는 textStyle 안에서 설정해야 합니다.
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Pretendard',
+                ),
               ),
               child: const Text('이동하기'),
             ),
           ],
         ),
       );
-
-      // 취소하거나 다이얼로그를 그냥 닫으면 리턴
       if (confirm != true) return;
     }
 
@@ -56,9 +57,6 @@ class _InvitationListViewState extends State<InvitationListView> {
     });
 
     try {
-      debugPrint('UI: ${accept ? "수락" : "거절"} 처리 시작: $invitationId');
-
-      // acceptInvitation은 실패 시 에러를 throw하므로 catch 블록으로 이동합니다.
       final success = accept
           ? await groupController.acceptInvitation(invitationId)
           : await groupController.rejectInvitation(invitationId);
@@ -67,7 +65,6 @@ class _InvitationListViewState extends State<InvitationListView> {
         if (success) {
           if (accept) {
             CustomToast.showSuccess(context, '그룹에 참여했어요!');
-            // 초대 수락 시 잠시 대기 후 홈으로 이동 (사용자에게 성공 메시지 보여주기 위해)
             await Future.delayed(const Duration(milliseconds: 1200));
             if (mounted) {
               Navigator.pushNamedAndRemoveUntil(
@@ -77,15 +74,11 @@ class _InvitationListViewState extends State<InvitationListView> {
             CustomToast.showInfo(context, '초대를 거절했어요');
           }
         } else if (groupController.errorMessage != null) {
-          // rejectInvitation 등 throw하지 않고 에러 상태만 설정하는 경우 처리
           CustomToast.showError(context, groupController.errorMessage!);
         }
       }
     } catch (e) {
-      debugPrint('UI: 초대 처리 중 예외 발생: $e');
       if (mounted) {
-        // [UPDATED] Display the specific error message from the controller
-        // This will show "매칭 중인 그룹에는 참여할 수 없습니다..." to the user.
         CustomToast.showError(context, e.toString());
       }
     } finally {
@@ -100,69 +93,84 @@ class _InvitationListViewState extends State<InvitationListView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('받은 초대')),
+      backgroundColor: AppTheme.gray50,
+      appBar: AppBar(
+        title: const Text('받은 초대'),
+        backgroundColor: AppTheme.gray50,
+        scrolledUnderElevation: 0,
+      ),
       body: Consumer<GroupController>(
         builder: (context, groupController, _) {
           if (groupController.receivedInvitations.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.mail_outline, size: 64, color: AppTheme.gray400),
-                  const SizedBox(height: 16),
-                  Text(
-                    '받은 초대가 없습니다',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            );
+            return _buildEmptyState();
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             itemCount: groupController.receivedInvitations.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 16),
             itemBuilder: (context, index) {
               final invitation = groupController.receivedInvitations[index];
+              final isProcessing = _processingInvitations.contains(invitation.id);
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: AppTheme.softShadow,
+                  border: Border.all(color: AppTheme.gray100),
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 보낸 사람 정보
+                      // Header: Avatar + Info + Time
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 프로필 이미지
                           MemberAvatar(
                             imageUrl: invitation.fromUserProfileImage,
                             name: invitation.fromUserNickname,
-                            size: 48,
+                            size: 52,
                           ),
-                          const SizedBox(width: 12),
-
-                          // 이름과 시간
+                          const SizedBox(width: 14),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  '${invitation.fromUserNickname}님의 초대',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '${invitation.fromUserNickname}님의 초대',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppTheme.textPrimary,
+                                          fontFamily: 'Pretendard',
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatTime(invitation.createdAt),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.gray500,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  _formatTime(invitation.createdAt),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(color: AppTheme.textSecondary),
+                                const Text(
+                                  '새로운 그룹에 초대되었어요!',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppTheme.textSecondary,
+                                  ),
                                 ),
                               ],
                             ),
@@ -170,52 +178,30 @@ class _InvitationListViewState extends State<InvitationListView> {
                         ],
                       ),
 
-                      // 초대 메시지 (있는 경우)
+                      // Message Bubble
                       if (invitation.message != null &&
                           invitation.message!.isNotEmpty) ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           decoration: BoxDecoration(
-                            color: AppTheme.gray100,
-                            borderRadius: BorderRadius.circular(8),
+                            color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                            borderRadius: const BorderRadius.only(
+                              topRight: Radius.circular(16),
+                              bottomLeft: Radius.circular(16),
+                              bottomRight: Radius.circular(16),
+                            ),
                           ),
-                          child: Text(
-                            invitation.message!,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ),
-                      ],
-
-                      // 유효 기간 표시
-                      if (!invitation.isValid) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.errorColor.withValues(alpha:0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                Icons.timer_off,
-                                size: 16,
-                                color: AppTheme.errorColor,
-                              ),
-                              const SizedBox(width: 4),
                               Text(
-                                '초대가 만료되었습니다',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                  color: AppTheme.errorColor,
-                                  fontWeight: FontWeight.w500,
+                                '"${invitation.message}"',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppTheme.gray800,
+                                  height: 1.5,
                                 ),
                               ),
                             ],
@@ -223,56 +209,110 @@ class _InvitationListViewState extends State<InvitationListView> {
                         ),
                       ],
 
-                      // 버튼들
-                      const SizedBox(height: 16),
+                      // Expired Label
+                      if (!invitation.isValid) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.errorColor.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: AppTheme.errorColor.withValues(alpha: 0.2)),
+                          ),
+                          child: Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.timer_off_outlined,
+                                  size: 14,
+                                  color: AppTheme.errorColor,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '유효기간이 만료된 초대입니다',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.errorColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 20),
+
+                      // Action Buttons
                       Row(
                         children: [
                           Expanded(
-                            child: OutlinedButton(
-                              onPressed: (invitation.canRespond &&
-                                  !_processingInvitations
-                                      .contains(invitation.id))
-                                  ? () =>
-                                  _handleInvitation(invitation.id, false)
-                                  : null,
-                              child: _processingInvitations
-                                  .contains(invitation.id)
-                                  ? const SizedBox(
-                                height: 16,
-                                width: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor:
-                                  AlwaysStoppedAnimation<Color>(
-                                    AppTheme.textSecondary,
+                            child: SizedBox(
+                              height: 48,
+                              child: OutlinedButton(
+                                onPressed: (invitation.canRespond && !isProcessing)
+                                    ? () => _handleInvitation(invitation.id, false)
+                                    : null,
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: AppTheme.gray300),
+                                  foregroundColor: AppTheme.textSecondary,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                              )
-                                  : const Text('거절'),
+                                child: isProcessing
+                                    ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                )
+                                    : const Text('거절'),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: ElevatedButton(
-                              onPressed: (invitation.canRespond &&
-                                  !_processingInvitations
-                                      .contains(invitation.id))
-                                  ? () => _handleInvitation(invitation.id, true)
-                                  : null,
-                              child: _processingInvitations
-                                  .contains(invitation.id)
-                                  ? const SizedBox(
-                                height: 16,
-                                width: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor:
-                                  AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
+                            child: SizedBox(
+                              height: 48,
+                              child: ElevatedButton(
+                                onPressed: (invitation.canRespond && !isProcessing)
+                                    ? () => _handleInvitation(invitation.id, true)
+                                    : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryColor,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shadowColor: Colors.transparent,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                              )
-                                  : const Text('수락'),
+                                child: isProcessing
+                                    ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                                    : const Text(
+                                  '수락',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700),
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -288,6 +328,47 @@ class _InvitationListViewState extends State<InvitationListView> {
     );
   }
 
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.mail_outline_rounded,
+              size: 48,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            '아직 받은 초대가 없어요',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+              fontFamily: 'Pretendard',
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '친구가 초대를 보내면 여기에 표시됩니다',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.textSecondary,
+              fontFamily: 'Pretendard',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatTime(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
@@ -296,7 +377,7 @@ class _InvitationListViewState extends State<InvitationListView> {
       return '방금 전';
     } else if (difference.inHours < 1) {
       return '${difference.inMinutes}분 전';
-    } else if (difference.inDays < 1) {
+    } else if (difference.inHours < 24) {
       return '${difference.inHours}시간 전';
     } else if (difference.inDays < 7) {
       return '${difference.inDays}일 전';
