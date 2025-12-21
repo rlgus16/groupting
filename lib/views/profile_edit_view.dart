@@ -344,7 +344,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                     ),
                     child: Column(
                       children: [
-                        _buildReadOnlyRow('아이디', context.read<AuthController>().firebaseService.currentUser?.email ?? ''),
+                        _buildReadOnlyRow('이메일', context.read<AuthController>().firebaseService.currentUser?.email ?? ''),
                         const Divider(height: 1, color: AppTheme.gray100),
                         _buildReadOnlyRow('전화번호', _formatPhoneNumber(user.phoneNumber)),
                         const Divider(height: 1, color: AppTheme.gray100),

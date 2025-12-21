@@ -265,19 +265,17 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
     final groupController = context.read<GroupController>();
     final group = groupController.currentGroup;
 
-    // --- 나이 설정 초기값 ---
+    // --- 초기값 설정 ---
     double initMinAge = (group?.minAge.toDouble() ?? 19.0).clamp(19.0, 60.0);
     double initMaxAge = (group?.maxAge.toDouble() ?? 60.0).clamp(19.0, 60.0);
     if (initMinAge > initMaxAge) initMinAge = initMaxAge;
     RangeValues currentAgeRange = RangeValues(initMinAge, initMaxAge);
 
-    // 키 설정 초기값 (150cm ~ 190cm)
     double initMinHeight = (group?.minHeight.toDouble() ?? 150.0).clamp(150.0, 190.0);
     double initMaxHeight = (group?.maxHeight.toDouble() ?? 190.0).clamp(150.0, 190.0);
     if (initMinHeight > initMaxHeight) initMinHeight = initMaxHeight;
     RangeValues currentHeightRange = RangeValues(initMinHeight, initMaxHeight);
 
-    // 거리 설정 초기값 추가 (2km ~ 100km)
     double initMaxDistance = (group?.maxDistance.toDouble() ?? 100.0).clamp(2.0, 100.0);
     double currentDistance = initMaxDistance;
 
@@ -286,204 +284,251 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         bool isSaving = false;
 
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
-            return Padding(
+            return Container(
               padding: EdgeInsets.fromLTRB(
-                  24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24),
+                24,
+                12,
+                24,
+                MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 상단 헤더
+                  // 상단 핸들 바
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppTheme.gray300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 헤더
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('매칭 필터 설정',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      const Text(
+                        '매칭 필터 설정',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.gray800,
+                        ),
+                      ),
                       IconButton(
-                        icon: const Icon(Icons.close),
                         onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: AppTheme.gray600),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
 
-                  // 성별 설정
-                  const Text('상대 그룹 성별',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  // 성별 섹션
+                  _buildFilterSectionTitle('상대 그룹 성별'),
                   const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8.0,
-                    runSpacing: 8.0,
+                  Row(
                     children: [
-                      _buildGenderChip('남자', selectedGender, (val) {
-                        setModalState(() => selectedGender = val);
-                      }),
-                      _buildGenderChip('여자', selectedGender, (val) {
-                        setModalState(() => selectedGender = val);
-                      }),
-                      _buildGenderChip('혼성', selectedGender, (val) {
-                        setModalState(() => selectedGender = val);
-                      }),
-                      _buildGenderChip('상관없음', selectedGender, (val) {
-                        setModalState(() => selectedGender = val);
-                      }),
+                      Expanded(child: _buildGenderChip('남자', selectedGender, (val) => setModalState(() => selectedGender = val))),
+                      const SizedBox(width: 8),
+                      Expanded(child: _buildGenderChip('여자', selectedGender, (val) => setModalState(() => selectedGender = val))),
+                      const SizedBox(width: 8),
+                      Expanded(child: _buildGenderChip('혼성', selectedGender, (val) => setModalState(() => selectedGender = val))),
+                      const SizedBox(width: 8),
+                      Expanded(child: _buildGenderChip('상관없음', selectedGender, (val) => setModalState(() => selectedGender = val))),
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
 
-                  // 나이대 설정
+                  // 나이 섹션
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('상대 그룹 평균 나이',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      _buildFilterSectionTitle('상대 그룹 평균 나이'),
                       Text(
                         '${currentAgeRange.start.round()}세 - ${currentAgeRange.end.round() >= 60 ? "60세+" : "${currentAgeRange.end.round()}세"}',
                         style: const TextStyle(
-                            color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
                       ),
                     ],
                   ),
-                  RangeSlider(
-                    values: currentAgeRange,
-                    min: 19,
-                    max: 60,
-                    divisions: 41,
-                    activeColor: AppTheme.primaryColor,
-                    inactiveColor: AppTheme.gray200,
-                    labels: RangeLabels(
-                      currentAgeRange.start.round().toString(),
-                      currentAgeRange.end.round() >= 60 ? "60+" : currentAgeRange.end.round().toString(),
+                  const SizedBox(height: 6),
+                  SliderTheme(
+                    data: SliderThemeData(
+                      trackHeight: 6,
+                      activeTrackColor: AppTheme.primaryColor,
+                      inactiveTrackColor: AppTheme.gray200,
+                      thumbColor: Colors.white,
+                      overlayColor: AppTheme.primaryColor.withValues(alpha:0.1),
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10, elevation: 4),
+                      rangeThumbShape: const RoundRangeSliderThumbShape(enabledThumbRadius: 10, elevation: 4),
                     ),
-                    onChanged: (RangeValues values) {
-                      setModalState(() => currentAgeRange = values);
-                    },
+                    child: RangeSlider(
+                      values: currentAgeRange,
+                      min: 19,
+                      max: 60,
+                      divisions: 41,
+                      onChanged: (RangeValues values) {
+                        setModalState(() => currentAgeRange = values);
+                      },
+                    ),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // 키 설정
+                  // 키 섹션
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('상대 그룹 평균 키',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      _buildFilterSectionTitle('상대 그룹 평균 키'),
                       Text(
                         '${currentHeightRange.start.round()}cm - ${currentHeightRange.end.round() >= 190 ? "190cm+" : "${currentHeightRange.end.round()}cm"}',
                         style: const TextStyle(
-                            color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
                       ),
                     ],
                   ),
-                  RangeSlider(
-                    values: currentHeightRange,
-                    min: 150,
-                    max: 190,
-                    divisions: 40, // 1cm 단위
-                    activeColor: AppTheme.primaryColor,
-                    inactiveColor: AppTheme.gray200,
-                    labels: RangeLabels(
-                      currentHeightRange.start.round().toString(),
-                      currentHeightRange.end.round() >= 190 ? "190+" : currentHeightRange.end.round().toString(),
+                  const SizedBox(height: 6),
+                  SliderTheme(
+                    data: SliderThemeData(
+                      trackHeight: 6,
+                      activeTrackColor: AppTheme.primaryColor,
+                      inactiveTrackColor: AppTheme.gray200,
+                      thumbColor: Colors.white,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10, elevation: 4),
+                      rangeThumbShape: const RoundRangeSliderThumbShape(enabledThumbRadius: 10, elevation: 4),
                     ),
-                    onChanged: (RangeValues values) {
-                      setModalState(() => currentHeightRange = values);
-                    },
+                    child: RangeSlider(
+                      values: currentHeightRange,
+                      min: 150,
+                      max: 190,
+                      divisions: 40,
+                      onChanged: (RangeValues values) {
+                        setModalState(() => currentHeightRange = values);
+                      },
+                    ),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // 거리 설정
+                  // 거리 섹션
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('거리 범위 (방장 기준)',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      _buildFilterSectionTitle('거리 범위 (방장 기준)'),
                       Text(
                         currentDistance >= 100 ? "100km+" : "${currentDistance.round()}km 이내",
                         style: const TextStyle(
-                            color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
                       ),
                     ],
                   ),
-                  Slider(
-                    value: currentDistance,
-                    min: 2,
-                    max: 100,
-                    divisions: 49, // 1km 단위
-                    activeColor: AppTheme.primaryColor,
-                    inactiveColor: AppTheme.gray200,
-                    label: currentDistance >= 100 ? "100+" : currentDistance.round().toString(),
-                    onChanged: (double value) {
-                      setModalState(() => currentDistance = value);
-                    },
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // 적용 버튼
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: isSaving
-                          ? null
-                          : () async {
-                        setModalState(() => isSaving = true);
-                        try {
-                          final success = await groupController.saveMatchFilters(
-                            preferredGender: selectedGender,
-                            minAge: currentAgeRange.start.round(),
-                            maxAge: currentAgeRange.end.round() >= 60
-                                ? 100
-                                : currentAgeRange.end.round(),
-                            // 키 정보 전달
-                            minHeight: currentHeightRange.start.round(),
-                            maxHeight: currentHeightRange.end.round() >= 190
-                                ? 200 // 190 이상은 넉넉하게 200으로 저장
-                                : currentHeightRange.end.round(),
-                            maxDistance: currentDistance.round() >= 100 ? 50000 : currentDistance.round(),
-                          );
-
-                          if (!mounted) return;
-                          Navigator.pop(context);
-
-                          if (success) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('필터가 적용되었습니다.')),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(groupController.errorMessage ?? '필터 적용 실패')),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) Navigator.pop(context);
-                        }
+                  const SizedBox(height: 6),
+                  SliderTheme(
+                    data: SliderThemeData(
+                      trackHeight: 6,
+                      activeTrackColor: AppTheme.primaryColor,
+                      inactiveTrackColor: AppTheme.gray200,
+                      thumbColor: Colors.white,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10, elevation: 4),
+                    ),
+                    child: Slider(
+                      value: currentDistance,
+                      min: 2,
+                      max: 100,
+                      divisions: 49,
+                      onChanged: (double value) {
+                        setModalState(() => currentDistance = value);
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        disabledBackgroundColor: AppTheme.primaryColor.withValues(alpha:0.6),
-                      ),
-                      child: isSaving
-                          ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('적용하기',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
+
                   const SizedBox(height: 40),
+
+                  // 적용 버튼
+                  ElevatedButton(
+                    onPressed: isSaving
+                        ? null
+                        : () async {
+                      setModalState(() => isSaving = true);
+                      try {
+                        final success = await groupController.saveMatchFilters(
+                          preferredGender: selectedGender,
+                          minAge: currentAgeRange.start.round(),
+                          maxAge: currentAgeRange.end.round() >= 60 ? 100 : currentAgeRange.end.round(),
+                          minHeight: currentHeightRange.start.round(),
+                          maxHeight: currentHeightRange.end.round() >= 190 ? 200 : currentHeightRange.end.round(),
+                          maxDistance: currentDistance.round() >= 100 ? 50000 : currentDistance.round(),
+                        );
+
+                        if (!mounted) return;
+                        Navigator.pop(context);
+
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('필터가 성공적으로 적용되었습니다.'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(groupController.errorMessage ?? '필터 적용 실패')),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) Navigator.pop(context);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: isSaving
+                        ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)
+                    )
+                        : const Text(
+                      '필터 적용하기',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
                 ],
               ),
             );
@@ -493,28 +538,49 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
     );
   }
 
-  // 성별 선택 칩 위젯 (헬퍼 메서드)
+  // 섹션 타이틀 위젯
+  Widget _buildFilterSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: AppTheme.gray700,
+      ),
+    );
+  }
+
+  // 개선된 성별 선택 칩 위젯
   Widget _buildGenderChip(String label, String currentSelection, Function(String) onSelected) {
     final bool isSelected = label == currentSelection;
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (bool selected) {
-        if (selected) {
-          onSelected(label);
-        }
-      },
-      selectedColor: AppTheme.primaryColor.withValues(alpha:0.1),
-      backgroundColor: Colors.white,
-      labelStyle: TextStyle(
-        color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-      ),
-      side: BorderSide(
-        color: isSelected ? AppTheme.primaryColor : AppTheme.gray300,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+    // '상관없음' 텍스트가 너무 길 경우를 대비해 폰트 사이즈 조정
+    final double fontSize = label.length > 3 ? 12 : 13;
+
+    return GestureDetector(
+      onTap: () => onSelected(label),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryColor : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryColor : AppTheme.gray300,
+            width: 1,
+          ),
+          boxShadow: isSelected
+              ? [BoxShadow(color: AppTheme.primaryColor.withValues(alpha:0.3), blurRadius: 4, offset: const Offset(0, 2))]
+              : null,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppTheme.gray600,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            fontSize: fontSize,
+          ),
+          textAlign: TextAlign.center,
+        ),
       ),
     );
   }
