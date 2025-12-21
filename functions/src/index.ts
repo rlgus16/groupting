@@ -511,17 +511,17 @@ export const banUserByAdmin = onCall(async (request) => {
   }
 
   try {
-    // 2. Firebase Auth 계정 비활성화 (로그인 차단)
+    // Firebase Auth 계정 비활성화 (로그인 차단)
     await admin.auth().updateUser(targetUserId, { disabled: true });
 
-    // 3. Firestore 사용자 문서에 'banned' 플래그 설정 (데이터 접근 차단용)
+    // Firestore 사용자 문서에 'banned' 플래그 설정 (데이터 접근 차단용)
     // users 컬렉션에 status 필드를 업데이트합니다.
     await db.collection("users").doc(targetUserId).update({
       status: 'banned',
       bannedAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    // 4. 신고 처리 상태 업데이트 (처리 완료)
+    // 신고 처리 상태 업데이트 (처리 완료)
     if (reportId) {
       await db.collection("reports").doc(reportId).update({
         status: 'resolved',
@@ -530,7 +530,7 @@ export const banUserByAdmin = onCall(async (request) => {
       });
     }
 
-    // 5. (선택사항) 해당 유저의 모든 인증 토큰 만료 처리 (즉시 로그아웃 효과)
+    // 해당 유저의 모든 인증 토큰 만료 처리 (즉시 로그아웃 효과)
     await admin.auth().revokeRefreshTokens(targetUserId);
 
     console.log(`User ${targetUserId} has been banned by admin.`);
@@ -550,19 +550,21 @@ export const notifyNewMessage = onDocumentUpdated("chatrooms/{chatroomId}", asyn
     const afterData = event.data.after.data();
     const chatRoomId = event.params.chatroomId;
 
-    // lastMessage 필드가 변경되었는지 확인
-    const beforeLastMsg = beforeData?.lastMessage;
-    const afterLastMsg = afterData?.lastMessage;
+    // 객체 내부의 id 대신, 문서 최상단의 'lastMessageId' 필드를 비교하여 더 확실하게 변경을 감지합니다.
+    const beforeLastMsgId = beforeData?.lastMessageId;
+    const afterLastMsgId = afterData?.lastMessageId;
 
-    // 메시지가 없거나, 이전 메시지와 ID가 같다면(메시지 변경이 아님) 무시
-    if (!afterLastMsg || (beforeLastMsg && beforeLastMsg.id === afterLastMsg.id)) {
+    // 메시지 ID가 없거나, 이전과 동일하다면 알림을 보내지 않습니다.
+    if (!afterLastMsgId || beforeLastMsgId === afterLastMsgId) {
         return;
     }
 
-    const newMessage = afterLastMsg;
+    const newMessage = afterData?.lastMessage;
+    if (!newMessage) return;
+
     const senderId = newMessage.senderId;
     const senderNickname = newMessage.senderNickname;
-    const content = newMessage.type === 'image' ? '(사진)' : newMessage.content; // 이미지인 경우 텍스트 처리
+    const content = newMessage.type === 'image' ? '(사진)' : newMessage.content;
     const participants = afterData.participants || [];
 
     // 보낸 사람(senderId)을 제외한 나머지 참가자들에게만 알림 전송
@@ -573,8 +575,6 @@ export const notifyNewMessage = onDocumentUpdated("chatrooms/{chatroomId}", asyn
     console.log(`Sending message notification from ${senderId} to ${recipientIds} in ${chatRoomId}`);
 
     // 수신자들의 FCM 토큰 조회
-    // (참가자가 많을 경우 chunk로 나누는 로직이 필요할 수 있으나, 현재 최대 5vs5 소규모 그룹이므로 in 쿼리 사용 가능)
-    // Firestore 'in' 쿼리는 최대 10개까지만 가능하므로 주의 (현재 로직상 문제는 없어 보임)
     const usersQuery = await db.collection("users")
       .where(admin.firestore.FieldPath.documentId(), "in", recipientIds)
       .get();
@@ -582,6 +582,7 @@ export const notifyNewMessage = onDocumentUpdated("chatrooms/{chatroomId}", asyn
     const tokens: string[] = [];
     usersQuery.forEach((doc) => {
       const userData = doc.data();
+      // chatNotification 설정이 false인 경우 제외
       if (userData.chatNotification === false) return;
       if (userData.fcmToken) {
         tokens.push(userData.fcmToken);
@@ -593,35 +594,50 @@ export const notifyNewMessage = onDocumentUpdated("chatrooms/{chatroomId}", asyn
       return;
     }
 
-    // 알림 메시지 구성
+    // Android 알림 채널 설정 추가
     const messagePayload = {
       notification: {
-        title: senderNickname, // 알림 제목에 보낸 사람 닉네임 표시
-        body: content,         // 알림 내용에 메시지 내용 표시
+        title: senderNickname,
+        body: content,
       },
       data: {
-        type: "new_message",   // 클라이언트에서 처리할 알림 타입
+        type: "new_message",
         chatroomId: chatRoomId,
         senderId: senderId,
         click_action: "FLUTTER_NOTIFICATION_CLICK",
       },
-      tokens: tokens, // 다중 전송
+      // 안드로이드 설정 추가
+      android: {
+        notification: {
+          channelId: "groupting_message", // 앱에서 설정한 채널 ID와 일치시켜야 함
+          priority: "high",
+        }
+      },
+      // iOS 설정 (선택사항)
+      apns: {
+        payload: {
+          aps: {
+            sound: "default",
+          }
+        }
+      },
+      tokens: tokens,
     };
 
     try {
-          const response = await admin.messaging().sendEachForMulticast(messagePayload as any);
-          console.log(`Message notifications sent. Success: ${response.successCount}, Failure: ${response.failureCount}`);
+      // any 캐스팅 제거 권장 (타입 정의가 있다면)
+      const response = await admin.messaging().sendEachForMulticast(messagePayload as any);
+      console.log(`Message notifications sent. Success: ${response.successCount}, Failure: ${response.failureCount}`);
 
-          // 실패한 경우 구체적인 에러 이유를 로그로 출력
-          if (response.failureCount > 0) {
-            response.responses.forEach((resp, idx) => {
-              if (!resp.success) {
-                console.error(`Error sending to token ${tokens[idx]}:`, resp.error);
-              }
-            });
+      if (response.failureCount > 0) {
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            console.error(`Error sending to token ${tokens[idx]}:`, resp.error);
           }
+        });
+      }
 
-        } catch (error) {
-          console.error("Error sending message notifications:", error);
-        }
-    });
+    } catch (error) {
+      console.error("Error sending message notifications:", error);
+    }
+});
