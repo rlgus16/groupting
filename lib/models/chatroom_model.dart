@@ -10,7 +10,6 @@ class ChatMessage {
   final MessageType type;
   final DateTime createdAt;
   final List<String> readBy;
-  final Map<String, dynamic>? metadata;
 
   ChatMessage({
     required this.id,
@@ -21,31 +20,33 @@ class ChatMessage {
     required this.type,
     required this.createdAt,
     required this.readBy,
-    this.metadata,
   });
 
-  factory ChatMessage.fromMap(Map<String, dynamic> data) {
+  // Firestore 문서(DocumentSnapshot)로부터 생성
+  factory ChatMessage.fromDocument(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return ChatMessage.fromMap(doc.id, data);
+  }
+
+  // Map 데이터로부터 생성 (배열 내부 데이터 처리용)
+  factory ChatMessage.fromMap(String id, Map<String, dynamic> data) {
     return ChatMessage(
-      id: data['id'] ?? '',
+      id: id, // ID가 없을 경우 빈 문자열 또는 생성된 ID 사용 필요
       senderId: data['senderId'] ?? '',
       senderNickname: data['senderNickname'] ?? '',
       senderProfileImage: data['senderProfileImage'],
       content: data['content'] ?? '',
       type: MessageType.values.firstWhere(
-        (e) => e.toString().split('.').last == data['type'],
+            (e) => e.toString().split('.').last == data['type'],
         orElse: () => MessageType.text,
       ),
       createdAt: (data['createdAt'] as Timestamp? ?? Timestamp.now()).toDate(),
       readBy: List<String>.from(data['readBy'] ?? []),
-      metadata: data['metadata'] != null 
-          ? Map<String, dynamic>.from(data['metadata']) 
-          : null,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'senderId': senderId,
       'senderNickname': senderNickname,
       'senderProfileImage': senderProfileImage,
@@ -53,12 +54,8 @@ class ChatMessage {
       'type': type.toString().split('.').last,
       'createdAt': Timestamp.fromDate(createdAt),
       'readBy': readBy,
-      'metadata': metadata,
     };
   }
-
-  bool get isSystem => type == MessageType.system;
-  bool isReadBy(String userId) => readBy.contains(userId);
 }
 
 class LastMessage {
@@ -84,7 +81,7 @@ class LastMessage {
       senderId: data['senderId'] ?? '',
       senderNickname: data['senderNickname'] ?? '',
       type: MessageType.values.firstWhere(
-        (e) => e.toString().split('.').last == data['type'],
+            (e) => e.toString().split('.').last == data['type'],
         orElse: () => MessageType.text,
       ),
       createdAt: (data['createdAt'] as Timestamp? ?? Timestamp.now()).toDate(),
@@ -99,13 +96,14 @@ class LastMessage {
       'senderNickname': senderNickname,
       'type': type.toString().split('.').last,
       'createdAt': Timestamp.fromDate(createdAt),
+      'readBy': readBy,
     };
   }
 }
 
 class ChatroomModel {
   final String id;
-  final String groupId;  // 매칭된 그룹들의 복합 ID (group1_group2)
+  final String groupId;
   final List<String> participants;
   final List<ChatMessage> messages;
   final LastMessage? lastMessage;
@@ -117,37 +115,28 @@ class ChatroomModel {
     required this.id,
     required this.groupId,
     required this.participants,
-    required this.messages,
+    this.messages = const [],
     this.lastMessage,
-    required this.messageCount,
+    this.messageCount = 0,
     required this.createdAt,
     required this.updatedAt,
   });
 
-  factory ChatroomModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    
-    return ChatroomModel(
-      id: doc.id,
-      groupId: data['groupId'] ?? '',
-      participants: List<String>.from(data['participants'] ?? []),
-      messages: (data['messages'] as List<dynamic>? ?? [])
-          .map((messageData) => ChatMessage.fromMap(messageData as Map<String, dynamic>))
-          .toList(),
-      lastMessage: data['lastMessage'] != null 
-          ? LastMessage.fromMap(data['lastMessage'] as Map<String, dynamic>)
-          : null,
-      messageCount: data['messageCount'] ?? 0,
-      createdAt: (data['createdAt'] as Timestamp? ?? Timestamp.now()).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp? ?? Timestamp.now()).toDate(),
-    );
+  // [추가됨] Firestore withConverter 호환용 팩토리
+  factory ChatroomModel.fromFirestore(
+      DocumentSnapshot<Map<String, dynamic>> snapshot,
+      SnapshotOptions? options,
+      ) {
+    final data = snapshot.data();
+    return ChatroomModel.fromMap(snapshot.id, data ?? {});
   }
 
+  // [추가됨] Firestore withConverter 호환용 메서드
   Map<String, dynamic> toFirestore() {
     return {
       'groupId': groupId,
       'participants': participants,
-      'messages': messages.map((message) => message.toMap()).toList(),
+      // messages는 보통 하위 컬렉션으로 관리하므로 저장 시 제외하거나 필요한 경우 포함
       'lastMessage': lastMessage?.toMap(),
       'messageCount': messageCount,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -155,12 +144,38 @@ class ChatroomModel {
     };
   }
 
-  // 새 메시지
+  factory ChatroomModel.fromDocument(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return ChatroomModel.fromMap(doc.id, data);
+  }
+
+  factory ChatroomModel.fromMap(String id, Map<String, dynamic> data) {
+    return ChatroomModel(
+      id: id,
+      groupId: data['groupId'] ?? '',
+      participants: List<String>.from(data['participants'] ?? []),
+      messages: (data['messages'] as List<dynamic>? ?? [])
+          .map((m) {
+        // Map 데이터인 경우 처리
+        if (m is Map<String, dynamic>) {
+          return ChatMessage.fromMap('', m);
+        }
+        return null;
+      })
+          .whereType<ChatMessage>() // null 제거
+          .toList(),
+      lastMessage: data['lastMessage'] != null
+          ? LastMessage.fromMap(data['lastMessage'])
+          : null,
+      messageCount: data['messageCount'] ?? 0,
+      createdAt: (data['createdAt'] as Timestamp? ?? Timestamp.now()).toDate(),
+      updatedAt: (data['updatedAt'] as Timestamp? ?? Timestamp.now()).toDate(),
+    );
+  }
+
   ChatroomModel addMessage(ChatMessage message) {
     final updatedMessages = [...messages, message];
-    
-    // 최신 100개 메시지만 유지 (문서 크기 제한 대응)
-    final messagesToKeep = updatedMessages.length > 100 
+    final messagesToKeep = updatedMessages.length > 100
         ? updatedMessages.sublist(updatedMessages.length - 100)
         : updatedMessages;
 
@@ -180,67 +195,6 @@ class ChatroomModel {
       messageCount: messageCount + 1,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
-    );
-  }
-
-  // 메시지 읽음 처리
-  ChatroomModel markMessageAsRead(String messageId, String userId) {
-    final updatedMessages = messages.map((message) {
-      if (message.id == messageId && !message.readBy.contains(userId)) {
-        return ChatMessage(
-          id: message.id,
-          senderId: message.senderId,
-          senderNickname: message.senderNickname,
-          senderProfileImage: message.senderProfileImage,
-          content: message.content,
-          type: message.type,
-          createdAt: message.createdAt,
-          readBy: [...message.readBy, userId],
-          metadata: message.metadata,
-        );
-      }
-      return message;
-    }).toList();
-
-    return ChatroomModel(
-      id: id,
-      groupId: groupId,
-      participants: participants,
-      messages: updatedMessages,
-      lastMessage: lastMessage,
-      messageCount: messageCount,
-      createdAt: createdAt,
-      updatedAt: DateTime.now(),
-    );
-  }
-
-  // 읽지 않은 메시지 수 계산
-  int getUnreadCount(String userId) {
-    return messages.where((message) => 
-        message.senderId != userId && !message.isReadBy(userId)
-    ).length;
-  }
-
-  // 복사본 생성
-  ChatroomModel copyWith({
-    String? id,
-    String? groupId,
-    List<String>? participants,
-    List<ChatMessage>? messages,
-    LastMessage? lastMessage,
-    int? messageCount,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) {
-    return ChatroomModel(
-      id: id ?? this.id,
-      groupId: groupId ?? this.groupId,
-      participants: participants ?? this.participants,
-      messages: messages ?? this.messages,
-      lastMessage: lastMessage ?? this.lastMessage,
-      messageCount: messageCount ?? this.messageCount,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

@@ -24,7 +24,7 @@ class ChatroomService {
       final doc = await docRef.get();
 
       if (doc.exists) {
-        final existingChatroom = ChatroomModel.fromFirestore(doc);
+        final existingChatroom = ChatroomModel.fromDocument(doc);
 
         // Check if we need to update participants (e.g., a new member joined)
         final currentSet = Set.from(existingChatroom.participants);
@@ -68,7 +68,7 @@ class ChatroomService {
     return _chatroomsCollection
         .doc(chatRoomId)
         .snapshots(includeMetadataChanges: false)
-        .map((doc) => doc.exists ? ChatroomModel.fromFirestore(doc) : null);
+        .map((doc) => doc.exists ? ChatroomModel.fromDocument(doc) : null);
   }
 
   Future<void> sendMessage({
