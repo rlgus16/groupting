@@ -35,7 +35,7 @@ class HomeView extends StatefulWidget {
   State<HomeView> createState() => _HomeViewState();
 }
 
-// SingleTickerProviderStateMixin 추가 (애니메이션 사용을 위해 필요)
+// SingleTickerProviderStateMixin (애니메이션 사용을 위해 필요)
 class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final ChatroomService _chatroomService = ChatroomService();
   bool _isProfileCardHidden = false;
@@ -1476,7 +1476,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
     final bool isMatched = groupController.isMatched;
     final bool isMatching = groupController.isMatching;
 
-    // [추가됨] 현재 채팅방 ID 가져오기
+    // 현재 채팅방 ID 가져오기
     final chatRoomId = _getChatRoomId(groupController);
     final currentUserId = context.read<AuthController>().firebaseService.currentUserId;
 
@@ -1556,7 +1556,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
 
           const SizedBox(height: 24),
 
-          // [수정됨] 매칭 상태에 따른 버튼 영역 (StreamBuilder 적용)
+          // 매칭 상태에 따른 버튼 영역 (StreamBuilder 적용)
           if (isMatched)
             SizedBox(
               width: double.infinity,
@@ -1569,7 +1569,12 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                     final chatroom = snapshot.data!;
                     if (chatroom.lastMessage != null &&
                         chatroom.lastMessage!.senderId != currentUserId) {
-                      hasUnread = true;
+
+                      // readBy 리스트에 내 ID가 없으면 '안 읽음'으로 간주
+                      final readBy = chatroom.lastMessage!.readBy;
+                      if (!readBy.contains(currentUserId)) {
+                        hasUnread = true;
+                      }
                     }
                   }
 
@@ -1625,7 +1630,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
 
                 const SizedBox(height: 12),
 
-                // [수정됨] 대기 채팅방 버튼 (StreamBuilder 적용)
+                // 대기 채팅방 버튼 (StreamBuilder 적용)
                 SizedBox(
                   width: double.infinity,
                   child: StreamBuilder<ChatroomModel?>(
@@ -1636,7 +1641,12 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                           final chatroom = snapshot.data!;
                           if (chatroom.lastMessage != null &&
                               chatroom.lastMessage!.senderId != currentUserId) {
-                            hasUnread = true;
+
+                            // readBy 리스트에 내 ID가 없으면 '안 읽음'으로 간주
+                            final readBy = chatroom.lastMessage!.readBy;
+                            if (!readBy.contains(currentUserId)) {
+                              hasUnread = true;
+                            }
                           }
                         }
 

@@ -138,4 +138,38 @@ class ChatroomService {
       throw Exception('Failed to send system message: $e');
     }
   }
+
+  // 메시지 읽음 처리
+  Future<void> markAsRead(String chatRoomId) async {
+    try {
+      final currentUser = _firebaseService.currentUser;
+      if (currentUser == null) return;
+
+      final docRef = _chatroomsCollection.doc(chatRoomId);
+      final doc = await docRef.get();
+
+      if (!doc.exists) return;
+
+      final data = doc.data();
+      if (data == null) return;
+
+      // lastMessage 업데이트 (홈 화면 버튼 색상용)
+      final lastMessageData = data['lastMessage'] as Map<String, dynamic>?;
+
+      if (lastMessageData != null) {
+        final List<dynamic> readBy = lastMessageData['readBy'] ?? [];
+        // 내 ID가 readBy 목록에 없으면 추가
+        if (!readBy.contains(currentUser.uid)) {
+          readBy.add(currentUser.uid);
+
+          // Firestore에 업데이트 (필드 하나만 부분 업데이트)
+          await docRef.update({
+            'lastMessage.readBy': readBy,
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error marking as read: $e');
+    }
+  }
 }

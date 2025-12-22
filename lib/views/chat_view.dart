@@ -8,6 +8,7 @@ import '../utils/app_theme.dart';
 import '../widgets/message_bubble.dart';
 import 'profile_detail_view.dart';
 import 'invite_friend_view.dart';
+import '../services/chatroom_service.dart';
 
 class ChatView extends StatefulWidget {
   final String groupId;
@@ -20,14 +21,18 @@ class ChatView extends StatefulWidget {
 
 class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
   ChatController? _chatController;
+  final ChatroomService _chatroomService = ChatroomService();
 
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addObserver(this);
     FCMService().setCurrentChatRoom(widget.groupId);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _chatroomService.markAsRead(widget.groupId);
+
       if (mounted) {
         try {
           final chatController = context.read<ChatController>();

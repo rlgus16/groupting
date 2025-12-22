@@ -67,6 +67,7 @@ class LastMessage {
   final String senderNickname;
   final MessageType type;
   final DateTime createdAt;
+  final List<String> readBy;
 
   LastMessage({
     required this.content,
@@ -74,6 +75,7 @@ class LastMessage {
     required this.senderNickname,
     required this.type,
     required this.createdAt,
+    required this.readBy,
   });
 
   factory LastMessage.fromMap(Map<String, dynamic> data) {
@@ -86,6 +88,7 @@ class LastMessage {
         orElse: () => MessageType.text,
       ),
       createdAt: (data['createdAt'] as Timestamp? ?? Timestamp.now()).toDate(),
+      readBy: List<String>.from(data['readBy'] ?? []),
     );
   }
 
@@ -172,6 +175,7 @@ class ChatroomModel {
         senderNickname: message.senderNickname,
         type: message.type,
         createdAt: message.createdAt,
+        readBy: message.readBy,
       ),
       messageCount: messageCount + 1,
       createdAt: createdAt,
