@@ -979,7 +979,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
           }
         },
         items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: '홈'),
+          BottomNavigationBarItem(icon: const Icon(Icons.home_filled), label: AppLocalizations.of(context)!.homeNavHome),
           BottomNavigationBarItem(
             icon: Consumer<GroupController>(
               builder: (context, groupController, _) {
@@ -1005,15 +1005,15 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                 return const Icon(Icons.mail_outline);
               },
             ),
-            label: '초대',
+            label: AppLocalizations.of(context)!.homeNavInvitations,
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: '마이페이지',
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.person_outline),
+            label: AppLocalizations.of(context)!.homeNavMyPage,
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.more_horiz),
-            label: '더보기',
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.more_horiz),
+            label: AppLocalizations.of(context)!.homeNavMore,
           ),
         ],
       ),
@@ -1425,7 +1425,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
           Row(
             children: [
               Text(
-                '그룹팅',
+                AppLocalizations.of(context)!.homeTitle,
                 style: GoogleFonts.gugi(
                   fontSize: 28,
                   color: AppTheme.primaryColor,
@@ -1710,7 +1710,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${groupController.groupMembers.length}명',
+                  AppLocalizations.of(context)!.homeMemberCount(groupController.groupMembers.length),
                   style: const TextStyle(
                     color: AppTheme.primaryColor,
                     fontSize: 12,
