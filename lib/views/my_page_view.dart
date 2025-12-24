@@ -6,6 +6,7 @@ import 'dart:io';
 import '../controllers/auth_controller.dart';
 import '../controllers/profile_controller.dart';
 import '../utils/app_theme.dart';
+import '../l10n/generated/app_localizations.dart';
 import 'profile_edit_view.dart';
 import 'settings_view.dart';
 import 'help_view.dart';
@@ -38,13 +39,15 @@ class _MyPageViewState extends State<MyPageView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
-      backgroundColor: AppTheme.gray50, // 전체 배경을 아주 연한 회색으로 변경
+      backgroundColor: AppTheme.gray50,
       appBar: AppBar(
-        title: const Text('마이페이지'),
+        title: Text(l10n.myPageTitle),
         centerTitle: false,
         elevation: 0,
-        backgroundColor: AppTheme.gray50, // 앱바도 배경색과 통일
+        backgroundColor: AppTheme.gray50,
         foregroundColor: AppTheme.textPrimary,
       ),
       body: Consumer2<AuthController, ProfileController>(
@@ -64,7 +67,7 @@ class _MyPageViewState extends State<MyPageView> {
           final user = authController.currentUserModel;
 
           if (user == null) {
-            return _buildEmptyState(context, authController);
+            return _buildEmptyState(context, authController, l10n);
           }
 
           return SingleChildScrollView(
@@ -72,26 +75,22 @@ class _MyPageViewState extends State<MyPageView> {
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
             child: Column(
               children: [
-                // 1. 프로필 헤더 섹션 (중앙 정렬 디자인)
-                _buildProfileHeader(context, user),
+                _buildProfileHeader(context, user, l10n),
 
                 const SizedBox(height: 24),
 
-                // 2. 내 정보 카드
-                _buildInfoCard(context, user),
+                _buildInfoCard(context, user, l10n),
 
                 const SizedBox(height: 20),
 
-                // 3. 메뉴 카드
-                _buildMenuCard(context),
+                _buildMenuCard(context, l10n),
 
                 const SizedBox(height: 30),
 
-                // 4. 로그아웃 버튼 (텍스트 형태)
                 TextButton(
-                  onPressed: () => _showLogoutDialog(context, authController),
+                  onPressed: () => _showLogoutDialog(context, authController, l10n),
                   child: Text(
-                    '로그아웃',
+                    l10n.homeMenuLogout,
                     style: TextStyle(
                       color: AppTheme.errorColor,
                       fontSize: 14,
@@ -107,8 +106,7 @@ class _MyPageViewState extends State<MyPageView> {
     );
   }
 
-  // 프로필 없음 상태
-  Widget _buildEmptyState(BuildContext context, AuthController authController) {
+  Widget _buildEmptyState(BuildContext context, AuthController authController, AppLocalizations l10n) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -123,13 +121,13 @@ class _MyPageViewState extends State<MyPageView> {
           ),
           const SizedBox(height: 24),
           Text(
-            '프로필을 만들어주세요',
+            l10n.myPageEmptyProfile,
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
-          const Text(
-            '새로운 인연을 만날 준비가 되셨나요?',
-            style: TextStyle(color: AppTheme.textSecondary),
+          Text(
+            l10n.myPageEmptyDesc,
+            style: const TextStyle(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 32),
           ElevatedButton(
@@ -140,30 +138,28 @@ class _MyPageViewState extends State<MyPageView> {
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
             ),
-            child: const Text('프로필 만들기'),
+            child: Text(l10n.myPageCreateProfile),
           ),
           const SizedBox(height: 16),
           TextButton(
-            onPressed: () => _showLogoutDialog(context, authController),
-            child: const Text('로그아웃', style: TextStyle(color: AppTheme.errorColor)),
+            onPressed: () => _showLogoutDialog(context, authController, l10n),
+            child: Text(l10n.homeMenuLogout, style: const TextStyle(color: AppTheme.errorColor)),
           ),
         ],
       ),
     );
   }
 
-  // 1. 프로필 헤더 위젯
-  Widget _buildProfileHeader(BuildContext context, dynamic user) {
+  Widget _buildProfileHeader(BuildContext context, dynamic user, AppLocalizations l10n) {
     return Column(
       children: [
         Stack(
           alignment: Alignment.bottomRight,
           children: [
-            // 프로필 이미지
             Container(
               width: 110,
               height: 110,
-              padding: const EdgeInsets.all(3), // 테두리 두께
+              padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3), width: 1),
@@ -178,7 +174,6 @@ class _MyPageViewState extends State<MyPageView> {
                 ),
               ),
             ),
-            // 편집 버튼 (Floating Style)
             GestureDetector(
               onTap: () {
                 Navigator.push(
@@ -219,16 +214,15 @@ class _MyPageViewState extends State<MyPageView> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildTag('${user.age}세'),
+            _buildTag(l10n.myPageAge(user.age)),
             const SizedBox(width: 6),
-            _buildTag(user.gender == '남' ? '남성' : '여성'),
+            _buildTag(user.gender == '남' ? l10n.myPageMale : l10n.myPageFemale),
           ],
         ),
       ],
     );
   }
 
-  // 작은 태그 위젯
   Widget _buildTag(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -248,8 +242,7 @@ class _MyPageViewState extends State<MyPageView> {
     );
   }
 
-  // 2. 내 정보 카드 위젯
-  Widget _buildInfoCard(BuildContext context, dynamic user) {
+  Widget _buildInfoCard(BuildContext context, dynamic user, AppLocalizations l10n) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -267,26 +260,26 @@ class _MyPageViewState extends State<MyPageView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "기본 정보",
-            style: TextStyle(
+          Text(
+            l10n.myPageBasicInfo,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 20),
-          _buildDetailRow(Icons.phone_iphone, '전화번호', user.phoneNumber),
-          _buildDetailRow(Icons.height, '키', '${user.height}cm'),
-          _buildDetailRow(Icons.location_on_outlined, '위치', '${user.activityArea}'),
+          _buildDetailRow(Icons.phone_iphone, l10n.myPagePhone, user.phoneNumber),
+          _buildDetailRow(Icons.height, l10n.myPageHeight, '${user.height}cm'),
+          _buildDetailRow(Icons.location_on_outlined, l10n.myPageLocation, '${user.activityArea}'),
           if (user.introduction.isNotEmpty) ...[
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
               child: Divider(color: AppTheme.gray100, thickness: 1),
             ),
-            const Text(
-              "자기소개",
-              style: TextStyle(
+            Text(
+              l10n.myPageIntro,
+              style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textPrimary,
@@ -350,8 +343,7 @@ class _MyPageViewState extends State<MyPageView> {
     );
   }
 
-  // 3. 메뉴 카드 위젯
-  Widget _buildMenuCard(BuildContext context) {
+  Widget _buildMenuCard(BuildContext context, AppLocalizations l10n) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -368,12 +360,12 @@ class _MyPageViewState extends State<MyPageView> {
         children: [
           _buildMenuItem(
             icon: Icons.settings_outlined,
-            title: '설정',
+            title: l10n.myPageMenuSettings,
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsView())),
           ),
           _buildMenuItem(
             icon: Icons.help_outline_rounded,
-            title: '도움말',
+            title: l10n.myPageMenuHelp,
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const HelpView())),
           ),
           const Padding(
@@ -382,8 +374,8 @@ class _MyPageViewState extends State<MyPageView> {
           ),
           _buildMenuItem(
             icon: Icons.info_outline_rounded,
-            title: '앱 정보',
-            onTap: () => _showAppInfo(context),
+            title: l10n.myPageMenuAppInfo,
+            onTap: () => _showAppInfo(context, l10n),
             isLast: true,
           ),
         ],
@@ -424,21 +416,19 @@ class _MyPageViewState extends State<MyPageView> {
     );
   }
 
-  // ... (나머지 헬퍼 메서드들은 기존과 동일하거나 약간 수정)
-
-  void _showLogoutDialog(BuildContext context, AuthController authController) {
+  void _showLogoutDialog(BuildContext context, AuthController authController, AppLocalizations l10n) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.white,
-          title: const Text('로그아웃', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          content: const Text('정말 로그아웃 하시겠습니까?', style: TextStyle(color: AppTheme.textSecondary)),
+          title: Text(l10n.dialogLogoutTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          content: Text(l10n.dialogLogoutContent, style: const TextStyle(color: AppTheme.textSecondary)),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('취소', style: TextStyle(color: AppTheme.gray600)),
+              child: Text(l10n.commonCancel, style: TextStyle(color: AppTheme.gray600)),
             ),
             TextButton(
               onPressed: () async {
@@ -448,12 +438,12 @@ class _MyPageViewState extends State<MyPageView> {
                 } catch (e) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('로그아웃 중 오류: $e')),
+                      SnackBar(content: Text(l10n.myPageLogoutError)),
                     );
                   }
                 }
               },
-              child: const Text('로그아웃', style: TextStyle(color: AppTheme.errorColor, fontWeight: FontWeight.bold)),
+              child: Text(l10n.homeMenuLogout, style: const TextStyle(color: AppTheme.errorColor, fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -461,7 +451,7 @@ class _MyPageViewState extends State<MyPageView> {
     );
   }
 
-  void _showAppInfo(BuildContext context) {
+  void _showAppInfo(BuildContext context, AppLocalizations l10n) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -480,11 +470,11 @@ class _MyPageViewState extends State<MyPageView> {
                 child: const Icon(Icons.favorite, color: AppTheme.primaryColor, size: 32),
               ),
               const SizedBox(height: 16),
-              const Text('Groupting', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(l10n.myPageAppName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              const Text('Version 1.0.0', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+              Text(l10n.myPageAppVersion, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
               const SizedBox(height: 24),
-              const Text('친구들과 함께하는 소개팅 플랫폼', textAlign: TextAlign.center, style: TextStyle(color: AppTheme.textPrimary)),
+              Text(l10n.myPageAppDesc, textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.textPrimary)),
             ],
           ),
           actions: [
@@ -492,7 +482,7 @@ class _MyPageViewState extends State<MyPageView> {
               width: double.infinity,
               child: TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('닫기', style: TextStyle(color: AppTheme.primaryColor)),
+                child: Text(l10n.commonClose, style: const TextStyle(color: AppTheme.primaryColor)),
               ),
             ),
           ],

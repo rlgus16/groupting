@@ -1099,6 +1099,1416 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'차단하면 서로의 프로필을 볼 수 없으며,\n채팅 및 초대를 받을 수 없습니다.\n정말 차단하시겠습니까?'**
   String get profileDetailBlockConfirm;
+
+  /// No description provided for @updateTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'업데이트 안내'**
+  String get updateTitle;
+
+  /// No description provided for @updateButton.
+  ///
+  /// In ko, this message translates to:
+  /// **'지금 업데이트'**
+  String get updateButton;
+
+  /// No description provided for @locationPickerError.
+  ///
+  /// In ko, this message translates to:
+  /// **'주소를 찾을 수 없습니다.'**
+  String get locationPickerError;
+
+  /// No description provided for @inviteSentSuccess.
+  ///
+  /// In ko, this message translates to:
+  /// **'초대를 보냈어요!'**
+  String get inviteSentSuccess;
+
+  /// No description provided for @inviteWho.
+  ///
+  /// In ko, this message translates to:
+  /// **'누구를 초대할까요?'**
+  String get inviteWho;
+
+  /// No description provided for @inviteNicknameEmpty.
+  ///
+  /// In ko, this message translates to:
+  /// **'닉네임을 입력해주세요.'**
+  String get inviteNicknameEmpty;
+
+  /// No description provided for @inviteMessagePlaceholder.
+  ///
+  /// In ko, this message translates to:
+  /// **'같이 그룹팅하자!'**
+  String get inviteMessagePlaceholder;
+
+  /// No description provided for @inviteSendButton.
+  ///
+  /// In ko, this message translates to:
+  /// **'초대장 보내기'**
+  String get inviteSendButton;
+
+  /// No description provided for @inviteNoMessage.
+  ///
+  /// In ko, this message translates to:
+  /// **'메세지 없음'**
+  String get inviteNoMessage;
+
+  /// No description provided for @invitationNewGroup.
+  ///
+  /// In ko, this message translates to:
+  /// **'새로운 그룹에 초대되었어요!'**
+  String get invitationNewGroup;
+
+  /// No description provided for @invitationExpiredLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'유효기간이 만료된 초대입니다'**
+  String get invitationExpiredLabel;
+
+  /// No description provided for @invitationJoinedSuccess.
+  ///
+  /// In ko, this message translates to:
+  /// **'그룹에 참여했어요!'**
+  String get invitationJoinedSuccess;
+
+  /// No description provided for @invitationRejectedInfo.
+  ///
+  /// In ko, this message translates to:
+  /// **'초대를 거절했어요'**
+  String get invitationRejectedInfo;
+
+  /// No description provided for @invitationMoveAction.
+  ///
+  /// In ko, this message translates to:
+  /// **'이동하기'**
+  String get invitationMoveAction;
+
+  /// No description provided for @invitationEmptyTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'아직 받은 초대가 없어요'**
+  String get invitationEmptyTitle;
+
+  /// No description provided for @invitationEmptyDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'친구가 초대를 보내면 여기에 표시됩니다'**
+  String get invitationEmptyDesc;
+
+  /// No description provided for @chatParticipating.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}명 참여 중'**
+  String chatParticipating(Object count);
+
+  /// No description provided for @chatFindingMatch.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭 상대를 찾고 있어요...'**
+  String get chatFindingMatch;
+
+  /// No description provided for @chatInviteFriend.
+  ///
+  /// In ko, this message translates to:
+  /// **'친구 초대하기'**
+  String get chatInviteFriend;
+
+  /// No description provided for @chatWaitingResponse.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}명의 친구가 응답 대기 중입니다'**
+  String chatWaitingResponse(Object count);
+
+  /// No description provided for @chatEmptyMatchedDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'설레는 대화를 시작해보세요.\n서로에 대해 알아가는 시간이 되길 바래요!'**
+  String get chatEmptyMatchedDesc;
+
+  /// No description provided for @chatEmptyGroupWithFriends.
+  ///
+  /// In ko, this message translates to:
+  /// **'친구들과 자유롭게 대화를 나눠보세요!'**
+  String get chatEmptyGroupWithFriends;
+
+  /// No description provided for @chatEmptyAlone.
+  ///
+  /// In ko, this message translates to:
+  /// **'아직 그룹에 혼자 있어요.\n친구들을 초대 해보세요!'**
+  String get chatEmptyAlone;
+
+  /// No description provided for @myPageAge.
+  ///
+  /// In ko, this message translates to:
+  /// **'{age}세'**
+  String myPageAge(Object age);
+
+  /// No description provided for @myPageMale.
+  ///
+  /// In ko, this message translates to:
+  /// **'남성'**
+  String get myPageMale;
+
+  /// No description provided for @myPageFemale.
+  ///
+  /// In ko, this message translates to:
+  /// **'여성'**
+  String get myPageFemale;
+
+  /// No description provided for @myPageLogoutError.
+  ///
+  /// In ko, this message translates to:
+  /// **'로그아웃 중 오류가 발생했습니다.'**
+  String get myPageLogoutError;
+
+  /// No description provided for @myPageAppName.
+  ///
+  /// In ko, this message translates to:
+  /// **'Groupting'**
+  String get myPageAppName;
+
+  /// No description provided for @myPageAppVersion.
+  ///
+  /// In ko, this message translates to:
+  /// **'Version 1.0.0'**
+  String get myPageAppVersion;
+
+  /// No description provided for @myPageAppDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'친구들과 함께하는 소개팅 플랫폼'**
+  String get myPageAppDesc;
+
+  /// No description provided for @homeReceivedInvite.
+  ///
+  /// In ko, this message translates to:
+  /// **'받은 초대'**
+  String get homeReceivedInvite;
+
+  /// No description provided for @homeLeftGroup.
+  ///
+  /// In ko, this message translates to:
+  /// **'그룹에서 나왔습니다.'**
+  String get homeLeftGroup;
+
+  /// No description provided for @homeFilterTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭 필터 설정'**
+  String get homeFilterTitle;
+
+  /// No description provided for @homeFilterGender.
+  ///
+  /// In ko, this message translates to:
+  /// **'상대 그룹 성별'**
+  String get homeFilterGender;
+
+  /// No description provided for @homeFilterAge.
+  ///
+  /// In ko, this message translates to:
+  /// **'상대 그룹 평균 나이'**
+  String get homeFilterAge;
+
+  /// No description provided for @homeFilterHeight.
+  ///
+  /// In ko, this message translates to:
+  /// **'상대 그룹 평균 키'**
+  String get homeFilterHeight;
+
+  /// No description provided for @homeFilterDistance.
+  ///
+  /// In ko, this message translates to:
+  /// **'거리 범위 (방장 기준)'**
+  String get homeFilterDistance;
+
+  /// No description provided for @homeFilterApply.
+  ///
+  /// In ko, this message translates to:
+  /// **'필터 적용하기'**
+  String get homeFilterApply;
+
+  /// No description provided for @homeFilterSuccess.
+  ///
+  /// In ko, this message translates to:
+  /// **'필터가 성공적으로 적용되었습니다.'**
+  String get homeFilterSuccess;
+
+  /// No description provided for @homeFilterFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'필터 적용 실패'**
+  String get homeFilterFailed;
+
+  /// No description provided for @homeGenderMale.
+  ///
+  /// In ko, this message translates to:
+  /// **'남자'**
+  String get homeGenderMale;
+
+  /// No description provided for @homeGenderFemale.
+  ///
+  /// In ko, this message translates to:
+  /// **'여자'**
+  String get homeGenderFemale;
+
+  /// No description provided for @homeGenderMixed.
+  ///
+  /// In ko, this message translates to:
+  /// **'혼성'**
+  String get homeGenderMixed;
+
+  /// No description provided for @homeGenderAny.
+  ///
+  /// In ko, this message translates to:
+  /// **'상관없음'**
+  String get homeGenderAny;
+
+  /// No description provided for @homeProfileHiddenMsg.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로필 완성하기 알림을 숨겼습니다. 마이페이지에서 언제든 프로필을 완성할 수 있습니다.'**
+  String get homeProfileHiddenMsg;
+
+  /// No description provided for @homeLogoutError.
+  ///
+  /// In ko, this message translates to:
+  /// **'로그아웃 중 오류가 발생했습니다'**
+  String get homeLogoutError;
+
+  /// No description provided for @profileDetailReportTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'사용자 신고'**
+  String get profileDetailReportTitle;
+
+  /// No description provided for @profileDetailReportReason.
+  ///
+  /// In ko, this message translates to:
+  /// **'신고 사유를 선택해주세요.'**
+  String get profileDetailReportReason;
+
+  /// No description provided for @profileDetailReportContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'신고 내용을 자세히 적어주세요.'**
+  String get profileDetailReportContent;
+
+  /// No description provided for @profileDetailReportPhoto.
+  ///
+  /// In ko, this message translates to:
+  /// **'증거 사진 첨부'**
+  String get profileDetailReportPhoto;
+
+  /// No description provided for @profileDetailReportPhotoChange.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진 변경'**
+  String get profileDetailReportPhotoChange;
+
+  /// No description provided for @profileDetailReportEnterContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'신고 내용을 입력해주세요.'**
+  String get profileDetailReportEnterContent;
+
+  /// No description provided for @profileDetailReportSubmit.
+  ///
+  /// In ko, this message translates to:
+  /// **'신고하기'**
+  String get profileDetailReportSubmit;
+
+  /// No description provided for @profileDetailEmailFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'이메일 앱을 실행할 수 없습니다.'**
+  String get profileDetailEmailFailed;
+
+  /// No description provided for @profileDetailBlockTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'사용자 차단'**
+  String get profileDetailBlockTitle;
+
+  /// No description provided for @profileDetailBlocked.
+  ///
+  /// In ko, this message translates to:
+  /// **'사용자를 차단했습니다.'**
+  String get profileDetailBlocked;
+
+  /// No description provided for @profileDetailBlockedUser.
+  ///
+  /// In ko, this message translates to:
+  /// **'차단된 사용자입니다.'**
+  String get profileDetailBlockedUser;
+
+  /// No description provided for @profileDetailBasicInfo.
+  ///
+  /// In ko, this message translates to:
+  /// **'기본 정보'**
+  String get profileDetailBasicInfo;
+
+  /// No description provided for @profileDetailIntro.
+  ///
+  /// In ko, this message translates to:
+  /// **'소개'**
+  String get profileDetailIntro;
+
+  /// No description provided for @profileDetailReasonBadPhoto.
+  ///
+  /// In ko, this message translates to:
+  /// **'부적절한 사진'**
+  String get profileDetailReasonBadPhoto;
+
+  /// No description provided for @profileDetailReasonAbuse.
+  ///
+  /// In ko, this message translates to:
+  /// **'욕설/비하 발언'**
+  String get profileDetailReasonAbuse;
+
+  /// No description provided for @profileDetailReasonSpam.
+  ///
+  /// In ko, this message translates to:
+  /// **'스팸/홍보'**
+  String get profileDetailReasonSpam;
+
+  /// No description provided for @profileDetailReasonFraud.
+  ///
+  /// In ko, this message translates to:
+  /// **'사칭/사기'**
+  String get profileDetailReasonFraud;
+
+  /// No description provided for @profileDetailReasonOther.
+  ///
+  /// In ko, this message translates to:
+  /// **'기타'**
+  String get profileDetailReasonOther;
+
+  /// No description provided for @profileEditNicknameDuplicate.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미 사용 중인 닉네임입니다.'**
+  String get profileEditNicknameDuplicate;
+
+  /// No description provided for @profileEditNicknameAvailable.
+  ///
+  /// In ko, this message translates to:
+  /// **'사용 가능한 닉네임입니다.'**
+  String get profileEditNicknameAvailable;
+
+  /// No description provided for @profileEditNicknameCheckError.
+  ///
+  /// In ko, this message translates to:
+  /// **'닉네임 확인 중 오류가 발생했습니다.'**
+  String get profileEditNicknameCheckError;
+
+  /// No description provided for @profileEditImageError.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미지 선택 중 오류가 발생했습니다.'**
+  String get profileEditImageError;
+
+  /// No description provided for @profileEditPermissionTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'권한 설정 필요'**
+  String get profileEditPermissionTitle;
+
+  /// No description provided for @profileEditPermissionContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로필 사진을 등록하려면 갤러리 접근 권한이 필요합니다.\n설정에서 권한을 허용해주세요.'**
+  String get profileEditPermissionContent;
+
+  /// No description provided for @profileEditGoToSettings.
+  ///
+  /// In ko, this message translates to:
+  /// **'설정으로 이동'**
+  String get profileEditGoToSettings;
+
+  /// No description provided for @profileEditMainPhotoChanged.
+  ///
+  /// In ko, this message translates to:
+  /// **'대표 프로필 사진이 변경되었습니다.'**
+  String get profileEditMainPhotoChanged;
+
+  /// No description provided for @profileEditNicknameEmpty.
+  ///
+  /// In ko, this message translates to:
+  /// **'닉네임을 입력해주세요.'**
+  String get profileEditNicknameEmpty;
+
+  /// No description provided for @profileEditNicknameTooShort.
+  ///
+  /// In ko, this message translates to:
+  /// **'닉네임은 2자 이상이어야 합니다.'**
+  String get profileEditNicknameTooShort;
+
+  /// No description provided for @profileEditHeightEmpty.
+  ///
+  /// In ko, this message translates to:
+  /// **'키를 입력해주세요.'**
+  String get profileEditHeightEmpty;
+
+  /// No description provided for @profileEditHeightRange.
+  ///
+  /// In ko, this message translates to:
+  /// **'140-220cm 사이로 입력해주세요.'**
+  String get profileEditHeightRange;
+
+  /// No description provided for @profileEditHeightHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'키를 입력하세요'**
+  String get profileEditHeightHint;
+
+  /// No description provided for @profileEditIntroEmpty.
+  ///
+  /// In ko, this message translates to:
+  /// **'소개글을 입력해주세요.'**
+  String get profileEditIntroEmpty;
+
+  /// No description provided for @profileEditIntroTooShort.
+  ///
+  /// In ko, this message translates to:
+  /// **'5자 이상 작성해주세요.'**
+  String get profileEditIntroTooShort;
+
+  /// No description provided for @profileEditUploadFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미지 업로드 실패'**
+  String get profileEditUploadFailed;
+
+  /// No description provided for @profileEditSuccess.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로필이 업데이트되었습니다.'**
+  String get profileEditSuccess;
+
+  /// No description provided for @profileEditFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로필 업데이트 실패'**
+  String get profileEditFailed;
+
+  /// No description provided for @profileEditEmailLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'이메일'**
+  String get profileEditEmailLabel;
+
+  /// No description provided for @profileEditBirthDateLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'생년월일'**
+  String get profileEditBirthDateLabel;
+
+  /// No description provided for @profileEditGenderLabel.
+  ///
+  /// In ko, this message translates to:
+  /// **'성별'**
+  String get profileEditGenderLabel;
+
+  /// No description provided for @registerEmailInUse.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미 사용 중인 이메일입니다.'**
+  String get registerEmailInUse;
+
+  /// No description provided for @registerEmailAvailable.
+  ///
+  /// In ko, this message translates to:
+  /// **'사용 가능한 이메일입니다.'**
+  String get registerEmailAvailable;
+
+  /// No description provided for @registerEmailError.
+  ///
+  /// In ko, this message translates to:
+  /// **'이메일 확인 중 오류가 발생했습니다.'**
+  String get registerEmailError;
+
+  /// No description provided for @registerPhoneInUse.
+  ///
+  /// In ko, this message translates to:
+  /// **'이미 사용 중인 전화번호입니다.'**
+  String get registerPhoneInUse;
+
+  /// No description provided for @registerPhoneAvailable.
+  ///
+  /// In ko, this message translates to:
+  /// **'사용 가능한 전화번호입니다.'**
+  String get registerPhoneAvailable;
+
+  /// No description provided for @registerPhoneError.
+  ///
+  /// In ko, this message translates to:
+  /// **'전화번호 확인 중 오류가 발생했습니다.'**
+  String get registerPhoneError;
+
+  /// No description provided for @registerPhoneValid.
+  ///
+  /// In ko, this message translates to:
+  /// **'올바른 전화번호를 입력 후 중복 확인을 완료해주세요.'**
+  String get registerPhoneValid;
+
+  /// No description provided for @registerCodeSent.
+  ///
+  /// In ko, this message translates to:
+  /// **'인증번호가 전송되었습니다.'**
+  String get registerCodeSent;
+
+  /// No description provided for @registerPhoneVerified.
+  ///
+  /// In ko, this message translates to:
+  /// **'전화번호 인증이 완료되었습니다.'**
+  String get registerPhoneVerified;
+
+  /// No description provided for @registerPassword8Chars.
+  ///
+  /// In ko, this message translates to:
+  /// **'비밀번호는 8자 이상이어야 합니다.'**
+  String get registerPassword8Chars;
+
+  /// No description provided for @registerPasswordConfirmEmpty.
+  ///
+  /// In ko, this message translates to:
+  /// **'비밀번호를 다시 입력해주세요.'**
+  String get registerPasswordConfirmEmpty;
+
+  /// No description provided for @registerBirthDateEmpty.
+  ///
+  /// In ko, this message translates to:
+  /// **'생년월일을 입력해주세요.'**
+  String get registerBirthDateEmpty;
+
+  /// No description provided for @registerBirthDate8Digits.
+  ///
+  /// In ko, this message translates to:
+  /// **'8자리여야 합니다.'**
+  String get registerBirthDate8Digits;
+
+  /// No description provided for @registerYearInvalid.
+  ///
+  /// In ko, this message translates to:
+  /// **'유효한 연도를 입력해주세요.'**
+  String get registerYearInvalid;
+
+  /// No description provided for @registerMonthInvalid.
+  ///
+  /// In ko, this message translates to:
+  /// **'유효한 월을 입력해주세요.'**
+  String get registerMonthInvalid;
+
+  /// No description provided for @registerDayInvalid.
+  ///
+  /// In ko, this message translates to:
+  /// **'유효한 일을 입력해주세요.'**
+  String get registerDayInvalid;
+
+  /// No description provided for @registerAgeRestriction.
+  ///
+  /// In ko, this message translates to:
+  /// **'만 18세 미만은 이용할 수 없습니다.'**
+  String get registerAgeRestriction;
+
+  /// No description provided for @registerDateInvalid.
+  ///
+  /// In ko, this message translates to:
+  /// **'유효한 날짜를 입력해주세요.'**
+  String get registerDateInvalid;
+
+  /// No description provided for @registerTermsServiceFull.
+  ///
+  /// In ko, this message translates to:
+  /// **'서비스 이용약관 (EULA)'**
+  String get registerTermsServiceFull;
+
+  /// No description provided for @registerTermsServiceContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'제1조 (목적)\n이 약관은 그룹팅 서비스 이용과 관련하여 회사와 이용자의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.\n\n(자세한 내용은 앱 설정의 이용약관 전문을 참고하세요)'**
+  String get registerTermsServiceContent;
+
+  /// No description provided for @registerPrivacyPolicyFull.
+  ///
+  /// In ko, this message translates to:
+  /// **'개인정보 처리방침'**
+  String get registerPrivacyPolicyFull;
+
+  /// No description provided for @registerPrivacyPolicyContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'1. 수집하는 개인정보\n- 이메일, 전화번호, 생년월일, 성별 등\n\n2. 이용목적\n- 본인 확인 및 서비스 제공\n\n(자세한 내용은 앱 설정을 참고하세요)'**
+  String get registerPrivacyPolicyContent;
+
+  /// No description provided for @registerPhoneVerifyNeeded.
+  ///
+  /// In ko, this message translates to:
+  /// **'전화번호 인증을 완료해주세요.'**
+  String get registerPhoneVerifyNeeded;
+
+  /// No description provided for @registerSuccess.
+  ///
+  /// In ko, this message translates to:
+  /// **'가입되었습니다! 우선 프로필을 완성해주세요.'**
+  String get registerSuccess;
+
+  /// No description provided for @registerTermsView.
+  ///
+  /// In ko, this message translates to:
+  /// **'보기'**
+  String get registerTermsView;
+
+  /// No description provided for @timeJustNow.
+  ///
+  /// In ko, this message translates to:
+  /// **'방금 전'**
+  String get timeJustNow;
+
+  /// No description provided for @timeMinutesAgo.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}분 전'**
+  String timeMinutesAgo(Object count);
+
+  /// No description provided for @timeHoursAgo.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}시간 전'**
+  String timeHoursAgo(Object count);
+
+  /// No description provided for @timeDaysAgo.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}일 전'**
+  String timeDaysAgo(Object count);
+
+  /// No description provided for @timeMonthDay.
+  ///
+  /// In ko, this message translates to:
+  /// **'{month}월 {day}일'**
+  String timeMonthDay(Object day, Object month);
+
+  /// No description provided for @helpFAQSection.
+  ///
+  /// In ko, this message translates to:
+  /// **'자주 묻는 질문'**
+  String get helpFAQSection;
+
+  /// No description provided for @helpGuideSection.
+  ///
+  /// In ko, this message translates to:
+  /// **'이용 가이드'**
+  String get helpGuideSection;
+
+  /// No description provided for @helpContactSection.
+  ///
+  /// In ko, this message translates to:
+  /// **'문의하기'**
+  String get helpContactSection;
+
+  /// No description provided for @helpServiceSection.
+  ///
+  /// In ko, this message translates to:
+  /// **'서비스 정보'**
+  String get helpServiceSection;
+
+  /// No description provided for @helpEmailContact.
+  ///
+  /// In ko, this message translates to:
+  /// **'이메일 문의'**
+  String get helpEmailContact;
+
+  /// No description provided for @helpBugReportTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'버그 신고'**
+  String get helpBugReportTitle;
+
+  /// No description provided for @helpBugReportSubtitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'앱 사용 중 문제가 발생했나요?'**
+  String get helpBugReportSubtitle;
+
+  /// No description provided for @helpBugReportHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'예: 로그인 화면에서 버튼이 안 눌려요.'**
+  String get helpBugReportHint;
+
+  /// No description provided for @helpBugReportContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'버그 내용을 상세히 적어주세요.'**
+  String get helpBugReportContent;
+
+  /// No description provided for @helpPhotoAttach.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진 첨부'**
+  String get helpPhotoAttach;
+
+  /// No description provided for @helpPhotoSelected.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진 선택됨'**
+  String get helpPhotoSelected;
+
+  /// No description provided for @helpSend.
+  ///
+  /// In ko, this message translates to:
+  /// **'보내기'**
+  String get helpSend;
+
+  /// No description provided for @helpEmailFailed.
+  ///
+  /// In ko, this message translates to:
+  /// **'이메일 앱을 열 수 없습니다. 기본 메일 앱을 확인해주세요.'**
+  String get helpEmailFailed;
+
+  /// No description provided for @helpCustomerService.
+  ///
+  /// In ko, this message translates to:
+  /// **'고객센터 운영시간'**
+  String get helpCustomerService;
+
+  /// No description provided for @helpOperatingHours.
+  ///
+  /// In ko, this message translates to:
+  /// **'평일: 09:00 - 18:00\n주말 및 공휴일: 휴무'**
+  String get helpOperatingHours;
+
+  /// No description provided for @helpResponseTime.
+  ///
+  /// In ko, this message translates to:
+  /// **'응답시간'**
+  String get helpResponseTime;
+
+  /// No description provided for @helpResponseEmail.
+  ///
+  /// In ko, this message translates to:
+  /// **'이메일: 24시간 이내'**
+  String get helpResponseEmail;
+
+  /// No description provided for @helpFAQ1Q.
+  ///
+  /// In ko, this message translates to:
+  /// **'그룹팅은 어떻게 시작하나요?'**
+  String get helpFAQ1Q;
+
+  /// No description provided for @helpFAQ1A.
+  ///
+  /// In ko, this message translates to:
+  /// **'1. 프로필을 완성하세요\n2. 친구들을 초대하거나 혼자 매칭을 시작하세요\n3. 매칭이 완료되면 채팅을 통해 대화를 나누세요\n4. 실제 만남을 계획해보세요'**
+  String get helpFAQ1A;
+
+  /// No description provided for @helpFAQ2Q.
+  ///
+  /// In ko, this message translates to:
+  /// **'1:1 매칭과 그룹 매칭의 차이는 무엇인가요?'**
+  String get helpFAQ2Q;
+
+  /// No description provided for @helpFAQ2A.
+  ///
+  /// In ko, this message translates to:
+  /// **'1:1 매칭: 혼자서 다른 1명과 매칭되는 방식입니다.\n그룹 매칭: 2-5명의 친구들과 함께 같은 인원 수의 다른 그룹과 매칭되는 방식입니다.'**
+  String get helpFAQ2A;
+
+  /// No description provided for @helpFAQ3Q.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭은 어떤 기준으로 이루어지나요?'**
+  String get helpFAQ3Q;
+
+  /// No description provided for @helpFAQ3A.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭은 다음 기준으로 이루어집니다:\n- 활동지역이 같거나 인접한 지역\n- 그룹 인원 수가 같음\n- 매칭 대기 중인 상태'**
+  String get helpFAQ3A;
+
+  /// No description provided for @helpFAQ4Q.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로필 사진은 몇 장까지 등록할 수 있나요?'**
+  String get helpFAQ4Q;
+
+  /// No description provided for @helpFAQ4A.
+  ///
+  /// In ko, this message translates to:
+  /// **'최대 6장까지 등록할 수 있습니다.\n1번째 사진이 메인 프로필 사진으로 사용되며, 나머지는 추가 사진으로 표시됩니다.'**
+  String get helpFAQ4A;
+
+  /// No description provided for @helpFAQ5Q.
+  ///
+  /// In ko, this message translates to:
+  /// **'그룹에서 나가고 싶어요.'**
+  String get helpFAQ5Q;
+
+  /// No description provided for @helpFAQ5A.
+  ///
+  /// In ko, this message translates to:
+  /// **'홈 화면 우상단 메뉴에서 \"그룹 나가기\"를 선택하세요.\n그룹을 나간 후에는 다시 초대를 받거나 새 그룹을 만들어야 합니다.'**
+  String get helpFAQ5A;
+
+  /// No description provided for @helpFAQ6Q.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭이 안 되는 이유가 뭐예요?'**
+  String get helpFAQ6Q;
+
+  /// No description provided for @helpFAQ6A.
+  ///
+  /// In ko, this message translates to:
+  /// **'다음 경우에 매칭이 어려울 수 있습니다:\n- 같은 활동지역에 매칭 대기 중인 그룹이 없는 경우\n- 같은 인원 수의 그룹이 없는 경우\n- 매칭 시간대에 활성 사용자가 적은 경우'**
+  String get helpFAQ6A;
+
+  /// No description provided for @helpGuideSignup.
+  ///
+  /// In ko, this message translates to:
+  /// **'회원가입'**
+  String get helpGuideSignup;
+
+  /// No description provided for @helpGuideSignupDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'기본 정보 입력 후 프로필을 완성하세요'**
+  String get helpGuideSignupDesc;
+
+  /// No description provided for @helpGuideSignupContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'1. 아이디, 비밀번호, 전화번호, 생년월일, 성별을 입력하세요\n2. 프로필 사진을 업로드하세요 (최대 6장)\n3. 키, 닉네임, 활동지역, 소개글을 작성하세요\n4. 프로필 완성 후 매칭을 시작할 수 있습니다'**
+  String get helpGuideSignupContent;
+
+  /// No description provided for @helpGuideGroup.
+  ///
+  /// In ko, this message translates to:
+  /// **'그룹 만들기'**
+  String get helpGuideGroup;
+
+  /// No description provided for @helpGuideGroupDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'친구들을 초대해서 그룹을 구성하세요'**
+  String get helpGuideGroupDesc;
+
+  /// No description provided for @helpGuideGroupContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'1. 홈 화면에서 \"그룹 만들기\" 버튼을 누르세요\n2. \"친구 초대하기\"를 통해 친구들을 초대하세요\n3. 친구들이 초대를 수락하면 그룹이 구성됩니다\n4. 최대 5명까지 그룹을 구성할 수 있습니다'**
+  String get helpGuideGroupContent;
+
+  /// No description provided for @helpGuideFilter.
+  ///
+  /// In ko, this message translates to:
+  /// **'필터 적용하기'**
+  String get helpGuideFilter;
+
+  /// No description provided for @helpGuideFilterDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'내가 원하는 그룹과 매칭되세요'**
+  String get helpGuideFilterDesc;
+
+  /// No description provided for @helpGuideFilterContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'1. 그룹을 만든 후, 상단 우측 필터 버튼을 누르세요\n2. 필터를 조절 하세요\n3. 적용하기를 누르세요'**
+  String get helpGuideFilterContent;
+
+  /// No description provided for @helpGuideMatch.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭하기'**
+  String get helpGuideMatch;
+
+  /// No description provided for @helpGuideMatchDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'1:1 또는 그룹 매칭을 시작하세요'**
+  String get helpGuideMatchDesc;
+
+  /// No description provided for @helpGuideMatchContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'1. 그룹이 구성되면 \"매칭 시작\" 버튼이 활성화됩니다\n2. 혼자인 경우 \"1:1 매칭 시작\"을 선택하세요\n3. 그룹인 경우 \"그룹 매칭 시작\"을 선택하세요\n4. 매칭이 완료되면 알림이 오고 채팅을 시작할 수 있습니다'**
+  String get helpGuideMatchContent;
+
+  /// No description provided for @helpGuideChat.
+  ///
+  /// In ko, this message translates to:
+  /// **'채팅하기'**
+  String get helpGuideChat;
+
+  /// No description provided for @helpGuideChatDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭된 상대방과 채팅을 나누세요'**
+  String get helpGuideChatDesc;
+
+  /// No description provided for @helpGuideChatContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'1. 매칭이 완료되면 \"채팅하기\" 버튼이 나타납니다\n2. 채팅방에서 상대방과 대화를 나누세요\n3. 서로를 알아가는 시간을 가져보세요\n4. 실제 만남을 계획해보세요'**
+  String get helpGuideChatContent;
+
+  /// No description provided for @helpGuideSafety.
+  ///
+  /// In ko, this message translates to:
+  /// **'안전하게 이용하기'**
+  String get helpGuideSafety;
+
+  /// No description provided for @helpGuideSafetyDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'안전한 만남을 위한 주의사항을 확인하세요'**
+  String get helpGuideSafetyDesc;
+
+  /// No description provided for @helpGuideSafetyContent.
+  ///
+  /// In ko, this message translates to:
+  /// **'🔒 개인정보 보호\n- 개인정보(주소, 직장 등)는 충분히 신뢰할 때까지 공개하지 마세요\n\n👥 첫 만남\n- 첫 만남은 공공장소에서 진행하세요\n- 친구들과 함께 만나는 것을 권장합니다\n\n🚨 신고하기\n- 부적절한 행동을 하는 사용자는 즉시 신고해주세요\n- 불쾌한 메세지나 사진을 받으면 스크린샷을 남기고 신고하세요'**
+  String get helpGuideSafetyContent;
+
+  /// No description provided for @myPageEditProfile.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로필 편집'**
+  String get myPageEditProfile;
+
+  /// No description provided for @registerPhotos.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로필 사진'**
+  String get registerPhotos;
+
+  /// No description provided for @registerNickname.
+  ///
+  /// In ko, this message translates to:
+  /// **'닉네임'**
+  String get registerNickname;
+
+  /// No description provided for @registerNicknameHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'닉네임을 입력하세요 (2~10자)'**
+  String get registerNicknameHint;
+
+  /// No description provided for @registerHeight.
+  ///
+  /// In ko, this message translates to:
+  /// **'키 (cm)'**
+  String get registerHeight;
+
+  /// No description provided for @registerIntroHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'나를 표현하는 멋진 소개글을 작성해보세요.\n(취미, 관심사, 성격 등)'**
+  String get registerIntroHint;
+
+  /// No description provided for @registerPhotosLongPress.
+  ///
+  /// In ko, this message translates to:
+  /// **'대표 사진은 길게 눌러 설정하세요'**
+  String get registerPhotosLongPress;
+
+  /// No description provided for @registerPhotosAdd.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진 추가'**
+  String get registerPhotosAdd;
+
+  /// No description provided for @registerPhotosMain.
+  ///
+  /// In ko, this message translates to:
+  /// **'대표'**
+  String get registerPhotosMain;
+
+  /// No description provided for @registerActivityArea.
+  ///
+  /// In ko, this message translates to:
+  /// **'활동지역'**
+  String get registerActivityArea;
+
+  /// No description provided for @registerActivityAreaHint.
+  ///
+  /// In ko, this message translates to:
+  /// **'지도를 눌러 위치를 선택하세요'**
+  String get registerActivityAreaHint;
+
+  /// No description provided for @registerPhotosMin.
+  ///
+  /// In ko, this message translates to:
+  /// **'사진을 최소 1장 등록해주세요.'**
+  String get registerPhotosMin;
+
+  /// No description provided for @settingsBlockConfirm.
+  ///
+  /// In ko, this message translates to:
+  /// **'차단하면 서로의 프로필을 볼 수 없으며,\n채팅 및 초대를 받을 수 없습니다.\n정말 차단하시겠습니까?'**
+  String get settingsBlockConfirm;
+
+  /// No description provided for @settingsReport.
+  ///
+  /// In ko, this message translates to:
+  /// **'신고하기'**
+  String get settingsReport;
+
+  /// No description provided for @settingsHelp.
+  ///
+  /// In ko, this message translates to:
+  /// **'도움말'**
+  String get settingsHelp;
+
+  /// No description provided for @homeTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'그룹팅'**
+  String get homeTitle;
+
+  /// No description provided for @homeNavHome.
+  ///
+  /// In ko, this message translates to:
+  /// **'홈'**
+  String get homeNavHome;
+
+  /// No description provided for @homeNavInvitations.
+  ///
+  /// In ko, this message translates to:
+  /// **'초대'**
+  String get homeNavInvitations;
+
+  /// No description provided for @homeNavMyPage.
+  ///
+  /// In ko, this message translates to:
+  /// **'마이페이지'**
+  String get homeNavMyPage;
+
+  /// No description provided for @homeNavMore.
+  ///
+  /// In ko, this message translates to:
+  /// **'더보기'**
+  String get homeNavMore;
+
+  /// No description provided for @homeMenuReceivedInvites.
+  ///
+  /// In ko, this message translates to:
+  /// **'받은 초대'**
+  String get homeMenuReceivedInvites;
+
+  /// No description provided for @homeMenuMyPage.
+  ///
+  /// In ko, this message translates to:
+  /// **'마이페이지'**
+  String get homeMenuMyPage;
+
+  /// No description provided for @homeLeaveGroupTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'그룹 나가기'**
+  String get homeLeaveGroupTitle;
+
+  /// No description provided for @homeLeaveGroupConfirm.
+  ///
+  /// In ko, this message translates to:
+  /// **'정말로 그룹을 나가시겠습니까?'**
+  String get homeLeaveGroupConfirm;
+
+  /// No description provided for @homeLeaveGroupBtn.
+  ///
+  /// In ko, this message translates to:
+  /// **'나가기'**
+  String get homeLeaveGroupBtn;
+
+  /// No description provided for @homeLeaveGroupSuccess.
+  ///
+  /// In ko, this message translates to:
+  /// **'그룹에서 나왔습니다.'**
+  String get homeLeaveGroupSuccess;
+
+  /// No description provided for @homeLogoutTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'로그아웃'**
+  String get homeLogoutTitle;
+
+  /// No description provided for @homeLogoutConfirm.
+  ///
+  /// In ko, this message translates to:
+  /// **'정말로 로그아웃 하시겠습니까?'**
+  String get homeLogoutConfirm;
+
+  /// No description provided for @homeMatchSuccess.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭 성공! 🎉'**
+  String get homeMatchSuccess;
+
+  /// No description provided for @homeMatchSuccessDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭되었습니다!\n채팅방에서 인사해보세요 👋'**
+  String get homeMatchSuccessDesc;
+
+  /// No description provided for @homeLater.
+  ///
+  /// In ko, this message translates to:
+  /// **'나중에'**
+  String get homeLater;
+
+  /// No description provided for @homeGoToChat.
+  ///
+  /// In ko, this message translates to:
+  /// **'채팅방으로 이동'**
+  String get homeGoToChat;
+
+  /// No description provided for @homeFilterMale.
+  ///
+  /// In ko, this message translates to:
+  /// **'남자'**
+  String get homeFilterMale;
+
+  /// No description provided for @homeFilterFemale.
+  ///
+  /// In ko, this message translates to:
+  /// **'여자'**
+  String get homeFilterFemale;
+
+  /// No description provided for @homeFilterMixed.
+  ///
+  /// In ko, this message translates to:
+  /// **'혼성'**
+  String get homeFilterMixed;
+
+  /// No description provided for @homeFilterAny.
+  ///
+  /// In ko, this message translates to:
+  /// **'상관없음'**
+  String get homeFilterAny;
+
+  /// No description provided for @homeFilterDistanceValue.
+  ///
+  /// In ko, this message translates to:
+  /// **'{km}km 이내'**
+  String homeFilterDistanceValue(Object km);
+
+  /// No description provided for @homeProfileCardHidden.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로필 완성하기 알림을 숨겼습니다. 마이페이지에서 언제든 프로필을 완성할 수 있습니다.'**
+  String get homeProfileCardHidden;
+
+  /// No description provided for @homeProfileSignup.
+  ///
+  /// In ko, this message translates to:
+  /// **'회원가입하기'**
+  String get homeProfileSignup;
+
+  /// No description provided for @homeProfileBasicInfo.
+  ///
+  /// In ko, this message translates to:
+  /// **'기본 정보 입력하기'**
+  String get homeProfileBasicInfo;
+
+  /// No description provided for @homeProfileComplete.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로필 완성하기'**
+  String get homeProfileComplete;
+
+  /// No description provided for @homeProfileSignupDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'그룹팅 서비스를 이용하시려면\n먼저 회원가입을 완료해주세요!'**
+  String get homeProfileSignupDesc;
+
+  /// No description provided for @homeProfileBasicInfoDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'전화번호, 생년월일, 성별 정보가 필요해요!'**
+  String get homeProfileBasicInfoDesc;
+
+  /// No description provided for @homeProfileCompleteDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'닉네임, 키, 활동지역 등을 입력해주세요!'**
+  String get homeProfileCompleteDesc;
+
+  /// No description provided for @homeProfileBasicInfoLong.
+  ///
+  /// In ko, this message translates to:
+  /// **'회원가입 중 누락된 필수 정보가 있어요.\n기본 정보를 입력하고 프로필을 완성해주세요!'**
+  String get homeProfileBasicInfoLong;
+
+  /// No description provided for @homeProfileCompleteLong.
+  ///
+  /// In ko, this message translates to:
+  /// **'닉네임, 키, 소개글, 활동지역을 추가하면\n그룹 생성과 매칭 기능을 사용할 수 있어요!'**
+  String get homeProfileCompleteLong;
+
+  /// No description provided for @homeProfileNow.
+  ///
+  /// In ko, this message translates to:
+  /// **'지금 완성하기'**
+  String get homeProfileNow;
+
+  /// No description provided for @homeLoadingGroup.
+  ///
+  /// In ko, this message translates to:
+  /// **'그룹 정보 로딩 중...'**
+  String get homeLoadingGroup;
+
+  /// No description provided for @homeLoadingWait.
+  ///
+  /// In ko, this message translates to:
+  /// **'잠시만 기다려주세요.'**
+  String get homeLoadingWait;
+
+  /// No description provided for @homeErrorNetwork.
+  ///
+  /// In ko, this message translates to:
+  /// **'네트워크 연결 오류'**
+  String get homeErrorNetwork;
+
+  /// No description provided for @homeErrorLoad.
+  ///
+  /// In ko, this message translates to:
+  /// **'데이터 로드 실패'**
+  String get homeErrorLoad;
+
+  /// No description provided for @homeErrorNetworkDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'인터넷 연결을 확인하고 다시 시도해주세요.'**
+  String get homeErrorNetworkDesc;
+
+  /// No description provided for @homeErrorUnknown.
+  ///
+  /// In ko, this message translates to:
+  /// **'알 수 없는 오류가 발생했습니다.'**
+  String get homeErrorUnknown;
+
+  /// No description provided for @homeErrorRetry.
+  ///
+  /// In ko, this message translates to:
+  /// **'다시 시도'**
+  String get homeErrorRetry;
+
+  /// No description provided for @homeErrorCheckConnection.
+  ///
+  /// In ko, this message translates to:
+  /// **'연결 확인'**
+  String get homeErrorCheckConnection;
+
+  /// No description provided for @homeErrorWifiCheck.
+  ///
+  /// In ko, this message translates to:
+  /// **'Wi-Fi나 모바일 데이터 연결을 확인해주세요.'**
+  String get homeErrorWifiCheck;
+
+  /// No description provided for @homeNoGroup.
+  ///
+  /// In ko, this message translates to:
+  /// **'그룹이 없습니다'**
+  String get homeNoGroup;
+
+  /// No description provided for @homeCreateGroup.
+  ///
+  /// In ko, this message translates to:
+  /// **'새 그룹 만들기'**
+  String get homeCreateGroup;
+
+  /// No description provided for @homeProfileRequiredTitle.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로필 완성 필요'**
+  String get homeProfileRequiredTitle;
+
+  /// No description provided for @homeProfileRequiredDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로필을 완성해야 서비스 이용이 가능합니다.'**
+  String get homeProfileRequiredDesc;
+
+  /// No description provided for @homeProfileRequiredBtn.
+  ///
+  /// In ko, this message translates to:
+  /// **'프로필 완성하기'**
+  String get homeProfileRequiredBtn;
+
+  /// No description provided for @homeMatchedStatus.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭 성공! 🎉'**
+  String get homeMatchedStatus;
+
+  /// No description provided for @homeMatchingStatus.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭 진행중...'**
+  String get homeMatchingStatus;
+
+  /// No description provided for @homeWaitingStatus.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭 대기중'**
+  String get homeWaitingStatus;
+
+  /// No description provided for @homeMatchedDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'새로운 인연과 대화를 시작해보세요'**
+  String get homeMatchedDesc;
+
+  /// No description provided for @homeMatchingDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭 상대를 찾고 있어요...'**
+  String get homeMatchingDesc;
+
+  /// No description provided for @homeWaitingDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'친구들과 대화 해보세요'**
+  String get homeWaitingDesc;
+
+  /// No description provided for @homeNewMessage.
+  ///
+  /// In ko, this message translates to:
+  /// **'새로운 메시지 💬'**
+  String get homeNewMessage;
+
+  /// No description provided for @homeCurrentMembers.
+  ///
+  /// In ko, this message translates to:
+  /// **'현재 그룹 멤버'**
+  String get homeCurrentMembers;
+
+  /// No description provided for @homeMemberCount.
+  ///
+  /// In ko, this message translates to:
+  /// **'{count}명'**
+  String homeMemberCount(Object count);
+
+  /// No description provided for @homeInvite.
+  ///
+  /// In ko, this message translates to:
+  /// **'초대하기'**
+  String get homeInvite;
+
+  /// No description provided for @homeMatchFilter.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭 필터'**
+  String get homeMatchFilter;
+
+  /// No description provided for @homeErrorCheckConnectionDesc.
+  ///
+  /// In ko, this message translates to:
+  /// **'Wi-Fi나 모바일 데이터 연결을 확인해주세요.'**
+  String get homeErrorCheckConnectionDesc;
 }
 
 class _AppLocalizationsDelegate

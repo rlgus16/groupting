@@ -10,6 +10,7 @@ import 'controllers/auth_controller.dart';
 import 'controllers/profile_controller.dart';
 import 'controllers/group_controller.dart';
 import 'controllers/chat_controller.dart';
+import 'controllers/locale_controller.dart';
 import 'views/login_view.dart';
 import 'views/home_view.dart';
 import 'views/register_view.dart';
@@ -139,30 +140,42 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProfileController()),
         ChangeNotifierProvider(create: (_) => GroupController()),
         ChangeNotifierProvider(create: (_) => ChatController()),
+        ChangeNotifierProvider(create: (_) {
+          final controller = LocaleController();
+          controller.initialize();
+          return controller;
+        }),
       ],
-      child: MaterialApp(
-        title: '그룹팅',
-        navigatorKey: navigatorKey,
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
+      child: Consumer<LocaleController>(
+        builder: (context, localeController, _) {
+          return MaterialApp(
+            title: '그룹팅',
+            navigatorKey: navigatorKey,
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
 
-        // 델리게이트 설정
-        localizationsDelegates: const [
-          AppLocalizations.delegate, // <-- 가장 위에 추가해주세요
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
+            // 현재 선택된 언어
+            locale: localeController.locale,
 
-        // 언어 지원
-        supportedLocales: AppLocalizations.supportedLocales,
+            // 델리게이트 설정
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
 
-        initialRoute: '/',
-        routes: {
-          '/': (context) => const VersionCheckWrapper(child: AuthWrapper()),
-          '/login': (context) => const LoginView(),
-          '/register': (context) => const RegisterView(),
-          '/home': (context) => const HomeView(),
+            // 언어 지원
+            supportedLocales: AppLocalizations.supportedLocales,
+
+            initialRoute: '/',
+            routes: {
+              '/': (context) => const VersionCheckWrapper(child: AuthWrapper()),
+              '/login': (context) => const LoginView(),
+              '/register': (context) => const RegisterView(),
+              '/home': (context) => const HomeView(),
+            },
+          );
         },
       ),
     );

@@ -5,6 +5,7 @@ import '../controllers/group_controller.dart';
 import '../controllers/chat_controller.dart';
 import '../services/fcm_service.dart';
 import '../utils/app_theme.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../widgets/message_bubble.dart';
 import 'profile_detail_view.dart';
 import 'invite_friend_view.dart';
@@ -81,27 +82,28 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final mediaQuery = MediaQuery.of(context);
     final isKeyboardVisible = mediaQuery.viewInsets.bottom > 0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6F8), // 부드러운 배경색
+      backgroundColor: const Color(0xFFF5F6F8),
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Consumer<GroupController>(
           builder: (context, groupController, _) {
             if (groupController.currentGroup == null) {
-              return const Text('채팅');
+              return Text(l10n.chatTitle);
             }
             return Column(
               children: [
                 Text(
-                  groupController.isMatched ? '매칭 채팅' : '그룹 채팅',
+                  groupController.isMatched ? l10n.chatMatchingTitle : l10n.chatGroupTitle,
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
                 ),
                 if (!groupController.isMatched)
                   Text(
-                    '${groupController.groupMembers.length}명 참여 중',
+                    l10n.chatParticipating(groupController.groupMembers.length),
                     style: TextStyle(
                       fontSize: 12,
                       color: AppTheme.textSecondary.withValues(alpha:0.8),
@@ -143,14 +145,12 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
 
           return Column(
             children: [
-              // 헤더 (초대/매칭 상태)
               if (groupController.currentGroup != null && !groupController.isMatched)
-                _buildStickyHeader(context, groupController),
+                _buildStickyHeader(context, groupController, l10n),
 
-              // 메시지 리스트
               Expanded(
                 child: chatController.messages.isEmpty
-                    ? _buildEmptyMessageView(groupController)
+                    ? _buildEmptyMessageView(groupController, l10n)
                     : ListView.builder(
                   reverse: true,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -170,7 +170,7 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
                         : null;
 
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 4.0), // 말풍선 간 간격 미세 조정
+                      padding: const EdgeInsets.only(bottom: 4.0),
                       child: MessageBubble(
                         message: message,
                         isMe: chatController.isMyMessage(message),
@@ -197,8 +197,7 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
                 ),
               ),
 
-              // 입력창 영역
-              _buildInputArea(isKeyboardVisible, chatController),
+              _buildInputArea(isKeyboardVisible, chatController, l10n),
             ],
           );
         },
@@ -206,8 +205,7 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
     );
   }
 
-  // 매칭 전 상단 상태 표시 (스티키 헤더 느낌)
-  Widget _buildStickyHeader(BuildContext context, GroupController groupController) {
+  Widget _buildStickyHeader(BuildContext context, GroupController groupController, AppLocalizations l10n) {
     final sentInvitations = groupController.sentInvitations;
     final pendingCount = sentInvitations
         .where((inv) => inv.status.toString().split('.').last == 'pending')
@@ -215,7 +213,6 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
 
     Widget? content;
 
-    // 1. 매칭 중이거나 초대 가능 상태
     if (groupController.isMatching ||
         (groupController.isOwner &&
             pendingCount == 0 &&
@@ -240,8 +237,8 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
             const SizedBox(width: 8),
             Text(
               groupController.isMatching
-                  ? '매칭 상대를 찾고 있어요...'
-                  : '친구 초대하기 (${groupController.currentGroup!.memberIds.length}/5)',
+                  ? l10n.chatFindingMatch
+                  : '${l10n.chatInviteFriend} (${groupController.currentGroup!.memberIds.length}/5)',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -254,7 +251,6 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
         ),
       );
     }
-    // 2. 초대 대기 중
     else if (pendingCount > 0) {
       content = Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -262,7 +258,7 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
           Icon(Icons.mark_email_unread_outlined, size: 16, color: Colors.orange[700]),
           const SizedBox(width: 8),
           Text(
-            '$pendingCount명의 친구가 응답 대기 중입니다',
+            l10n.chatWaitingResponse(pendingCount),
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -294,8 +290,7 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
     );
   }
 
-  // 개선된 입력창 영역
-  Widget _buildInputArea(bool isKeyboardVisible, ChatController chatController) {
+  Widget _buildInputArea(bool isKeyboardVisible, ChatController chatController, AppLocalizations l10n) {
     return Container(
       padding: EdgeInsets.fromLTRB(16, 12, 16, isKeyboardVisible ? 12 : 30),
       decoration: BoxDecoration(
@@ -323,28 +318,25 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
                 maxLines: null,
                 minLines: 1,
                 keyboardType: TextInputType.multiline,
-                textInputAction: TextInputAction.newline, // 엔터로 줄바꿈 허용 시
+                textInputAction: TextInputAction.newline,
                 style: const TextStyle(fontSize: 15, height: 1.4),
-                decoration: const InputDecoration(
-                  hintText: '메시지 보내기',
-                  hintStyle: TextStyle(color: AppTheme.gray500, fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: l10n.chatInputHint,
+                  hintStyle: const TextStyle(color: AppTheme.gray500, fontSize: 15),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   isDense: true,
                 ),
               ),
             ),
           ),
           const SizedBox(width: 12),
-          // 전송 버튼
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             margin: const EdgeInsets.only(bottom: 2),
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: AppTheme.primaryColor,
-              // 그라디언트를 원하면 아래 주석 해제
-              /* gradient: AppTheme.primaryGradient, */
             ),
             child: IconButton(
               onPressed: () async {
@@ -364,7 +356,7 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildEmptyMessageView(GroupController groupController) {
+  Widget _buildEmptyMessageView(GroupController groupController, AppLocalizations l10n) {
     final isMatched = groupController.isMatched;
     final memberCount = groupController.groupMembers.length;
 
@@ -396,7 +388,7 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
               ),
               const SizedBox(height: 24),
               Text(
-                isMatched ? '매칭 성공! 🎉' : '그룹 채팅 시작 👋',
+                isMatched ? l10n.chatEmptyMatched : l10n.chatEmptyGroup,
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -406,10 +398,10 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
               const SizedBox(height: 8),
               Text(
                 isMatched
-                    ? '설레는 대화를 시작해보세요.\n서로에 대해 알아가는 시간이 되길 바래요!'
+                    ? l10n.chatEmptyMatchedDesc
                     : memberCount > 1
-                    ? '친구들과 자유롭게 대화를 나눠보세요!'
-                    : '아직 그룹에 혼자 있어요.\n친구들을 초대 해보세요!',
+                    ? l10n.chatEmptyGroupWithFriends
+                    : l10n.chatEmptyAlone,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
@@ -439,9 +431,9 @@ class _ChatViewState extends State<ChatView> with WidgetsBindingObserver {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text(
-                      '친구 초대하기',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    child: Text(
+                      l10n.chatInviteFriend,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),

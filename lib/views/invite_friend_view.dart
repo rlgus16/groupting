@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../controllers/group_controller.dart';
 import '../models/invitation_model.dart';
 import '../utils/app_theme.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../widgets/custom_toast.dart';
 
 class InviteFriendView extends StatefulWidget {
@@ -27,6 +28,7 @@ class _InviteFriendViewState extends State<InviteFriendView> {
   Future<void> _inviteFriend() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final l10n = AppLocalizations.of(context)!;
     final groupController = context.read<GroupController>();
 
     try {
@@ -38,7 +40,7 @@ class _InviteFriendViewState extends State<InviteFriendView> {
       );
 
       if (mounted) {
-        CustomToast.showSuccess(context, '초대를 보냈어요!');
+        CustomToast.showSuccess(context, l10n.inviteSentSuccess);
         _nicknameController.clear();
         _messageController.clear();
         FocusScope.of(context).unfocus();
@@ -52,10 +54,12 @@ class _InviteFriendViewState extends State<InviteFriendView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('친구 초대'),
+        title: Text(l10n.inviteTitle),
         backgroundColor: AppTheme.backgroundColor,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -69,17 +73,14 @@ class _InviteFriendViewState extends State<InviteFriendView> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
 
-                // 안내 메시지
-                _buildGuideBox(context),
+                _buildGuideBox(context, l10n),
                 const SizedBox(height: 24),
 
-                // 그룹 현황 카드
-                _buildGroupStatusCard(),
+                _buildGroupStatusCard(l10n),
                 const SizedBox(height: 24),
 
-                // 입력 폼
                 Text(
-                  '누구를 초대할까요?',
+                  l10n.inviteWho,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -87,15 +88,15 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _nicknameController,
-                  decoration: const InputDecoration(
-                    labelText: '닉네임',
-                    hintText: '친구의 닉네임을 입력해주세요',
-                    prefixIcon: Icon(Icons.person_search_rounded),
+                  decoration: InputDecoration(
+                    labelText: l10n.inviteNicknameLabel,
+                    hintText: l10n.inviteNicknameHint,
+                    prefixIcon: const Icon(Icons.person_search_rounded),
                     floatingLabelBehavior: FloatingLabelBehavior.always,
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return '닉네임을 입력해주세요.';
+                      return l10n.inviteNicknameEmpty;
                     }
                     return null;
                   },
@@ -103,10 +104,10 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _messageController,
-                  decoration: const InputDecoration(
-                    labelText: '메세지 (선택)',
-                    hintText: '같이 그룹팅하자!',
-                    prefixIcon: Icon(Icons.chat_bubble_outline_rounded),
+                  decoration: InputDecoration(
+                    labelText: l10n.inviteMessageLabel,
+                    hintText: l10n.inviteMessagePlaceholder,
+                    prefixIcon: const Icon(Icons.chat_bubble_outline_rounded),
                     floatingLabelBehavior: FloatingLabelBehavior.always,
                   ),
                   maxLines: 1,
@@ -114,7 +115,6 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                 ),
                 const SizedBox(height: 32),
 
-                // 4. 초대 버튼
                 Consumer<GroupController>(
                   builder: (context, groupController, _) {
                     return ElevatedButton(
@@ -133,14 +133,13 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                           strokeWidth: 2,
                         ),
                       )
-                          : const Text('초대장 보내기'),
+                          : Text(l10n.inviteSendButton),
                     );
                   },
                 ),
 
                 const SizedBox(height: 40),
 
-                // 보낸 초대 목록
                 Consumer<GroupController>(
                   builder: (context, groupController, _) {
                     if (groupController.sentInvitations.isEmpty) {
@@ -152,7 +151,7 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                         Row(
                           children: [
                             Text(
-                              '보낸 초대',
+                              l10n.inviteSentList,
                               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -174,7 +173,7 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                         ),
                         const SizedBox(height: 16),
                         ...groupController.sentInvitations.map((invitation) {
-                          return _buildInvitationCard(context, invitation);
+                          return _buildInvitationCard(context, invitation, l10n);
                         }),
                         const SizedBox(height: 24),
                       ],
@@ -189,8 +188,7 @@ class _InviteFriendViewState extends State<InviteFriendView> {
     );
   }
 
-  // 위젯: 안내 박스
-  Widget _buildGuideBox(BuildContext context) {
+  Widget _buildGuideBox(BuildContext context, AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -214,7 +212,7 @@ class _InviteFriendViewState extends State<InviteFriendView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '친구 초대는 이렇게 하세요',
+                  l10n.inviteGuide,
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     color: AppTheme.primaryColor,
                     fontWeight: FontWeight.bold,
@@ -222,7 +220,7 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '• 친구의 닉네임을 정확히 입력해주세요.\n• 최대 5명까지 그룹을 구성할 수 있습니다.',
+                  l10n.inviteGuideDesc,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppTheme.gray700,
                     height: 1.5,
@@ -236,8 +234,7 @@ class _InviteFriendViewState extends State<InviteFriendView> {
     );
   }
 
-  // 위젯: 그룹 인원 현황 (점 형태로 시각화)
-  Widget _buildGroupStatusCard() {
+  Widget _buildGroupStatusCard(AppLocalizations l10n) {
     return Consumer<GroupController>(
       builder: (context, groupController, _) {
         final currentCount = groupController.currentGroup?.memberCount ?? 1;
@@ -257,7 +254,7 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '현재 그룹 인원',
+                    l10n.inviteCurrentMember,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppTheme.textSecondary,
                       fontWeight: FontWeight.w500,
@@ -274,7 +271,7 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                           ),
                         ),
                         TextSpan(
-                          text: ' / $maxCount명',
+                          text: ' / $maxCount',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppTheme.textSecondary,
                           ),
@@ -285,7 +282,6 @@ class _InviteFriendViewState extends State<InviteFriendView> {
                 ],
               ),
               const SizedBox(height: 16),
-              // 인원수 시각화 (Dots)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(maxCount, (index) {
@@ -309,8 +305,7 @@ class _InviteFriendViewState extends State<InviteFriendView> {
     );
   }
 
-  // 위젯: 초대 리스트 카드
-  Widget _buildInvitationCard(BuildContext context, InvitationModel invitation) {
+  Widget _buildInvitationCard(BuildContext context, InvitationModel invitation, AppLocalizations l10n) {
     Color statusColor;
     Color statusBgColor;
     String statusText;
@@ -318,27 +313,27 @@ class _InviteFriendViewState extends State<InviteFriendView> {
 
     switch (invitation.status) {
       case InvitationStatus.pending:
-        statusColor = const Color(0xFFFFB74D); // Orange
+        statusColor = const Color(0xFFFFB74D);
         statusBgColor = const Color(0xFFFFF3E0);
-        statusText = '대기 중';
+        statusText = l10n.inviteStatusPending;
         statusIcon = Icons.access_time_rounded;
         break;
       case InvitationStatus.accepted:
         statusColor = AppTheme.successColor;
         statusBgColor = AppTheme.successColor.withValues(alpha: 0.1);
-        statusText = '수락됨';
+        statusText = l10n.inviteStatusAccepted;
         statusIcon = Icons.check_circle_outline_rounded;
         break;
       case InvitationStatus.rejected:
         statusColor = AppTheme.errorColor;
         statusBgColor = AppTheme.errorColor.withValues(alpha: 0.1);
-        statusText = '거절됨';
+        statusText = l10n.inviteStatusRejected;
         statusIcon = Icons.highlight_off_rounded;
         break;
       default:
         statusColor = AppTheme.gray500;
         statusBgColor = AppTheme.gray200;
-        statusText = '만료됨';
+        statusText = l10n.inviteStatusExpired;
         statusIcon = Icons.timer_off_outlined;
     }
 
@@ -352,10 +347,10 @@ class _InviteFriendViewState extends State<InviteFriendView> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: CircleAvatar(
+        leading: const CircleAvatar(
           backgroundColor: AppTheme.gray100,
           radius: 22,
-          child: const Icon(
+          child: Icon(
             Icons.mail_outline_rounded,
             color: AppTheme.primaryColor,
             size: 20,
@@ -368,7 +363,7 @@ class _InviteFriendViewState extends State<InviteFriendView> {
           ),
         ),
         subtitle: Text(
-          invitation.message ?? '메세지 없음',
+          invitation.message ?? l10n.inviteNoMessage,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodySmall,

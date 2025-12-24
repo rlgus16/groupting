@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../controllers/auth_controller.dart';
+import '../controllers/locale_controller.dart';
 import '../services/user_service.dart';
 import '../utils/app_theme.dart';
+import '../l10n/generated/app_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SettingsView extends StatefulWidget {
@@ -64,8 +66,9 @@ class _SettingsViewState extends State<SettingsView> {
       await authController.refreshCurrentUser();
     } catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('설정 저장에 실패했습니다.')),
+          SnackBar(content: Text(l10n.commonError)),
         );
       }
     }
@@ -73,10 +76,12 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
-      backgroundColor: AppTheme.gray50, // 밝은 회색 배경
+      backgroundColor: AppTheme.gray50,
       appBar: AppBar(
-        title: const Text('설정'),
+        title: Text(l10n.settingsTitle),
         centerTitle: false,
         elevation: 0,
         backgroundColor: AppTheme.gray50,
@@ -88,28 +93,28 @@ class _SettingsViewState extends State<SettingsView> {
         child: Column(
           children: [
             // 1. 알림 설정 섹션
-            _buildSectionHeader('알림'),
+            _buildSectionHeader(l10n.settingsNotification),
             _buildSectionContainer(
               children: [
                 _buildSwitchTile(
-                  title: '매칭 알림',
-                  subtitle: '새로운 매칭 알림 수신',
+                  title: l10n.settingsNotiMatch,
+                  subtitle: l10n.settingsNotiMatch,
                   icon: Icons.favorite_border,
                   value: _matchingNotifications,
                   onChanged: (v) => _updateNotificationSetting(matching: v),
                 ),
                 _buildDivider(),
                 _buildSwitchTile(
-                  title: '초대 알림',
-                  subtitle: '그룹 초대 알림 수신',
+                  title: l10n.settingsNotiInvite,
+                  subtitle: l10n.settingsNotiInvite,
                   icon: Icons.mail_outline,
                   value: _invitationNotifications,
                   onChanged: (v) => _updateNotificationSetting(invitation: v),
                 ),
                 _buildDivider(),
                 _buildSwitchTile(
-                  title: '메세지 알림',
-                  subtitle: '채팅 메세지 알림 수신',
+                  title: l10n.settingsNotiChat,
+                  subtitle: l10n.settingsNotiChat,
                   icon: Icons.chat_bubble_outline,
                   value: _messageNotifications,
                   onChanged: (v) => _updateNotificationSetting(chat: v),
@@ -119,24 +124,24 @@ class _SettingsViewState extends State<SettingsView> {
             const SizedBox(height: 24),
 
             // 2. 계정 관리 섹션
-            _buildSectionHeader('계정'),
+            _buildSectionHeader(l10n.settingsAccount),
             _buildSectionContainer(
               children: [
                 _buildMenuTile(
                   icon: Icons.vpn_key_outlined,
-                  title: '비밀번호 변경',
+                  title: l10n.settingsChangePw,
                   onTap: _showChangePasswordDialog,
                 ),
                 _buildDivider(),
                 _buildMenuTile(
                   icon: Icons.person_off_outlined,
-                  title: '차단 관리',
+                  title: l10n.settingsBlock,
                   onTap: _showBlockedUsersDialog,
                 ),
                 _buildDivider(),
                 _buildMenuTile(
                   icon: Icons.delete_outline,
-                  title: '계정 삭제',
+                  title: l10n.settingsDeleteAccount,
                   textColor: AppTheme.errorColor,
                   iconColor: AppTheme.errorColor.withValues(alpha: 0.1),
                   iconDataColor: AppTheme.errorColor,
@@ -147,30 +152,48 @@ class _SettingsViewState extends State<SettingsView> {
             const SizedBox(height: 24),
 
             // 3. 고객지원 및 정보 섹션
-            _buildSectionHeader('정보 및 지원'),
+            _buildSectionHeader(l10n.settingsInfo),
             _buildSectionContainer(
               children: [
+                Consumer<LocaleController>(
+                  builder: (context, localeController, _) {
+                    return _buildMenuTile(
+                      icon: Icons.language,
+                      title: '언어 / Language',
+                      trailing: Text(
+                        localeController.currentLanguageName,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      onTap: () => _showLanguageDialog(),
+                    );
+                  },
+                ),
+                _buildDivider(),
                 _buildMenuTile(
                   icon: Icons.verified_user_outlined,
-                  title: '개인정보 처리방침',
+                  title: l10n.settingsPrivacy,
                   onTap: _showPrivacyPolicy,
                 ),
                 _buildDivider(),
                 _buildMenuTile(
                   icon: Icons.description_outlined,
-                  title: '서비스 이용약관',
+                  title: l10n.settingsTerms,
                   onTap: _showTermsOfService,
                 ),
                 _buildDivider(),
                 _buildMenuTile(
                   icon: Icons.star_outline,
-                  title: '앱 평가하기',
+                  title: '⭐ Rate App',
                   onTap: _rateApp,
                 ),
                 _buildDivider(),
                 _buildMenuTile(
                   icon: Icons.info_outline,
-                  title: '앱 버전',
+                  title: l10n.settingsAppVersion,
                   trailing: const Text(
                     '1.0.0',
                     style: TextStyle(
@@ -336,7 +359,102 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  // --- Actions & Dialogs (기존 로직 유지) ---
+  // --- Actions & Dialogs ---
+
+  void _showLanguageDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Consumer<LocaleController>(
+          builder: (context, localeController, _) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 16),
+                      child: Text(
+                        '언어 선택 / Select Language',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                    // Korean option
+                    _buildLanguageOption(
+                      locale: const Locale('ko'),
+                      name: '한국어',
+                      isSelected: localeController.locale.languageCode == 'ko',
+                      onTap: () {
+                        localeController.setLocale(const Locale('ko'));
+                        Navigator.pop(context);
+                      },
+                    ),
+                    // English option
+                    _buildLanguageOption(
+                      locale: const Locale('en'),
+                      name: 'English',
+                      isSelected: localeController.locale.languageCode == 'en',
+                      onTap: () {
+                        localeController.setLocale(const Locale('en'));
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildLanguageOption({
+    required Locale locale,
+    required String name,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Row(
+            children: [
+              Text(
+                name,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected ? AppTheme.primaryColor : AppTheme.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              if (isSelected)
+                const Icon(
+                  Icons.check_circle,
+                  color: AppTheme.primaryColor,
+                  size: 22,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Future<void> _showPrivacyPolicy() async {
     const url = 'https://flossy-sword-5a1.notion.site/2bee454bf6f580ad8c6df10d571c93a9';
@@ -363,6 +481,7 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   void _showChangePasswordDialog() {
+    final l10n = AppLocalizations.of(context)!;
     final currentPasswordController = TextEditingController();
     final newPasswordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
@@ -374,35 +493,34 @@ class _SettingsViewState extends State<SettingsView> {
           return AlertDialog(
             backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('비밀번호 변경', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            title: Text(l10n.settingsChangePw, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             content: authController.isLoading
-                ? const Column(
+                ? Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('처리 중입니다...'),
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(l10n.commonLoading),
               ],
             )
                 : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildDialogTextField(currentPasswordController, '현재 비밀번호'),
+                _buildDialogTextField(currentPasswordController, 'Current Password'),
                 const SizedBox(height: 12),
-                _buildDialogTextField(newPasswordController, '새 비밀번호'),
+                _buildDialogTextField(newPasswordController, 'New Password'),
                 const SizedBox(height: 12),
-                _buildDialogTextField(confirmPasswordController, '새 비밀번호 확인'),
+                _buildDialogTextField(confirmPasswordController, 'Confirm Password'),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('취소', style: TextStyle(color: AppTheme.textSecondary)),
+                child: Text(l10n.commonCancel, style: const TextStyle(color: AppTheme.textSecondary)),
               ),
               if (!authController.isLoading)
                 TextButton(
                   onPressed: () async {
-                    // (기존 로직 동일)
                     final currentPassword = currentPasswordController.text.trim();
                     final newPassword = newPasswordController.text.trim();
                     final confirmPassword = confirmPasswordController.text.trim();
@@ -415,13 +533,13 @@ class _SettingsViewState extends State<SettingsView> {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(success ? '비밀번호가 변경되었습니다.' : '변경 실패: ${authController.errorMessage}'),
+                          content: Text(success ? 'Password changed' : 'Failed: ${authController.errorMessage}'),
                           backgroundColor: success ? AppTheme.successColor : AppTheme.errorColor,
                         ),
                       );
                     }
                   },
-                  child: const Text('변경', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+                  child: Text(l10n.commonConfirm, style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
                 ),
             ],
           );
@@ -443,6 +561,7 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   void _showBlockedUsersDialog() {
+    final l10n = AppLocalizations.of(context)!;
     final currentUser = context.read<AuthController>().currentUserModel;
     if (currentUser == null) return;
 
@@ -451,7 +570,7 @@ class _SettingsViewState extends State<SettingsView> {
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('차단 관리', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(l10n.settingsBlock, style: const TextStyle(fontWeight: FontWeight.bold)),
         content: SizedBox(
           width: double.maxFinite,
           height: 300,
@@ -464,7 +583,7 @@ class _SettingsViewState extends State<SettingsView> {
               if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
               final docs = snapshot.data!.docs;
               if (docs.isEmpty) {
-                return const Center(child: Text('차단한 사용자가 없습니다.', style: TextStyle(color: AppTheme.textSecondary)));
+                return const Center(child: Text('No blocked users', style: TextStyle(color: AppTheme.textSecondary)));
               }
               return ListView.separated(
                 itemCount: docs.length,
@@ -473,10 +592,10 @@ class _SettingsViewState extends State<SettingsView> {
                   final data = docs[index].data() as Map<String, dynamic>;
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(data['blockedNickname'] ?? '알 수 없는 사용자'),
+                    title: Text(data['blockedNickname'] ?? 'Unknown'),
                     trailing: TextButton(
                       onPressed: () => FirebaseFirestore.instance.collection('blocks').doc(docs[index].id).delete(),
-                      child: const Text('해제', style: TextStyle(color: AppTheme.primaryColor)),
+                      child: const Text('Unblock', style: TextStyle(color: AppTheme.primaryColor)),
                     ),
                   );
                 },
@@ -487,7 +606,7 @@ class _SettingsViewState extends State<SettingsView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('닫기', style: TextStyle(color: AppTheme.textPrimary)),
+            child: Text(l10n.commonClose, style: const TextStyle(color: AppTheme.textPrimary)),
           ),
         ],
       ),
@@ -495,20 +614,22 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   void _showAccountDeletionDialog() {
+    final l10n = AppLocalizations.of(context)!;
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('계정 삭제', style: TextStyle(color: AppTheme.errorColor, fontWeight: FontWeight.bold)),
+        title: Text(l10n.settingsDeleteAccount, style: const TextStyle(color: AppTheme.errorColor, fontWeight: FontWeight.bold)),
         content: const Text(
-          '계정을 삭제하면 모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.\n정말 삭제하시겠습니까?',
+          'Deleting your account will permanently remove all data and cannot be undone.\nAre you sure?',
           style: TextStyle(height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('취소', style: TextStyle(color: AppTheme.textSecondary)),
+            child: Text(l10n.commonCancel, style: const TextStyle(color: AppTheme.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -519,7 +640,7 @@ class _SettingsViewState extends State<SettingsView> {
               backgroundColor: AppTheme.errorColor,
               elevation: 0,
             ),
-            child: const Text('삭제'),
+            child: Text(l10n.commonDelete),
           ),
         ],
       ),
@@ -527,18 +648,20 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   void _confirmAccountDeletion() {
+    final l10n = AppLocalizations.of(context)!;
+    
     showDialog(
       context: context,
       builder: (context) => Consumer<AuthController>(
         builder: (context, authController, child) {
           return AlertDialog(
-            title: const Text('최종 확인'),
+            title: const Text('Final Confirmation'),
             content: authController.isLoading
-                ? const Column(mainAxisSize: MainAxisSize.min, children: [CircularProgressIndicator(), SizedBox(height: 16), Text('삭제 중...')])
-                : const Text('정말로 삭제합니다.'),
+                ? Column(mainAxisSize: MainAxisSize.min, children: [const CircularProgressIndicator(), const SizedBox(height: 16), const Text('Deleting...')])
+                : Text(l10n.settingsDeleteAccountConfirm),
             actions: [
               if (!authController.isLoading)
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+                TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.commonCancel)),
               if (!authController.isLoading)
                 ElevatedButton(
                   onPressed: () async {
@@ -551,7 +674,7 @@ class _SettingsViewState extends State<SettingsView> {
                     }
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
-                  child: const Text('최종 삭제'),
+                  child: Text(l10n.commonDelete),
                 ),
             ],
           );
@@ -562,13 +685,13 @@ class _SettingsViewState extends State<SettingsView> {
 
   void _checkForUpdates() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('현재 최신 버전을 사용 중입니다.')),
+      const SnackBar(content: Text('You are using the latest version.')),
     );
   }
 
   void _rateApp() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('앱스토어로 이동합니다... (준비중)')),
+      const SnackBar(content: Text('Opening app store... (Coming soon)')),
     );
   }
 }

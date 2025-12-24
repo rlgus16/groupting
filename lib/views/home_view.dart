@@ -7,6 +7,7 @@ import '../controllers/auth_controller.dart';
 import '../controllers/group_controller.dart';
 import '../utils/app_theme.dart';
 import '../widgets/member_avatar.dart';
+import '../l10n/generated/app_localizations.dart';
 import 'invite_friend_view.dart';
 import 'invitation_list_view.dart';
 import 'profile_detail_view.dart';
@@ -144,12 +145,12 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
           });
 
           try {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('프로필 완성하기 알림을 숨겼습니다. 마이페이지에서 언제든 프로필을 완성할 수 있습니다.'),
-                duration: Duration(seconds: 3),
-              ),
-            );
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(AppLocalizations.of(context)!.homeProfileCardHidden),
+                  duration: Duration(seconds: 3),
+                ),
+              );
           } catch (e) {
             // 위젯이 이미 dispose된 경우 무시
           }
@@ -183,21 +184,21 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
     final groupController = _groupController ?? context.read<GroupController>();
     final currentGroup = groupController.currentGroup;
 
-    String dialogContent = '매칭되었습니다!\n채팅방에서 인사해보세요 👋';
+    String dialogContent = AppLocalizations.of(context)!.homeMatchSuccessDesc;
 
     if (currentGroup != null) {
-      dialogContent = '매칭되었습니다!\n채팅방에서 인사해보세요 👋';
+      dialogContent = AppLocalizations.of(context)!.homeMatchSuccessDesc;
     }
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.celebration, color: AppTheme.successColor),
             SizedBox(width: 8),
-            Text('매칭 성공! 🎉'),
+            Text(AppLocalizations.of(context)!.homeMatchSuccess),
           ],
         ),
         content: Text(dialogContent),
@@ -206,7 +207,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
             onPressed: () {
               Navigator.pop(context);
             },
-            child: const Text('나중에'),
+            child: Text(AppLocalizations.of(context)!.homeLater),
           ),
           ElevatedButton(
             onPressed: () {
@@ -220,7 +221,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
               backgroundColor: AppTheme.successColor,
               foregroundColor: Colors.white,
             ),
-            child: const Text('채팅방으로 이동'),
+            child: Text(AppLocalizations.of(context)!.homeGoToChat),
           ),
         ],
       ),
@@ -339,8 +340,8 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        '매칭 필터 설정',
+                      Text(
+                        AppLocalizations.of(context)!.homeFilterTitle,
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -358,17 +359,17 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                   const SizedBox(height: 32),
 
                   // 성별 섹션
-                  _buildFilterSectionTitle('상대 그룹 성별'),
+                  _buildFilterSectionTitle(AppLocalizations.of(context)!.homeFilterGender),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _buildGenderChip('남자', selectedGender, (val) => setModalState(() => selectedGender = val))),
+                      Expanded(child: _buildGenderChip(AppLocalizations.of(context)!.homeFilterMale, selectedGender, (val) => setModalState(() => selectedGender = val))),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildGenderChip('여자', selectedGender, (val) => setModalState(() => selectedGender = val))),
+                      Expanded(child: _buildGenderChip(AppLocalizations.of(context)!.homeFilterFemale, selectedGender, (val) => setModalState(() => selectedGender = val))),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildGenderChip('혼성', selectedGender, (val) => setModalState(() => selectedGender = val))),
+                      Expanded(child: _buildGenderChip(AppLocalizations.of(context)!.homeFilterMixed, selectedGender, (val) => setModalState(() => selectedGender = val))),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildGenderChip('상관없음', selectedGender, (val) => setModalState(() => selectedGender = val))),
+                      Expanded(child: _buildGenderChip(AppLocalizations.of(context)!.homeFilterAny, selectedGender, (val) => setModalState(() => selectedGender = val))),
                     ],
                   ),
 
@@ -378,7 +379,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildFilterSectionTitle('상대 그룹 평균 나이'),
+                      _buildFilterSectionTitle(AppLocalizations.of(context)!.homeFilterAge),
                       Text(
                         '${currentAgeRange.start.round()}세 - ${currentAgeRange.end.round() >= 60 ? "60세+" : "${currentAgeRange.end.round()}세"}',
                         style: const TextStyle(
@@ -417,7 +418,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildFilterSectionTitle('상대 그룹 평균 키'),
+                      _buildFilterSectionTitle(AppLocalizations.of(context)!.homeFilterHeight),
                       Text(
                         '${currentHeightRange.start.round()}cm - ${currentHeightRange.end.round() >= 190 ? "190cm+" : "${currentHeightRange.end.round()}cm"}',
                         style: const TextStyle(
@@ -455,7 +456,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildFilterSectionTitle('거리 범위 (방장 기준)'),
+                      _buildFilterSectionTitle(AppLocalizations.of(context)!.homeFilterDistance),
                       Text(
                         currentDistance >= 100 ? "100km+" : "${currentDistance.round()}km 이내",
                         style: const TextStyle(
@@ -509,14 +510,14 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
 
                         if (success) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('필터가 성공적으로 적용되었습니다.'),
+                            SnackBar(
+                              content: Text(AppLocalizations.of(context)!.homeFilterSuccess),
                               behavior: SnackBarBehavior.floating,
                             ),
                           );
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(groupController.errorMessage ?? '필터 적용 실패')),
+                              SnackBar(content: Text(groupController.errorMessage ?? AppLocalizations.of(context)!.homeFilterFailed)),
                           );
                         }
                       } catch (e) {
@@ -538,8 +539,8 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                         height: 24,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)
                     )
-                        : const Text(
-                      '필터 적용하기',
+                        : Text(
+                      AppLocalizations.of(context)!.homeFilterApply,
                       style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold
@@ -631,7 +632,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
               // 메뉴 아이템들
               ListTile(
                 leading: const Icon(Icons.mail_outline),
-                title: const Text('받은 초대'),
+                title: Text(AppLocalizations.of(context)!.homeMenuReceivedInvites),
                 trailing: groupController.receivedInvitations.isNotEmpty
                     ? Container(
                   padding: const EdgeInsets.symmetric(
@@ -665,7 +666,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
 
               ListTile(
                 leading: const Icon(Icons.person_outline),
-                title: const Text('마이페이지'),
+                title: Text(AppLocalizations.of(context)!.homeMenuMyPage),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -683,8 +684,8 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                     Icons.exit_to_app,
                     color: AppTheme.errorColor,
                   ),
-                  title: const Text(
-                    '그룹 나가기',
+                  title: Text(
+                    AppLocalizations.of(context)!.homeMenuLeaveGroup,
                     style: TextStyle(color: AppTheme.errorColor),
                   ),
                   onTap: () async {
@@ -695,7 +696,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                       if (success && mounted) {
                         try {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('그룹에서 나왔습니다.')),
+                            SnackBar(content: Text(AppLocalizations.of(context)!.homeLeaveGroupSuccess)),
                           );
                           // UI 새로고침을 위해 setState 호출
                           setState(() {});
@@ -718,10 +719,10 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
 
               ListTile(
                 leading: const Icon(Icons.logout, color: AppTheme.errorColor),
-                title: const Text(
-                  '로그아웃',
-                  style: TextStyle(color: AppTheme.errorColor),
-                ),
+                  title: Text(
+                    AppLocalizations.of(context)!.homeMenuLogout,
+                    style: TextStyle(color: AppTheme.errorColor),
+                  ),
                 onTap: () async {
                   Navigator.pop(context);
                   final confirmed = await _showLogoutDialog();
@@ -752,7 +753,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                       if (context.mounted) {
                         try {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('로그아웃 중 오류가 발생했습니다: $e')),
+                            SnackBar(content: Text('${AppLocalizations.of(context)!.homeLogoutError}: $e')),
                           );
                         } catch (scaffoldError) {
                           // 위젯이 이미 dispose된 경우 무시
@@ -773,19 +774,19 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
     return await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('그룹 나가기'),
-        content: const Text('정말로 그룹을 나가시겠습니까?'),
+        title: Text(AppLocalizations.of(context)!.homeLeaveGroupTitle),
+        content: Text(AppLocalizations.of(context)!.homeLeaveGroupConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+            child: Text(AppLocalizations.of(context)!.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
               foregroundColor: AppTheme.errorColor,
             ),
-            child: const Text('나가기'),
+            child: Text(AppLocalizations.of(context)!.homeLeaveGroupBtn),
           ),
         ],
       ),
@@ -797,19 +798,19 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
     return await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('로그아웃'),
-        content: const Text('정말로 로그아웃 하시겠습니까?'),
+        title: Text(AppLocalizations.of(context)!.homeLogoutTitle),
+        content: Text(AppLocalizations.of(context)!.homeLogoutConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+            child: Text(AppLocalizations.of(context)!.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
               foregroundColor: AppTheme.errorColor,
             ),
-            child: const Text('로그아웃'),
+            child: Text(AppLocalizations.of(context)!.homeMenuLogout),
           ),
         ],
       ),
@@ -856,9 +857,9 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
   }
 
   // 프로필 카드 상태별 메시지 생성 (새로운 로직)
-  String _getProfileCardTitle(UserModel? user, User? firebaseUser) {
+  String _getProfileCardTitle(UserModel? user, User? firebaseUser, AppLocalizations l10n) {
     if (user == null || firebaseUser?.email == null) {
-      return '회원가입하기';
+      return l10n.homeProfileSignup;
     }
 
     final hasBasicInfo = user.phoneNumber.isNotEmpty &&
@@ -866,15 +867,15 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
         user.gender.isNotEmpty;
 
     if (!hasBasicInfo) {
-      return '기본 정보 입력하기';
+      return l10n.homeProfileBasicInfo;
     }
 
-    return '프로필 완성하기';
+    return l10n.homeProfileComplete;
   }
 
-  String _getProfileCardSubtitle(UserModel? user, User? firebaseUser) {
+  String _getProfileCardSubtitle(UserModel? user, User? firebaseUser, AppLocalizations l10n) {
     if (user == null || firebaseUser?.email == null) {
-      return '그룹팅 서비스를 이용하시려면\n먼저 회원가입을 완료해주세요!';
+      return l10n.homeProfileSignupDesc;
     }
 
     final hasBasicInfo = user.phoneNumber.isNotEmpty &&
@@ -882,15 +883,15 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
         user.gender.isNotEmpty;
 
     if (!hasBasicInfo) {
-      return '전화번호, 생년월일, 성별 정보가 필요해요!';
+      return l10n.homeProfileBasicInfoDesc;
     }
 
-    return '닉네임, 키, 활동지역 등을 입력해주세요!';
+    return l10n.homeProfileCompleteDesc;
   }
 
-  String _getProfileCardDescription(UserModel? user, User? firebaseUser) {
+  String _getProfileCardDescription(UserModel? user, User? firebaseUser, AppLocalizations l10n) {
     if (user == null || firebaseUser?.email == null) {
-      return '그룹팅 서비스를 이용하시려면\n먼저 회원가입을 완료해주세요!';
+      return l10n.homeProfileSignupDesc;
     }
 
     final hasBasicInfo = user.phoneNumber.isNotEmpty &&
@@ -898,15 +899,15 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
         user.gender.isNotEmpty;
 
     if (!hasBasicInfo) {
-      return '회원가입 중 누락된 필수 정보가 있어요.\n기본 정보를 입력하고 프로필을 완성해주세요!';
+      return l10n.homeProfileBasicInfoLong;
     }
 
-    return '닉네임, 키, 소개글, 활동지역을 추가하면\n그룹 생성과 매칭 기능을 사용할 수 있어요!';
+    return l10n.homeProfileCompleteLong;
   }
 
-  String _getProfileCardButtonText(UserModel? user, User? firebaseUser) {
+  String _getProfileCardButtonText(UserModel? user, User? firebaseUser, AppLocalizations l10n) {
     if (user == null || firebaseUser?.email == null) {
-      return '회원가입하기';
+      return l10n.homeProfileSignup;
     }
 
     final hasBasicInfo = user.phoneNumber.isNotEmpty &&
@@ -914,10 +915,10 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
         user.gender.isNotEmpty;
 
     if (!hasBasicInfo) {
-      return '기본 정보 입력하기';
+      return l10n.homeProfileBasicInfo;
     }
 
-    return '지금 완성하기';
+    return l10n.homeProfileNow;
   }
 
   void _handleProfileCardAction(UserModel? user, User? firebaseUser) {
@@ -1139,7 +1140,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _getProfileCardTitle(user, firebaseUser),
+                            _getProfileCardTitle(user, firebaseUser, AppLocalizations.of(context)!),
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               color: Colors.orange.shade800,
@@ -1148,7 +1149,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            _getProfileCardSubtitle(user, firebaseUser),
+                            _getProfileCardSubtitle(user, firebaseUser, AppLocalizations.of(context)!),
                             style: TextStyle(
                               color: Colors.orange.shade600,
                               fontSize: 12,
@@ -1162,7 +1163,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  _getProfileCardDescription(user, firebaseUser),
+                  _getProfileCardDescription(user, firebaseUser, AppLocalizations.of(context)!),
                   style: TextStyle(
                     color: Colors.orange.shade700,
                     fontSize: 14,
@@ -1183,7 +1184,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        child: const Text('나중에'),
+                        child: Text(AppLocalizations.of(context)!.homeLater),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1192,7 +1193,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                       child: ElevatedButton.icon(
                         onPressed: () => _handleProfileCardAction(user, firebaseUser),
                         icon: const Icon(Icons.arrow_forward, size: 18),
-                        label: Text(_getProfileCardButtonText(user, firebaseUser)),
+                        label: Text(_getProfileCardButtonText(user, firebaseUser, AppLocalizations.of(context)!)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange.shade600,
                           foregroundColor: Colors.white,
@@ -1225,12 +1226,12 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
               Text(
-                '그룹 정보 로딩 중...',
+                AppLocalizations.of(context)!.homeLoadingGroup,
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 8),
-              const Text(
-                '잠시만 기다려주세요.',
+              Text(
+                AppLocalizations.of(context)!.homeLoadingWait,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppTheme.textSecondary),
               ),
@@ -1263,7 +1264,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
               ),
               const SizedBox(height: 16),
               Text(
-                isNetworkError ? '네트워크 연결 오류' : '데이터 로드 실패',
+                isNetworkError ? AppLocalizations.of(context)!.homeErrorNetwork : AppLocalizations.of(context)!.homeErrorLoad,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: Colors.red.shade700,
                 ),
@@ -1271,8 +1272,8 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
               const SizedBox(height: 8),
               Text(
                 isNetworkError
-                    ? '인터넷 연결을 확인하고 다시 시도해주세요.'
-                    : groupController.errorMessage ?? '알 수 없는 오류가 발생했습니다.',
+                    ? AppLocalizations.of(context)!.homeErrorNetworkDesc
+                    : groupController.errorMessage ?? AppLocalizations.of(context)!.homeErrorUnknown,
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.red.shade600),
               ),
@@ -1285,7 +1286,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                       await groupController.refreshData();
                     },
                     icon: const Icon(Icons.refresh),
-                    label: const Text('다시 시도'),
+                    label: Text(AppLocalizations.of(context)!.homeErrorRetry),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
                       foregroundColor: Colors.white,
@@ -1297,14 +1298,14 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                       onPressed: () {
                         // 네트워크 설정으로 이동하거나 오프라인 모드 안내
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Wi-Fi나 모바일 데이터 연결을 확인해주세요.'),
+                          SnackBar(
+                            content: Text(AppLocalizations.of(context)!.homeErrorCheckConnectionDesc),
                             backgroundColor: Colors.orange,
                           ),
                         );
                       },
                       icon: const Icon(Icons.settings),
-                      label: const Text('연결 확인'),
+                      label: Text(AppLocalizations.of(context)!.homeErrorCheckConnection),
                     ),
                   ],
                 ],
@@ -1338,14 +1339,14 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
             ),
             const SizedBox(height: 24),
             Text(
-              '그룹이 없습니다',
+              AppLocalizations.of(context)!.homeNoGroup,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              '새로운 그룹을 만들어\n친구들과 함께하세요!',
+            Text(
+              AppLocalizations.of(context)!.homeNoGroupDesc,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppTheme.textSecondary,
@@ -1371,8 +1372,8 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                           context: context,
                           barrierDismissible: false, // 프로필 완성을 강제하려면 false로 설정
                           builder: (context) => AlertDialog(
-                            title: const Text('프로필 완성 필요'),
-                            content: const Text('프로필을 완성해야 서비스 이용이 가능합니다.'),
+                            title: Text(AppLocalizations.of(context)!.homeProfileRequiredTitle),
+                            content: Text(AppLocalizations.of(context)!.homeProfileRequiredDesc),
                             actions: [
                               TextButton(
                                 onPressed: () {
@@ -1384,7 +1385,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                                     MaterialPageRoute(builder: (context) => ProfileEditView()),
                                   );
                                 },
-                                child: const Text('프로필 완성하기'),
+                                child: Text(AppLocalizations.of(context)!.homeProfileRequiredBtn),
                               ),
                             ],
                           ),
@@ -1405,7 +1406,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Text('새 그룹 만들기', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(AppLocalizations.of(context)!.homeCreateGroup, style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -1510,8 +1511,8 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    isMatched ? '매칭 성공! 🎉' : (isMatching ? '매칭 진행중...' : '매칭 대기중'),
+                    Text(
+                      isMatched ? AppLocalizations.of(context)!.homeMatchedStatus : (isMatching ? AppLocalizations.of(context)!.homeMatchingStatus : AppLocalizations.of(context)!.homeWaitingStatus),
                     style: TextStyle(
                       color: isMatched ? Colors.white : AppTheme.gray800,
                       fontSize: 18,
@@ -1519,10 +1520,10 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    isMatched
-                        ? '새로운 인연과 대화를 시작해보세요'
-                        : (isMatching ? '매칭 상대를 찾고 있어요...' : '친구들과 대화 해보세요'),
+                    Text(
+                      isMatched
+                          ? AppLocalizations.of(context)!.homeMatchedDesc
+                          : (isMatching ? AppLocalizations.of(context)!.homeMatchingDesc : AppLocalizations.of(context)!.homeWaitingDesc),
                     style: TextStyle(
                       color: isMatched ? Colors.white.withValues(alpha: 0.9) : AppTheme.gray600,
                       fontSize: 13,
@@ -1590,7 +1591,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                       ),
                     ),
                     child: Text(
-                      hasUnread ? '새로운 메시지 💬' : '채팅방 입장',
+                      hasUnread ? AppLocalizations.of(context)!.homeNewMessage : AppLocalizations.of(context)!.homeEnterChat,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   );
@@ -1620,7 +1621,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                             ),
                           ),
                           child: Text(
-                              isMatching ? '매칭 취소' : '매칭 시작',
+                              isMatching ? AppLocalizations.of(context)!.homeCancelMatching : AppLocalizations.of(context)!.homeStartMatching,
                               style: const TextStyle(fontWeight: FontWeight.bold)
                           ),
                         ),
@@ -1653,7 +1654,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                         return OutlinedButton.icon(
                           onPressed: _navigateToChat,
                           label: Text(
-                            hasUnread ? '새로운 메시지 💬' : '채팅방 입장',
+                            hasUnread ? AppLocalizations.of(context)!.homeNewMessage : AppLocalizations.of(context)!.homeEnterChat,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                             ),
@@ -1695,7 +1696,7 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '현재 그룹 멤버',
+                AppLocalizations.of(context)!.homeCurrentMembers,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -1834,8 +1835,8 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver, Single
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        '초대하기',
+                      Text(
+                        AppLocalizations.of(context)!.homeInvite,
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.gray500,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_theme.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class UpdateView extends StatelessWidget {
   final String storeUrl;
@@ -19,7 +20,6 @@ class UpdateView extends StatelessWidget {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        // 스토어 URL을 열 수 없는 경우 (에러 처리)
         throw 'Could not launch $storeUrl';
       }
     } catch (e) {
@@ -29,13 +29,13 @@ class UpdateView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 뒤로가기 방지 (WillPopScope는 deprecated 되었으므로 PopScope 사용)
+    final l10n = AppLocalizations.of(context)!;
+    
     return PopScope(
-      canPop: false, // 뒤로가기 버튼 비활성화
+      canPop: false,
       onPopInvoked: (didPop) {
         if (!didPop) {
-          // 필요 시 앱 종료 안내 등을 추가할 수 있습니다.
-          // SystemNavigator.pop(); // 앱 종료
+          // App exit handling if needed
         }
       },
       child: Scaffold(
@@ -47,9 +47,9 @@ class UpdateView extends StatelessWidget {
             children: [
               const Icon(Icons.system_update_alt, size: 80, color: AppTheme.primaryColor),
               const SizedBox(height: 24),
-              const Text(
-                '업데이트 안내',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              Text(
+                l10n.updateTitle,
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               Text(
@@ -66,7 +66,7 @@ class UpdateView extends StatelessWidget {
                     backgroundColor: AppTheme.primaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: const Text('지금 업데이트', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  child: Text(l10n.updateButton, style: const TextStyle(color: Colors.white, fontSize: 16)),
                 ),
               ),
             ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/group_controller.dart';
 import '../utils/app_theme.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../widgets/member_avatar.dart';
 import '../widgets/custom_toast.dart';
 
@@ -18,6 +19,7 @@ class _InvitationListViewState extends State<InvitationListView> {
   Future<void> _handleInvitation(String invitationId, bool accept) async {
     if (_processingInvitations.contains(invitationId)) return;
 
+    final l10n = AppLocalizations.of(context)!;
     final groupController = context.read<GroupController>();
 
     if (accept && groupController.currentGroup != null) {
@@ -25,26 +27,25 @@ class _InvitationListViewState extends State<InvitationListView> {
         context: context,
         builder: (context) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('그룹 이동'),
-          content: const Text('현재 그룹을 떠나고 새 그룹으로 이동하시겠습니까?'),
+          title: Text(l10n.invitationMoveGroupTitle),
+          content: Text(l10n.invitationMoveGroupContent),
           actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
               style: TextButton.styleFrom(foregroundColor: AppTheme.gray600),
-              child: const Text('취소'),
+              child: Text(l10n.commonCancel),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
               style: TextButton.styleFrom(
                 foregroundColor: AppTheme.errorColor,
-                // [수정] fontWeight는 textStyle 안에서 설정해야 합니다.
                 textStyle: const TextStyle(
                   fontWeight: FontWeight.w600,
                   fontFamily: 'Pretendard',
                 ),
               ),
-              child: const Text('이동하기'),
+              child: Text(l10n.invitationMoveAction),
             ),
           ],
         ),
@@ -64,14 +65,14 @@ class _InvitationListViewState extends State<InvitationListView> {
       if (mounted) {
         if (success) {
           if (accept) {
-            CustomToast.showSuccess(context, '그룹에 참여했어요!');
+            CustomToast.showSuccess(context, l10n.invitationJoinedSuccess);
             await Future.delayed(const Duration(milliseconds: 1200));
             if (mounted) {
               Navigator.pushNamedAndRemoveUntil(
                   context, '/home', (route) => false);
             }
           } else {
-            CustomToast.showInfo(context, '초대를 거절했어요');
+            CustomToast.showInfo(context, l10n.invitationRejectedInfo);
           }
         } else if (groupController.errorMessage != null) {
           CustomToast.showError(context, groupController.errorMessage!);
@@ -92,17 +93,19 @@ class _InvitationListViewState extends State<InvitationListView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
       backgroundColor: AppTheme.gray50,
       appBar: AppBar(
-        title: const Text('받은 초대'),
+        title: Text(l10n.invitationListTitle),
         backgroundColor: AppTheme.gray50,
         scrolledUnderElevation: 0,
       ),
       body: Consumer<GroupController>(
         builder: (context, groupController, _) {
           if (groupController.receivedInvitations.isEmpty) {
-            return _buildEmptyState();
+            return _buildEmptyState(l10n);
           }
 
           return ListView.separated(
@@ -125,7 +128,6 @@ class _InvitationListViewState extends State<InvitationListView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header: Avatar + Info + Time
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -144,7 +146,7 @@ class _InvitationListViewState extends State<InvitationListView> {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        '${invitation.fromUserNickname}님의 초대',
+                                        l10n.invitationFrom(invitation.fromUserNickname),
                                         style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w700,
@@ -155,7 +157,7 @@ class _InvitationListViewState extends State<InvitationListView> {
                                       ),
                                     ),
                                     Text(
-                                      _formatTime(invitation.createdAt),
+                                      _formatTime(invitation.createdAt, l10n),
                                       style: const TextStyle(
                                         fontSize: 12,
                                         color: AppTheme.gray500,
@@ -165,9 +167,9 @@ class _InvitationListViewState extends State<InvitationListView> {
                                   ],
                                 ),
                                 const SizedBox(height: 4),
-                                const Text(
-                                  '새로운 그룹에 초대되었어요!',
-                                  style: TextStyle(
+                                Text(
+                                  l10n.invitationNewGroup,
+                                  style: const TextStyle(
                                     fontSize: 13,
                                     color: AppTheme.textSecondary,
                                   ),
@@ -178,7 +180,6 @@ class _InvitationListViewState extends State<InvitationListView> {
                         ],
                       ),
 
-                      // Message Bubble
                       if (invitation.message != null &&
                           invitation.message!.isNotEmpty) ...[
                         const SizedBox(height: 16),
@@ -209,7 +210,6 @@ class _InvitationListViewState extends State<InvitationListView> {
                         ),
                       ],
 
-                      // Expired Label
                       if (!invitation.isValid) ...[
                         const SizedBox(height: 16),
                         Container(
@@ -232,8 +232,8 @@ class _InvitationListViewState extends State<InvitationListView> {
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  '유효기간이 만료된 초대입니다',
-                                  style: TextStyle(
+                                  l10n.invitationExpiredLabel,
+                                  style: const TextStyle(
                                     fontSize: 12,
                                     color: AppTheme.errorColor,
                                     fontWeight: FontWeight.w600,
@@ -247,7 +247,6 @@ class _InvitationListViewState extends State<InvitationListView> {
 
                       const SizedBox(height: 20),
 
-                      // Action Buttons
                       Row(
                         children: [
                           Expanded(
@@ -258,7 +257,7 @@ class _InvitationListViewState extends State<InvitationListView> {
                                     ? () => _handleInvitation(invitation.id, false)
                                     : null,
                                 style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: AppTheme.gray300),
+                                  side: const BorderSide(color: AppTheme.gray300),
                                   foregroundColor: AppTheme.textSecondary,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
@@ -275,7 +274,7 @@ class _InvitationListViewState extends State<InvitationListView> {
                                     ),
                                   ),
                                 )
-                                    : const Text('거절'),
+                                    : Text(l10n.invitationReject),
                               ),
                             ),
                           ),
@@ -307,9 +306,9 @@ class _InvitationListViewState extends State<InvitationListView> {
                                     ),
                                   ),
                                 )
-                                    : const Text(
-                                  '수락',
-                                  style: TextStyle(
+                                    : Text(
+                                  l10n.invitationAccept,
+                                  style: const TextStyle(
                                       fontWeight: FontWeight.w700),
                                 ),
                               ),
@@ -328,7 +327,7 @@ class _InvitationListViewState extends State<InvitationListView> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(AppLocalizations l10n) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -339,16 +338,16 @@ class _InvitationListViewState extends State<InvitationListView> {
               color: AppTheme.primaryColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(
+            child: const Icon(
               Icons.mail_outline_rounded,
               size: 48,
               color: AppTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            '아직 받은 초대가 없어요',
-            style: TextStyle(
+          Text(
+            l10n.invitationEmptyTitle,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: AppTheme.textPrimary,
@@ -356,9 +355,9 @@ class _InvitationListViewState extends State<InvitationListView> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            '친구가 초대를 보내면 여기에 표시됩니다',
-            style: TextStyle(
+          Text(
+            l10n.invitationEmptyDesc,
+            style: const TextStyle(
               fontSize: 14,
               color: AppTheme.textSecondary,
               fontFamily: 'Pretendard',
@@ -369,20 +368,22 @@ class _InvitationListViewState extends State<InvitationListView> {
     );
   }
 
-  String _formatTime(DateTime date) {
+  String _formatTime(DateTime date, AppLocalizations l10n) {
     final now = DateTime.now();
     final difference = now.difference(date);
+    final locale = Localizations.localeOf(context);
+    final isKorean = locale.languageCode == 'ko';
 
     if (difference.inMinutes < 1) {
-      return '방금 전';
+      return l10n.timeJustNow;
     } else if (difference.inHours < 1) {
-      return '${difference.inMinutes}분 전';
+      return isKorean ? '${difference.inMinutes}분 전' : '${difference.inMinutes}m ago';
     } else if (difference.inHours < 24) {
-      return '${difference.inHours}시간 전';
+      return isKorean ? '${difference.inHours}시간 전' : '${difference.inHours}h ago';
     } else if (difference.inDays < 7) {
-      return '${difference.inDays}일 전';
+      return isKorean ? '${difference.inDays}일 전' : '${difference.inDays}d ago';
     } else {
-      return '${date.month}월 ${date.day}일';
+      return isKorean ? '${date.month}월 ${date.day}일' : '${date.month}/${date.day}';
     }
   }
 }

@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_email_sender/flutter_email_sender.dart';
 import '../models/user_model.dart';
 import '../utils/app_theme.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../controllers/auth_controller.dart';
 
 class ProfileDetailView extends StatefulWidget {
@@ -23,10 +24,17 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
   int _currentImageIndex = 0;
   final ScrollController _scrollController = ScrollController();
 
-  // 신고하기 기능
+  // Report user functionality
   void _showReportDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final reasonController = TextEditingController();
-    final reasons = ['부적절한 사진', '욕설/비하 발언', '스팸/홍보', '사칭/사기', '기타'];
+    final reasons = [
+      l10n.profileDetailReasonBadPhoto,
+      l10n.profileDetailReasonAbuse,
+      l10n.profileDetailReasonSpam,
+      l10n.profileDetailReasonFraud,
+      l10n.profileDetailReasonOther,
+    ];
     String selectedReason = reasons[0];
     final ImagePicker picker = ImagePicker();
     XFile? attachedImage;
@@ -35,14 +43,14 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('사용자 신고'),
+          title: Text(l10n.profileDetailReportTitle),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('신고 사유를 선택해주세요.', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(l10n.profileDetailReportReason, style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
 
                 RadioGroup<String>(
@@ -56,7 +64,6 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                     children: reasons.map((reason) => RadioListTile<String>(
                       title: Text(reason, style: const TextStyle(fontSize: 14)),
                       value: reason,
-                      // RadioGroup 내부에서는 onChanged와 groupValue를 지정하지 않습니다.
                       contentPadding: EdgeInsets.zero,
                       dense: true,
                       activeColor: AppTheme.errorColor,
@@ -68,7 +75,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                 TextField(
                   controller: reasonController,
                   decoration: InputDecoration(
-                    hintText: '신고 내용을 자세히 적어주세요.',
+                    hintText: l10n.profileDetailReportContent,
                     hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     contentPadding: const EdgeInsets.all(12),
@@ -82,11 +89,11 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
                       if (image != null) setState(() => attachedImage = image);
                     } catch (e) {
-                      debugPrint('이미지 선택 오류: $e');
+                      debugPrint('Image selection error: $e');
                     }
                   },
                   icon: const Icon(Icons.camera_alt_outlined, size: 16),
-                  label: Text(attachedImage == null ? '증거 사진 첨부' : '사진 변경'),
+                  label: Text(attachedImage == null ? l10n.profileDetailReportPhoto : l10n.profileDetailReportPhotoChange),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.textSecondary,
                     side: const BorderSide(color: AppTheme.gray300),
@@ -115,13 +122,13 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('취소', style: TextStyle(color: AppTheme.textSecondary)),
+              child: Text(l10n.commonCancel, style: const TextStyle(color: AppTheme.textSecondary)),
             ),
             ElevatedButton(
               onPressed: () async {
                 if (reasonController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('신고 내용을 입력해주세요.')),
+                    SnackBar(content: Text(l10n.profileDetailReportEnterContent)),
                   );
                   return;
                 }
@@ -148,7 +155,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                     imagePath: attachedImage?.path,
                   );
                 } catch (e) {
-                  debugPrint('신고 실패: $e');
+                  debugPrint('Report failed: $e');
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -156,7 +163,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                 foregroundColor: Colors.white,
                 elevation: 0,
               ),
-              child: const Text('신고하기'),
+              child: Text(l10n.profileDetailReportSubmit),
             ),
           ],
         ),
@@ -171,13 +178,14 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
     required String description,
     String? imagePath,
   }) async {
+    final l10n = AppLocalizations.of(context)!;
     const String developerEmail = 'sprt.groupting@gmail.com';
     final String body = '''
-[사용자 신고 접수]
-- 신고자: ${reporter.nickname} (${reporter.uid})
-- 대상자: ${targetUser.nickname} (${targetUser.uid})
-- 사유: $category
-- 내용: $description
+[User Report]
+- Reporter: ${reporter.nickname} (${reporter.uid})
+- Target: ${targetUser.nickname} (${targetUser.uid})
+- Reason: $category
+- Content: $description
 --------------------------------
 App Version: 1.0.0
 Platform: ${Theme.of(context).platform}
@@ -185,7 +193,7 @@ Platform: ${Theme.of(context).platform}
 
     final Email email = Email(
       body: body,
-      subject: '[그룹팅 신고] ${targetUser.nickname} 사용자 신고',
+      subject: '[Groupting Report] ${targetUser.nickname} User Report',
       recipients: [developerEmail],
       attachmentPaths: imagePath != null ? [imagePath] : null,
       isHTML: false,
@@ -196,24 +204,25 @@ Platform: ${Theme.of(context).platform}
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('이메일 앱을 실행할 수 없습니다.')),
+          SnackBar(content: Text(l10n.profileDetailEmailFailed)),
         );
       }
     }
   }
 
-  // 차단하기 기능
+  // Block user functionality
   void _showBlockDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('사용자 차단'),
+        title: Text(l10n.profileDetailBlockTitle),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: const Text('차단하면 서로의 프로필을 볼 수 없으며,\n채팅 및 초대를 받을 수 없습니다.\n정말 차단하시겠습니까?'),
+        content: Text(l10n.settingsBlockConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('취소', style: TextStyle(color: AppTheme.textSecondary)),
+            child: Text(l10n.commonCancel, style: const TextStyle(color: AppTheme.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -234,11 +243,11 @@ Platform: ${Theme.of(context).platform}
                   Navigator.pop(context);
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('사용자를 차단했습니다.')),
+                    SnackBar(content: Text(l10n.profileDetailBlocked)),
                   );
                 }
               } catch (e) {
-                debugPrint('차단 실패: $e');
+                debugPrint('Block failed: $e');
               }
             },
             style: ElevatedButton.styleFrom(
@@ -246,7 +255,7 @@ Platform: ${Theme.of(context).platform}
               foregroundColor: Colors.white,
               elevation: 0,
             ),
-            child: const Text('차단하기'),
+            child: Text(l10n.settingsBlock),
           ),
         ],
       ),
@@ -255,6 +264,7 @@ Platform: ${Theme.of(context).platform}
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final authController = context.watch<AuthController>();
     final isBlocked = authController.blockedUserIds.contains(widget.user.uid);
     final isMe = authController.currentUserModel?.uid == widget.user.uid;
@@ -263,13 +273,13 @@ Platform: ${Theme.of(context).platform}
     if (isBlocked) {
       return Scaffold(
         appBar: AppBar(elevation: 0, backgroundColor: Colors.white, foregroundColor: Colors.black),
-        body: const Center(
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.block, size: 60, color: AppTheme.gray400),
-              SizedBox(height: 16),
-              Text('차단된 사용자입니다.', style: TextStyle(color: AppTheme.gray600, fontSize: 16)),
+              const Icon(Icons.block, size: 60, color: AppTheme.gray400),
+              const SizedBox(height: 16),
+              Text(l10n.profileDetailBlockedUser, style: const TextStyle(color: AppTheme.gray600, fontSize: 16)),
             ],
           ),
         ),
@@ -281,9 +291,9 @@ Platform: ${Theme.of(context).platform}
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // 1. SliverAppBar로 유동적인 이미지 헤더 구현
+          // 1. SliverAppBar with flexible image header
           SliverAppBar(
-            expandedHeight: MediaQuery.of(context).size.height * 0.55, // 화면의 55% 차지
+            expandedHeight: MediaQuery.of(context).size.height * 0.55,
             pinned: true,
             elevation: 0,
             backgroundColor: Colors.white,
@@ -300,7 +310,6 @@ Platform: ${Theme.of(context).platform}
                 child: _buildCircleButton(
                   icon: Icons.more_vert,
                   onTap: () {
-                    // 메뉴 표시
                     showModalBottomSheet(
                       context: context,
                       shape: const RoundedRectangleBorder(
@@ -312,7 +321,7 @@ Platform: ${Theme.of(context).platform}
                           children: [
                             ListTile(
                               leading: const Icon(Icons.report_problem_outlined, color: Colors.orange),
-                              title: const Text('신고하기'),
+                              title: Text(l10n.settingsReport),
                               onTap: () {
                                 Navigator.pop(context);
                                 _showReportDialog(context);
@@ -320,7 +329,7 @@ Platform: ${Theme.of(context).platform}
                             ),
                             ListTile(
                               leading: const Icon(Icons.block, color: Colors.red),
-                              title: const Text('차단하기'),
+                              title: Text(l10n.settingsBlock),
                               onTap: () {
                                 Navigator.pop(context);
                                 _showBlockDialog(context);
@@ -339,7 +348,7 @@ Platform: ${Theme.of(context).platform}
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // 이미지 슬라이더
+                  // Image slider
                   PageView.builder(
                     onPageChanged: (index) => setState(() => _currentImageIndex = index),
                     itemCount: widget.user.profileImages.length,
@@ -347,7 +356,7 @@ Platform: ${Theme.of(context).platform}
                       return _buildProfileImage(widget.user.profileImages[index]);
                     },
                   ),
-                  // 하단 그라디언트 (텍스트 가독성 및 디자인 용도)
+                  // Bottom gradient
                   Positioned(
                     bottom: 0,
                     left: 0,
@@ -363,10 +372,10 @@ Platform: ${Theme.of(context).platform}
                       ),
                     ),
                   ),
-                  // 페이지 인디케이터
+                  // Page indicator
                   if (widget.user.profileImages.length > 1)
                     Positioned(
-                      bottom: 30, // 컨텐츠 오버랩을 고려해 위치 조정
+                      bottom: 30,
                       left: 0,
                       right: 0,
                       child: Row(
@@ -391,10 +400,10 @@ Platform: ${Theme.of(context).platform}
             ),
           ),
 
-          // 2. 바텀 시트 느낌의 정보 컨테이너
+          // 2. Bottom sheet style info container
           SliverToBoxAdapter(
             child: Transform.translate(
-              offset: const Offset(0, -20), // 위로 살짝 겹치게
+              offset: const Offset(0, -20),
               child: Container(
                 decoration: const BoxDecoration(
                   color: Colors.white,
@@ -407,7 +416,7 @@ Platform: ${Theme.of(context).platform}
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 이름 및 나이 헤더
+                    // Name and age header
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -436,7 +445,7 @@ Platform: ${Theme.of(context).platform}
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
-                                      '${widget.user.age}세',
+                                      l10n.myPageAge(widget.user.age),
                                       style: TextStyle(
                                         color: themeColor,
                                         fontWeight: FontWeight.bold,
@@ -456,8 +465,8 @@ Platform: ${Theme.of(context).platform}
                     const Divider(height: 1, color: AppTheme.gray200),
                     const SizedBox(height: 32),
 
-                    // 기본 정보 (칩 스타일)
-                    const Text('기본 정보', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+                    // Basic info (chip style)
+                    Text(l10n.profileDetailBasicInfo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
                     const SizedBox(height: 16),
                     Wrap(
                       spacing: 10,
@@ -465,15 +474,14 @@ Platform: ${Theme.of(context).platform}
                       children: [
                         _buildInfoChip(Icons.height_rounded, '${widget.user.height}cm'),
                         _buildInfoChip(Icons.location_on_outlined, widget.user.activityArea),
-                        // 추가 정보가 있다면 여기에 더 추가 가능
                       ],
                     ),
 
                     const SizedBox(height: 32),
 
-                    // 소개글
+                    // Introduction
                     if (widget.user.introduction.isNotEmpty) ...[
-                      const Text('소개', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+                      Text(l10n.profileDetailIntro, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
                       const SizedBox(height: 16),
                       Container(
                         width: double.infinity,
@@ -491,7 +499,7 @@ Platform: ${Theme.of(context).platform}
                           ),
                         ),
                       ),
-                      const SizedBox(height: 100), // 하단 여백
+                      const SizedBox(height: 100),
                     ],
                   ],
                 ),
@@ -503,7 +511,7 @@ Platform: ${Theme.of(context).platform}
     );
   }
 
-  // 상단바 원형 버튼 위젯
+  // Circle button widget for app bar
   Widget _buildCircleButton({required IconData icon, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
@@ -522,7 +530,7 @@ Platform: ${Theme.of(context).platform}
     );
   }
 
-  // 정보 칩 위젯
+  // Info chip widget
   Widget _buildInfoChip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -549,11 +557,8 @@ Platform: ${Theme.of(context).platform}
     );
   }
 
-  // 프로필 이미지 위젯 (Cover 모드 적용)
+  // Profile image widget (Cover mode)
   Widget _buildProfileImage(String imageUrl) {
-    // 배경은 블러 처리된 이미지, 전경은 Fit.contain 또는 cover
-    // 여기서는 깔끔하게 Cover로 꽉 채우는 방식을 사용 (요즘 트렌드)
-
     ImageProvider? imageProvider;
 
     if (imageUrl.startsWith('local://') || imageUrl.startsWith('temp://')) {
@@ -568,7 +573,7 @@ Platform: ${Theme.of(context).platform}
         color: AppTheme.gray200,
         image: DecorationImage(
           image: imageProvider,
-          fit: BoxFit.cover, // 꽉 차게 보여줌
+          fit: BoxFit.cover,
         ),
       ),
     );

@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:country_code_picker/country_code_picker.dart';
 import '../controllers/auth_controller.dart';
 import '../utils/app_theme.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class RegisterView extends StatefulWidget {
   const RegisterView({super.key});
@@ -75,7 +76,6 @@ class _RegisterViewState extends State<RegisterView> {
     }
   }
 
-  // 이메일 중복 검증
   Future<void> _checkEmailDuplicate(String email) async {
     if (email.isEmpty ||
         !RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
@@ -101,7 +101,9 @@ class _RegisterViewState extends State<RegisterView> {
       final isDuplicate = await authController.isEmailDuplicate(email);
 
       if (mounted) {
-        final newMessage = isDuplicate ? '이미 사용 중인 이메일입니다.' : '사용 가능한 이메일입니다.';
+        final newMessage = isDuplicate 
+            ? 'EMAIL_IN_USE' 
+            : 'EMAIL_AVAILABLE';
         setState(() {
           _isCheckingEmail = false;
           _emailValidationMessage = newMessage;
@@ -111,9 +113,23 @@ class _RegisterViewState extends State<RegisterView> {
       if (mounted) {
         setState(() {
           _isCheckingEmail = false;
-          _emailValidationMessage = '이메일 확인 중 오류가 발생했습니다.';
+          _emailValidationMessage = 'EMAIL_ERROR';
         });
       }
+    }
+  }
+
+  String _getEmailValidationText(String? key, AppLocalizations l10n) {
+    if (key == null) return '';
+    switch (key) {
+      case 'EMAIL_IN_USE':
+        return l10n.registerEmailInUse;
+      case 'EMAIL_AVAILABLE':
+        return l10n.registerEmailAvailable;
+      case 'EMAIL_ERROR':
+        return l10n.registerEmailError;
+      default:
+        return key;
     }
   }
 
@@ -162,7 +178,7 @@ class _RegisterViewState extends State<RegisterView> {
       final isDuplicate = await authController.isPhoneNumberDuplicate(finalPhoneNumber);
 
       if (mounted) {
-        final newMessage = isDuplicate ? '이미 사용 중인 전화번호입니다.' : '사용 가능한 전화번호입니다.';
+        final newMessage = isDuplicate ? 'PHONE_IN_USE' : 'PHONE_AVAILABLE';
         setState(() {
           _isCheckingPhone = false;
           _phoneValidationMessage = newMessage;
@@ -172,17 +188,32 @@ class _RegisterViewState extends State<RegisterView> {
       if (mounted) {
         setState(() {
           _isCheckingPhone = false;
-          _phoneValidationMessage = '전화번호 확인 중 오류가 발생했습니다.';
+          _phoneValidationMessage = 'PHONE_ERROR';
         });
       }
     }
   }
 
+  String _getPhoneValidationText(String? key, AppLocalizations l10n) {
+    if (key == null) return '';
+    switch (key) {
+      case 'PHONE_IN_USE':
+        return l10n.registerPhoneInUse;
+      case 'PHONE_AVAILABLE':
+        return l10n.registerPhoneAvailable;
+      case 'PHONE_ERROR':
+        return l10n.registerPhoneError;
+      default:
+        return key;
+    }
+  }
+
   void _sendVerificationCode() async {
+    final l10n = AppLocalizations.of(context)!;
     final phoneNumber = _phoneController.text.trim();
-    if (phoneNumber.isEmpty || _phoneValidationMessage?.contains('사용 가능') != true) {
+    if (phoneNumber.isEmpty || _phoneValidationMessage != 'PHONE_AVAILABLE') {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('올바른 전화번호를 입력 후 중복 확인을 완료해주세요.')),
+        SnackBar(content: Text(l10n.registerPhoneValid)),
       );
       return;
     }
@@ -197,7 +228,7 @@ class _RegisterViewState extends State<RegisterView> {
           _isCodeSent = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('인증번호가 전송되었습니다.')),
+          SnackBar(content: Text(l10n.registerCodeSent)),
         );
       },
       onError: (msg) {
@@ -209,6 +240,7 @@ class _RegisterViewState extends State<RegisterView> {
   }
 
   void _verifySmsCode() async {
+    final l10n = AppLocalizations.of(context)!;
     final code = _codeController.text.trim();
     if (code.length < 6) return;
 
@@ -217,13 +249,14 @@ class _RegisterViewState extends State<RegisterView> {
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('전화번호 인증이 완료되었습니다.')),
+        SnackBar(content: Text(l10n.registerPhoneVerified)),
       );
       setState(() {});
     }
   }
 
   void _showTermsDialog(String title, String content) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -236,7 +269,7 @@ class _RegisterViewState extends State<RegisterView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('확인', style: TextStyle(color: AppTheme.primaryColor)),
+            child: Text(l10n.commonConfirm, style: const TextStyle(color: AppTheme.primaryColor)),
           ),
         ],
       ),
@@ -244,16 +277,18 @@ class _RegisterViewState extends State<RegisterView> {
   }
 
   Future<void> _register() async {
+    final l10n = AppLocalizations.of(context)!;
+    
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedGender.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('성별을 선택해주세요.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.registerErrorGender)));
       return;
     }
 
     if (!_agreedToTerms || !_agreedToPrivacy) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('서비스 이용약관 및 개인정보 처리방침에 동의해주세요.'), backgroundColor: AppTheme.errorColor),
+        SnackBar(content: Text(l10n.registerErrorTerms), backgroundColor: AppTheme.errorColor),
       );
       return;
     }
@@ -265,13 +300,13 @@ class _RegisterViewState extends State<RegisterView> {
 
     final authController = context.read<AuthController>();
 
-    if (_emailValidationMessage == '이미 사용 중인 이메일입니다.') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이미 사용 중인 이메일입니다.')));
+    if (_emailValidationMessage == 'EMAIL_IN_USE') {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_getEmailValidationText('EMAIL_IN_USE', l10n))));
       return;
     }
 
-    if (_phoneValidationMessage == '이미 사용 중인 전화번호입니다.') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이미 사용 중인 전화번호입니다.')));
+    if (_phoneValidationMessage == 'PHONE_IN_USE') {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_getPhoneValidationText('PHONE_IN_USE', l10n))));
       return;
     }
 
@@ -289,7 +324,7 @@ class _RegisterViewState extends State<RegisterView> {
     if (success && mounted) {
       Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('가입되었습니다! 우선 프로필을 완성해주세요.')),
+        SnackBar(content: Text(l10n.registerSuccess)),
       );
     } else if (mounted && authController.errorMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -300,10 +335,12 @@ class _RegisterViewState extends State<RegisterView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
-      backgroundColor: AppTheme.gray50, // 배경색 변경
+      backgroundColor: AppTheme.gray50,
       appBar: AppBar(
-        title: const Text('회원가입'),
+        title: Text(l10n.registerTitle),
         backgroundColor: AppTheme.gray50,
         elevation: 0,
         foregroundColor: AppTheme.textPrimary,
@@ -317,17 +354,17 @@ class _RegisterViewState extends State<RegisterView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildHeader(),
+                _buildHeader(l10n),
                 const SizedBox(height: 24),
 
                 // 1. 계정 정보 섹션
-                _buildSectionLabel('계정 정보'),
+                _buildSectionLabel(l10n.registerAccountInfo),
                 _buildCardContainer(
                   children: [
                     _buildTextField(
                       controller: _emailController,
-                      label: '이메일',
-                      hint: 'example@email.com',
+                      label: l10n.loginEmailLabel,
+                      hint: l10n.loginEmailHint,
                       icon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
                       suffix: _isCheckingEmail
@@ -342,19 +379,20 @@ class _RegisterViewState extends State<RegisterView> {
                         });
                       },
                       validator: (value) {
-                        if (value == null || value.isEmpty) return '이메일을 입력해주세요.';
+                        if (value == null || value.isEmpty) return l10n.loginErrorEmailEmpty;
                         if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(value)) {
-                          return '올바른 이메일 형식을 입력해주세요.';
+                          return l10n.loginErrorEmailInvalid;
                         }
                         return null;
                       },
-                      validationMessage: _emailValidationMessage,
+                      validationMessage: _getEmailValidationText(_emailValidationMessage, l10n),
+                      isAvailable: _emailValidationMessage == 'EMAIL_AVAILABLE',
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(
                       controller: _passwordController,
-                      label: '비밀번호',
-                      hint: '8자 이상 입력',
+                      label: l10n.loginPasswordLabel,
+                      hint: l10n.registerPasswordHint8Chars,
                       icon: Icons.lock_outline,
                       obscureText: _obscurePassword,
                       suffix: IconButton(
@@ -362,16 +400,16 @@ class _RegisterViewState extends State<RegisterView> {
                         onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) return '비밀번호를 입력해주세요.';
-                        if (value.length < 8) return '비밀번호는 8자 이상이어야 합니다.';
+                        if (value == null || value.isEmpty) return l10n.loginErrorPasswordEmpty;
+                        if (value.length < 8) return l10n.registerPassword8Chars;
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(
                       controller: _confirmPasswordController,
-                      label: '비밀번호 확인',
-                      hint: '비밀번호 재입력',
+                      label: l10n.registerPasswordConfirm,
+                      hint: l10n.registerPasswordConfirmHint,
                       icon: Icons.check_circle_outline,
                       obscureText: _obscureConfirmPassword,
                       suffix: IconButton(
@@ -379,8 +417,8 @@ class _RegisterViewState extends State<RegisterView> {
                         onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) return '비밀번호를 다시 입력해주세요.';
-                        if (value != _passwordController.text) return '비밀번호가 일치하지 않습니다.';
+                        if (value == null || value.isEmpty) return l10n.registerPasswordConfirmEmpty;
+                        if (value != _passwordController.text) return l10n.registerErrorPasswordMismatch;
                         return null;
                       },
                     ),
@@ -390,88 +428,76 @@ class _RegisterViewState extends State<RegisterView> {
                 const SizedBox(height: 24),
 
                 // 2. 개인 정보 섹션
-                _buildSectionLabel('개인 정보'),
+                _buildSectionLabel(l10n.registerPersonalInfo),
                 _buildCardContainer(
                   children: [
-                    _buildPhoneVerificationSection(),
+                    _buildPhoneVerificationSection(l10n),
                     const SizedBox(height: 20),
                     _buildTextField(
                       controller: _birthDateController,
-                      label: '생년월일',
-                      hint: '19950315',
+                      label: l10n.registerBirthDate,
+                      hint: l10n.registerBirthDateHint,
                       icon: Icons.calendar_today_outlined,
                       keyboardType: TextInputType.number,
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
                         LengthLimitingTextInputFormatter(8),
                       ],
-                      helperText: 'YYYYMMDD 형태로 입력해주세요',
+                      helperText: l10n.registerBirthDateHelper,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return '생년월일을 입력해주세요.';
-                        if (value.length != 8) return '8자리여야 합니다.';
-                        // (기존 날짜 및 나이 검증 로직 유지)
+                        if (value == null || value.isEmpty) return l10n.registerBirthDateEmpty;
+                        if (value.length != 8) return l10n.registerBirthDate8Digits;
                         try {
                           final year = int.parse(value.substring(0, 4));
                           final month = int.parse(value.substring(4, 6));
                           final day = int.parse(value.substring(6, 8));
                           final now = DateTime.now();
-                          if (year < 1900 || year > now.year) return '유효한 연도를 입력해주세요.';
-                          if (month < 1 || month > 12) return '유효한 월을 입력해주세요.';
-                          if (day < 1 || day > 31) return '유효한 일을 입력해주세요.';
+                          if (year < 1900 || year > now.year) return l10n.registerYearInvalid;
+                          if (month < 1 || month > 12) return l10n.registerMonthInvalid;
+                          if (day < 1 || day > 31) return l10n.registerDayInvalid;
 
                           final birthDate = DateTime(year, month, day);
                           int age = now.year - birthDate.year;
                           if (now.month < birthDate.month || (now.month == birthDate.month && now.day < birthDate.day)) age--;
-                          if (age < 18) return '만 18세 미만은 이용할 수 없습니다.';
+                          if (age < 18) return l10n.registerAgeRestriction;
                         } catch (e) {
-                          return '유효한 날짜를 입력해주세요.';
+                          return l10n.registerDateInvalid;
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 20),
-                    _buildGenderSelection(),
+                    _buildGenderSelection(l10n),
                   ],
                 ),
 
                 const SizedBox(height: 24),
 
                 // 3. 약관 동의 섹션
-                _buildSectionLabel('약관 동의'),
+                _buildSectionLabel(l10n.registerTerms),
                 _buildCardContainer(
                   padding: EdgeInsets.zero,
                   children: [
                     _buildTermItem(
-                      title: '[필수] 서비스 이용약관 동의',
+                      title: l10n.registerTermsService,
                       value: _agreedToTerms,
                       onChanged: (v) => setState(() => _agreedToTerms = v ?? false),
                       onTapDetail: () => _showTermsDialog(
-                        '서비스 이용약관 (EULA)',
-                        '제1조 (목적)\n'
-                            '이 약관은 그룹팅 서비스 이용과 관련하여 회사와 이용자의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.\n\n'
-
-                            '제2조 (부적절한 콘텐츠에 대한 무관용 원칙)\n'
-                            '1. 그룹팅은 건전한 소통을 위해 욕설, 비방, 음란물, 폭력적인 내용 등 부적절한 콘텐츠(Objectionable Content)에 대해 **무관용 원칙(No Tolerance)**을 적용합니다.\n'
-                            '2. 위와 같은 콘텐츠를 게시하거나 타인에게 불쾌감을 주는 사용자는 **사전 경고 없이 즉시 차단**되며, 서비스 이용이 영구적으로 정지됩니다.\n'
-                            '3. 사용자는 불쾌한 콘텐츠나 사용자를 발견 시 신고 기능을 통해 신고할 수 있으며, 회사는 신고 접수 후 **24시간 이내**에 해당 콘텐츠를 삭제하고 사용자를 제재합니다.\n\n'
-
-                            '제3조 (서비스 제공)\n'
-                            '회사는 그룹 매칭 서비스를 제공합니다.\n\n'
-                            '(자세한 내용은 앱 설정의 이용약관 전문을 참고하세요)',
+                        l10n.registerTermsServiceFull,
+                        l10n.registerTermsServiceContent,
                       ),
+                      l10n: l10n,
                     ),
                     const Divider(height: 1, color: AppTheme.gray100),
                     _buildTermItem(
-                      title: '[필수] 개인정보 처리방침 동의',
+                      title: l10n.registerTermsPrivacy,
                       value: _agreedToPrivacy,
                       onChanged: (v) => setState(() => _agreedToPrivacy = v ?? false),
                       onTapDetail: () => _showTermsDialog(
-                        '개인정보 처리방침',
-                        '1. 수집하는 개인정보\n- 이메일, 전화번호, 생년월일, 성별 등\n\n'
-                            '2. 이용목적\n- 본인 확인 및 서비스 제공\n\n'
-                            '3. 보유기간\n- 회원 탈퇴 시까지\n\n'
-                            '(자세한 내용은 앱 설정을 참고하세요)',
+                        l10n.registerPrivacyPolicyFull,
+                        l10n.registerPrivacyPolicyContent,
                       ),
+                      l10n: l10n,
                     ),
                   ],
                 ),
@@ -487,7 +513,7 @@ class _RegisterViewState extends State<RegisterView> {
                           : () {
                         if (!authController.isPhoneVerified) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('전화번호 인증을 완료해주세요.')),
+                            SnackBar(content: Text(l10n.registerPhoneVerifyNeeded)),
                           );
                           return;
                         }
@@ -503,7 +529,7 @@ class _RegisterViewState extends State<RegisterView> {
                       ),
                       child: authController.isLoading
                           ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('회원가입', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          : Text(l10n.registerButton, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     );
                   },
                 ),
@@ -531,13 +557,13 @@ class _RegisterViewState extends State<RegisterView> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('이미 계정이 있으신가요?', style: TextStyle(color: AppTheme.textSecondary)),
+                    Text(l10n.registerHaveAccount, style: const TextStyle(color: AppTheme.textSecondary)),
                     TextButton(
                       onPressed: () {
                         context.read<AuthController>().clearError();
                         Navigator.pushNamed(context, '/login');
                       },
-                      child: const Text('로그인하기', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
+                      child: Text(l10n.registerLoginLink, style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -551,12 +577,12 @@ class _RegisterViewState extends State<RegisterView> {
 
   // --- UI Components ---
 
-  Widget _buildHeader() {
+  Widget _buildHeader(AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '환영합니다!',
+          l10n.registerWelcome,
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.bold,
             color: AppTheme.textPrimary,
@@ -564,7 +590,7 @@ class _RegisterViewState extends State<RegisterView> {
         ),
         const SizedBox(height: 8),
         Text(
-          '새로운 인연을 만날 준비가 되셨나요?\n간단한 정보 입력으로 시작해보세요.',
+          l10n.registerWelcomeDesc,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: AppTheme.textSecondary,
             height: 1.5,
@@ -613,6 +639,7 @@ class _RegisterViewState extends State<RegisterView> {
     Widget? suffix,
     String? helperText,
     String? validationMessage,
+    bool isAvailable = false,
     ValueChanged<String>? onChanged,
     String? Function(String?)? validator,
     List<TextInputFormatter>? inputFormatters,
@@ -645,14 +672,14 @@ class _RegisterViewState extends State<RegisterView> {
             errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.errorColor)),
           ),
         ),
-        if (validationMessage != null)
+        if (validationMessage != null && validationMessage.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 6, left: 4),
             child: Text(
               validationMessage,
               style: TextStyle(
                 fontSize: 12,
-                color: validationMessage.contains('사용 가능') ? AppTheme.successColor : AppTheme.errorColor,
+                color: isAvailable ? AppTheme.successColor : AppTheme.errorColor,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -661,13 +688,13 @@ class _RegisterViewState extends State<RegisterView> {
     );
   }
 
-  Widget _buildPhoneVerificationSection() {
+  Widget _buildPhoneVerificationSection(AppLocalizations l10n) {
     return Consumer<AuthController>(
       builder: (context, authController, child) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('전화번호', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+            Text(l10n.registerPhone, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -724,7 +751,7 @@ class _RegisterViewState extends State<RegisterView> {
                 SizedBox(
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: _isCheckingPhone || authController.isLoading || _phoneValidationMessage?.contains('사용 가능') != true || authController.isPhoneVerified
+                    onPressed: _isCheckingPhone || authController.isLoading || _phoneValidationMessage != 'PHONE_AVAILABLE' || authController.isPhoneVerified
                         ? null
                         : _sendVerificationCode,
                     style: ElevatedButton.styleFrom(
@@ -735,7 +762,7 @@ class _RegisterViewState extends State<RegisterView> {
                     ),
                     child: authController.isLoading
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : Text(authController.isPhoneVerified ? '완료' : '인증'),
+                        : Text(authController.isPhoneVerified ? l10n.registerPhoneComplete : l10n.registerPhoneVerify),
                   ),
                 ),
               ],
@@ -745,10 +772,10 @@ class _RegisterViewState extends State<RegisterView> {
               Padding(
                 padding: const EdgeInsets.only(top: 6, left: 4),
                 child: Text(
-                  _phoneValidationMessage!,
+                  _getPhoneValidationText(_phoneValidationMessage, l10n),
                   style: TextStyle(
                     fontSize: 12,
-                    color: _phoneValidationMessage!.contains('사용 가능한') ? AppTheme.successColor : AppTheme.errorColor,
+                    color: _phoneValidationMessage == 'PHONE_AVAILABLE' ? AppTheme.successColor : AppTheme.errorColor,
                   ),
                 ),
               ),
@@ -764,7 +791,7 @@ class _RegisterViewState extends State<RegisterView> {
                         controller: _codeController,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
-                          hintText: '인증번호 6자리',
+                          hintText: l10n.registerVerificationCode,
                           prefixIcon: const Icon(Icons.sms_outlined, color: AppTheme.gray400, size: 20),
                           filled: true,
                           fillColor: AppTheme.gray50,
@@ -783,7 +810,7 @@ class _RegisterViewState extends State<RegisterView> {
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text('확인'),
+                        child: Text(l10n.commonConfirm),
                       ),
                     ),
                   ],
@@ -795,17 +822,17 @@ class _RegisterViewState extends State<RegisterView> {
     );
   }
 
-  Widget _buildGenderSelection() {
+  Widget _buildGenderSelection(AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('성별', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+        Text(l10n.registerGender, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _buildGenderButton('남', '남성', AppTheme.primaryColor)),
+            Expanded(child: _buildGenderButton('남', l10n.registerMale, AppTheme.primaryColor)),
             const SizedBox(width: 12),
-            Expanded(child: _buildGenderButton('여', '여성', AppTheme.secondaryColor)),
+            Expanded(child: _buildGenderButton('여', l10n.registerFemale, AppTheme.secondaryColor)),
           ],
         ),
       ],
@@ -845,6 +872,7 @@ class _RegisterViewState extends State<RegisterView> {
     required bool value,
     required ValueChanged<bool?> onChanged,
     required VoidCallback onTapDetail,
+    required AppLocalizations l10n,
   }) {
     return CheckboxListTile(
       value: value,
@@ -856,7 +884,7 @@ class _RegisterViewState extends State<RegisterView> {
           ),
           TextButton(
             onPressed: onTapDetail,
-            child: const Text('보기', style: TextStyle(fontSize: 12, color: AppTheme.gray500)),
+            child: Text(l10n.registerTermsView, style: const TextStyle(fontSize: 12, color: AppTheme.gray500)),
           ),
         ],
       ),

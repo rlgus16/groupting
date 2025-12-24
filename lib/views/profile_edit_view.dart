@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import '../controllers/auth_controller.dart';
 import '../controllers/profile_controller.dart';
 import '../utils/app_theme.dart';
+import '../l10n/generated/app_localizations.dart';
 import 'location_picker_view.dart';
 
 class ProfileEditView extends StatefulWidget {
@@ -59,13 +60,13 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       _latitude = user.latitude;
       _longitude = user.longitude;
 
-      List<String> _originalImages = user.profileImages.where((imageUrl) {
+      List<String> originalImages = user.profileImages.where((imageUrl) {
         return imageUrl.startsWith('http://') || imageUrl.startsWith('https://');
       }).toList();
 
       for (int i = 0; i < _imageSlots.length; i++) {
-        if (i < _originalImages.length) {
-          _imageSlots[i] = _originalImages[i];
+        if (i < originalImages.length) {
+          _imageSlots[i] = originalImages[i];
         } else {
           _imageSlots[i] = null;
         }
@@ -83,6 +84,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   }
 
   Future<void> _checkNicknameDuplicate(String nickname) async {
+    final l10n = AppLocalizations.of(context)!;
     if (nickname.isEmpty || nickname.length < 2 || nickname.trim() == _originalNickname) {
       setState(() {
         _nicknameValidationMessage = null;
@@ -103,20 +105,21 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       if (mounted) {
         setState(() {
           _isCheckingNickname = false;
-          _nicknameValidationMessage = isDuplicate ? '이미 사용 중인 닉네임입니다.' : '사용 가능한 닉네임입니다.';
+          _nicknameValidationMessage = isDuplicate ? l10n.profileEditNicknameDuplicate : l10n.profileEditNicknameAvailable;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isCheckingNickname = false;
-          _nicknameValidationMessage = '닉네임 확인 중 오류가 발생했습니다.';
+          _nicknameValidationMessage = l10n.profileEditNicknameCheckError;
         });
       }
     }
   }
 
   Future<void> _selectSingleImage(int index) async {
+    final l10n = AppLocalizations.of(context)!;
     if (_isPickerActive) return;
 
     if (!kIsWeb && Platform.isAndroid) {
@@ -145,7 +148,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('이미지 선택 중 오류가 발생했습니다.')),
+          SnackBar(content: Text(l10n.profileEditImageError)),
         );
       }
     } finally {
@@ -154,22 +157,23 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   }
 
   void _showPermissionDialog() {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('권한 설정 필요'),
-        content: const Text('프로필 사진을 등록하려면 갤러리 접근 권한이 필요합니다.\n설정에서 권한을 허용해주세요.'),
+        title: Text(l10n.profileEditPermissionTitle),
+        content: Text(l10n.profileEditPermissionContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
+            child: Text(l10n.commonCancel),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               openAppSettings();
             },
-            child: const Text('설정으로 이동'),
+            child: Text(l10n.profileEditGoToSettings),
           ),
         ],
       ),
@@ -193,10 +197,12 @@ class _ProfileEditViewState extends State<ProfileEditView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
-      backgroundColor: AppTheme.gray50, // 전체 배경색 변경
+      backgroundColor: AppTheme.gray50,
       appBar: AppBar(
-        title: const Text('프로필 편집'),
+        title: Text(l10n.myPageEditProfile),
         elevation: 0,
         backgroundColor: AppTheme.gray50,
         foregroundColor: AppTheme.textPrimary,
@@ -217,7 +223,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                      : const Text('완료'),
+                      : Text(l10n.commonConfirm),
                 ),
               );
             },
@@ -237,14 +243,14 @@ class _ProfileEditViewState extends State<ProfileEditView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 1. 프로필 사진 섹션
-                  _buildSectionHeader('프로필 사진'),
-                  _buildImageSection(),
+                  // 1. Profile Photos Section
+                  _buildSectionHeader(l10n.registerPhotos),
+                  _buildImageSection(l10n),
 
                   const SizedBox(height: 24),
 
-                  // 2. 기본 정보 섹션
-                  _buildSectionHeader('기본 정보'),
+                  // 2. Basic Info Section
+                  _buildSectionHeader(l10n.profileDetailBasicInfo),
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -256,8 +262,8 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                       children: [
                         _buildTextField(
                           controller: _nicknameController,
-                          label: '닉네임',
-                          hint: '닉네임을 입력하세요 (2~10자)',
+                          label: l10n.registerNickname,
+                          hint: l10n.registerNicknameHint,
                           icon: Icons.person_outline,
                           maxLength: 10,
                           onChanged: (value) {
@@ -272,35 +278,37 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                               : null,
                           validationMessage: _nicknameValidationMessage,
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) return '닉네임을 입력해주세요.';
-                            if (value.trim().length < 2) return '닉네임은 2자 이상이어야 합니다.';
+                            if (value == null || value.trim().isEmpty) return l10n.profileEditNicknameEmpty;
+                            if (value.trim().length < 2) return l10n.profileEditNicknameTooShort;
                             return null;
                           },
+                          l10n: l10n,
                         ),
                         const SizedBox(height: 20),
                         _buildTextField(
                           controller: _heightController,
-                          label: '키 (cm)',
-                          hint: '키를 입력하세요',
+                          label: l10n.registerHeight,
+                          hint: l10n.profileEditHeightHint,
                           icon: Icons.height,
                           keyboardType: TextInputType.number,
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) return '키를 입력해주세요.';
+                            if (value == null || value.trim().isEmpty) return l10n.profileEditHeightEmpty;
                             final height = int.tryParse(value.trim());
-                            if (height == null || height < 140 || height > 220) return '140-220cm 사이로 입력해주세요.';
+                            if (height == null || height < 140 || height > 220) return l10n.profileEditHeightRange;
                             return null;
                           },
+                          l10n: l10n,
                         ),
                         const SizedBox(height: 20),
-                        _buildLocationField(),
+                        _buildLocationField(l10n),
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // 3. 자기소개 섹션
-                  _buildSectionHeader('자기소개'),
+                  // 3. Introduction Section
+                  _buildSectionHeader(l10n.profileDetailIntro),
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -311,7 +319,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                     child: TextFormField(
                       controller: _introductionController,
                       decoration: InputDecoration(
-                        hintText: '나를 표현하는 멋진 소개글을 작성해보세요.\n(취미, 관심사, 성격 등)',
+                        hintText: l10n.registerIntroHint,
                         hintStyle: const TextStyle(color: AppTheme.gray400, fontSize: 14),
                         filled: true,
                         fillColor: AppTheme.gray50,
@@ -324,8 +332,8 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                       maxLines: 5,
                       maxLength: 200,
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty) return '소개글을 입력해주세요.';
-                        if (value.trim().length < 5) return '5자 이상 작성해주세요.';
+                        if (value == null || value.trim().isEmpty) return l10n.profileEditIntroEmpty;
+                        if (value.trim().length < 5) return l10n.profileEditIntroTooShort;
                         return null;
                       },
                     ),
@@ -333,8 +341,8 @@ class _ProfileEditViewState extends State<ProfileEditView> {
 
                   const SizedBox(height: 24),
 
-                  // 4. 계정 정보 섹션 (Read-only)
-                  _buildSectionHeader('계정 정보'),
+                  // 4. Account Info Section (Read-only)
+                  _buildSectionHeader(l10n.registerAccountInfo),
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
                     decoration: BoxDecoration(
@@ -344,20 +352,20 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                     ),
                     child: Column(
                       children: [
-                        _buildReadOnlyRow('이메일', context.read<AuthController>().firebaseService.currentUser?.email ?? ''),
+                        _buildReadOnlyRow(l10n.profileEditEmailLabel, context.read<AuthController>().firebaseService.currentUser?.email ?? ''),
                         const Divider(height: 1, color: AppTheme.gray100),
-                        _buildReadOnlyRow('전화번호', _formatPhoneNumber(user.phoneNumber)),
+                        _buildReadOnlyRow(l10n.registerPhone, _formatPhoneNumber(user.phoneNumber)),
                         const Divider(height: 1, color: AppTheme.gray100),
-                        _buildReadOnlyRow('생년월일', _formatBirthDate(user.birthDate)),
+                        _buildReadOnlyRow(l10n.profileEditBirthDateLabel, _formatBirthDate(user.birthDate)),
                         const Divider(height: 1, color: AppTheme.gray100),
-                        _buildReadOnlyRow('성별', user.gender),
+                        _buildReadOnlyRow(l10n.profileEditGenderLabel, user.gender == '남' ? l10n.myPageMale : l10n.myPageFemale),
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // 에러 메시지 표시
+                  // Error message display
                   if (profileController.errorMessage != null)
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -387,7 +395,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     );
   }
 
-  // --- UI 컴포넌트 메서드 ---
+  // --- UI Component Methods ---
 
   Widget _buildSectionHeader(String title) {
     return Padding(
@@ -403,8 +411,8 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     );
   }
 
-  // 이미지 섹션 UI
-  Widget _buildImageSection() {
+  // Image section UI
+  Widget _buildImageSection(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -418,9 +426,9 @@ class _ProfileEditViewState extends State<ProfileEditView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                '대표 사진은 길게 눌러 설정하세요',
-                style: TextStyle(color: AppTheme.primaryColor, fontSize: 13, fontWeight: FontWeight.w500),
+              Text(
+                l10n.registerPhotosLongPress,
+                style: const TextStyle(color: AppTheme.primaryColor, fontSize: 13, fontWeight: FontWeight.w500),
               ),
               Text(
                 '${_imageSlots.where((e) => e != null).length}/6',
@@ -431,7 +439,6 @@ class _ProfileEditViewState extends State<ProfileEditView> {
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
-              // 3열 그리드 계산
               final itemWidth = (constraints.maxWidth - 16) / 3;
               return Wrap(
                 spacing: 8,
@@ -440,7 +447,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                   return SizedBox(
                     width: itemWidth,
                     height: itemWidth,
-                    child: _buildImageGridSlot(index),
+                    child: _buildImageGridSlot(index, l10n),
                   );
                 }),
               );
@@ -451,7 +458,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     );
   }
 
-  Widget _buildImageGridSlot(int index) {
+  Widget _buildImageGridSlot(int index, AppLocalizations l10n) {
     final imageData = _imageSlots[index];
     final hasImage = imageData != null;
     final isMainProfile = index == _mainProfileIndex && hasImage;
@@ -470,7 +477,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
         ),
         child: Stack(
           children: [
-            // 이미지 표시
+            // Image display
             if (hasImage)
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
@@ -481,17 +488,17 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.add_a_photo_outlined, color: AppTheme.gray400, size: 24),
+                    const Icon(Icons.add_a_photo_outlined, color: AppTheme.gray400, size: 24),
                     const SizedBox(height: 4),
                     Text(
-                      '사진 추가',
-                      style: TextStyle(color: AppTheme.gray400, fontSize: 11),
+                      l10n.registerPhotosAdd,
+                      style: const TextStyle(color: AppTheme.gray400, fontSize: 11),
                     ),
                   ],
                 ),
               ),
 
-            // 삭제 버튼
+            // Delete button
             if (hasImage)
               Positioned(
                 top: 4,
@@ -509,7 +516,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                 ),
               ),
 
-            // 대표 태그
+            // Main profile tag
             if (isMainProfile)
               Positioned(
                 bottom: 6,
@@ -520,9 +527,9 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                     color: AppTheme.primaryColor,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
-                    '대표',
-                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  child: Text(
+                    l10n.registerPhotosMain,
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -532,12 +539,13 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     );
   }
 
-  // 커스텀 텍스트 필드 빌더
+  // Custom text field builder
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required String hint,
     required IconData icon,
+    required AppLocalizations l10n,
     TextInputType? keyboardType,
     int? maxLength,
     ValueChanged<String>? onChanged,
@@ -565,7 +573,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
             filled: true,
             fillColor: AppTheme.gray50,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            counterText: '', // maxLength 카운터 숨김
+            counterText: '',
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
@@ -591,7 +599,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
               validationMessage,
               style: TextStyle(
                 fontSize: 12,
-                color: validationMessage.contains('사용 가능') ? AppTheme.successColor : AppTheme.errorColor,
+                color: validationMessage == l10n.profileEditNicknameAvailable ? AppTheme.successColor : AppTheme.errorColor,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -600,12 +608,12 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     );
   }
 
-  // 위치 선택 필드
-  Widget _buildLocationField() {
+  // Location field
+  Widget _buildLocationField(AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('활동지역', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+        Text(l10n.registerActivityArea, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: () async {
@@ -637,7 +645,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    _activityAreaController.text.isEmpty ? '지도를 눌러 위치를 선택하세요' : _activityAreaController.text,
+                    _activityAreaController.text.isEmpty ? l10n.registerActivityAreaHint : _activityAreaController.text,
                     style: TextStyle(
                       color: _activityAreaController.text.isEmpty ? AppTheme.gray400 : AppTheme.textPrimary,
                       fontSize: 15,
@@ -666,7 +674,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
     );
   }
 
-  // --- 기존 로직 메서드들 (변경 없음) ---
+  // --- Logic methods ---
 
   String _formatPhoneNumber(String phoneNumber) {
     if (phoneNumber.length == 11) {
@@ -719,12 +727,13 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   }
 
   void _setMainProfile(int index) {
+    final l10n = AppLocalizations.of(context)!;
     setState(() {
       _mainProfileIndex = index;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('대표 프로필 사진이 변경되었습니다.'),
+        content: Text(l10n.profileEditMainPhotoChanged),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         duration: const Duration(seconds: 1),
@@ -733,16 +742,17 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   }
 
   Future<void> _saveProfile() async {
+    final l10n = AppLocalizations.of(context)!;
     if (!_formKey.currentState!.validate()) return;
 
-    if (_nicknameValidationMessage == '이미 사용 중인 닉네임입니다.') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이미 사용 중인 닉네임입니다.')));
+    if (_nicknameValidationMessage == l10n.profileEditNicknameDuplicate) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.profileEditNicknameDuplicate)));
       return;
     }
 
     final hasImages = _imageSlots.any((image) => image != null);
     if (!hasImages) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('사진을 최소 1장 등록해주세요.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.registerPhotosMin)));
       return;
     }
 
@@ -755,7 +765,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       try {
         await FirebaseStorage.instance.refFromURL(imageUrl).delete();
       } catch (e) {
-        debugPrint('이미지 삭제 실패: $e');
+        debugPrint('Image deletion failed: $e');
       }
     }
 
@@ -790,7 +800,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
           finalImages.add(downloadUrl);
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이미지 업로드 실패')));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.profileEditUploadFailed)));
           }
           return;
         }

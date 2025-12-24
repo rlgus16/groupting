@@ -512,4 +512,747 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get profileDetailBlockConfirm =>
       '차단하면 서로의 프로필을 볼 수 없으며,\n채팅 및 초대를 받을 수 없습니다.\n정말 차단하시겠습니까?';
+
+  @override
+  String get updateTitle => '업데이트 안내';
+
+  @override
+  String get updateButton => '지금 업데이트';
+
+  @override
+  String get locationPickerError => '주소를 찾을 수 없습니다.';
+
+  @override
+  String get inviteSentSuccess => '초대를 보냈어요!';
+
+  @override
+  String get inviteWho => '누구를 초대할까요?';
+
+  @override
+  String get inviteNicknameEmpty => '닉네임을 입력해주세요.';
+
+  @override
+  String get inviteMessagePlaceholder => '같이 그룹팅하자!';
+
+  @override
+  String get inviteSendButton => '초대장 보내기';
+
+  @override
+  String get inviteNoMessage => '메세지 없음';
+
+  @override
+  String get invitationNewGroup => '새로운 그룹에 초대되었어요!';
+
+  @override
+  String get invitationExpiredLabel => '유효기간이 만료된 초대입니다';
+
+  @override
+  String get invitationJoinedSuccess => '그룹에 참여했어요!';
+
+  @override
+  String get invitationRejectedInfo => '초대를 거절했어요';
+
+  @override
+  String get invitationMoveAction => '이동하기';
+
+  @override
+  String get invitationEmptyTitle => '아직 받은 초대가 없어요';
+
+  @override
+  String get invitationEmptyDesc => '친구가 초대를 보내면 여기에 표시됩니다';
+
+  @override
+  String chatParticipating(Object count) {
+    return '$count명 참여 중';
+  }
+
+  @override
+  String get chatFindingMatch => '매칭 상대를 찾고 있어요...';
+
+  @override
+  String get chatInviteFriend => '친구 초대하기';
+
+  @override
+  String chatWaitingResponse(Object count) {
+    return '$count명의 친구가 응답 대기 중입니다';
+  }
+
+  @override
+  String get chatEmptyMatchedDesc => '설레는 대화를 시작해보세요.\n서로에 대해 알아가는 시간이 되길 바래요!';
+
+  @override
+  String get chatEmptyGroupWithFriends => '친구들과 자유롭게 대화를 나눠보세요!';
+
+  @override
+  String get chatEmptyAlone => '아직 그룹에 혼자 있어요.\n친구들을 초대 해보세요!';
+
+  @override
+  String myPageAge(Object age) {
+    return '$age세';
+  }
+
+  @override
+  String get myPageMale => '남성';
+
+  @override
+  String get myPageFemale => '여성';
+
+  @override
+  String get myPageLogoutError => '로그아웃 중 오류가 발생했습니다.';
+
+  @override
+  String get myPageAppName => 'Groupting';
+
+  @override
+  String get myPageAppVersion => 'Version 1.0.0';
+
+  @override
+  String get myPageAppDesc => '친구들과 함께하는 소개팅 플랫폼';
+
+  @override
+  String get homeReceivedInvite => '받은 초대';
+
+  @override
+  String get homeLeftGroup => '그룹에서 나왔습니다.';
+
+  @override
+  String get homeFilterTitle => '매칭 필터 설정';
+
+  @override
+  String get homeFilterGender => '상대 그룹 성별';
+
+  @override
+  String get homeFilterAge => '상대 그룹 평균 나이';
+
+  @override
+  String get homeFilterHeight => '상대 그룹 평균 키';
+
+  @override
+  String get homeFilterDistance => '거리 범위 (방장 기준)';
+
+  @override
+  String get homeFilterApply => '필터 적용하기';
+
+  @override
+  String get homeFilterSuccess => '필터가 성공적으로 적용되었습니다.';
+
+  @override
+  String get homeFilterFailed => '필터 적용 실패';
+
+  @override
+  String get homeGenderMale => '남자';
+
+  @override
+  String get homeGenderFemale => '여자';
+
+  @override
+  String get homeGenderMixed => '혼성';
+
+  @override
+  String get homeGenderAny => '상관없음';
+
+  @override
+  String get homeProfileHiddenMsg =>
+      '프로필 완성하기 알림을 숨겼습니다. 마이페이지에서 언제든 프로필을 완성할 수 있습니다.';
+
+  @override
+  String get homeLogoutError => '로그아웃 중 오류가 발생했습니다';
+
+  @override
+  String get profileDetailReportTitle => '사용자 신고';
+
+  @override
+  String get profileDetailReportReason => '신고 사유를 선택해주세요.';
+
+  @override
+  String get profileDetailReportContent => '신고 내용을 자세히 적어주세요.';
+
+  @override
+  String get profileDetailReportPhoto => '증거 사진 첨부';
+
+  @override
+  String get profileDetailReportPhotoChange => '사진 변경';
+
+  @override
+  String get profileDetailReportEnterContent => '신고 내용을 입력해주세요.';
+
+  @override
+  String get profileDetailReportSubmit => '신고하기';
+
+  @override
+  String get profileDetailEmailFailed => '이메일 앱을 실행할 수 없습니다.';
+
+  @override
+  String get profileDetailBlockTitle => '사용자 차단';
+
+  @override
+  String get profileDetailBlocked => '사용자를 차단했습니다.';
+
+  @override
+  String get profileDetailBlockedUser => '차단된 사용자입니다.';
+
+  @override
+  String get profileDetailBasicInfo => '기본 정보';
+
+  @override
+  String get profileDetailIntro => '소개';
+
+  @override
+  String get profileDetailReasonBadPhoto => '부적절한 사진';
+
+  @override
+  String get profileDetailReasonAbuse => '욕설/비하 발언';
+
+  @override
+  String get profileDetailReasonSpam => '스팸/홍보';
+
+  @override
+  String get profileDetailReasonFraud => '사칭/사기';
+
+  @override
+  String get profileDetailReasonOther => '기타';
+
+  @override
+  String get profileEditNicknameDuplicate => '이미 사용 중인 닉네임입니다.';
+
+  @override
+  String get profileEditNicknameAvailable => '사용 가능한 닉네임입니다.';
+
+  @override
+  String get profileEditNicknameCheckError => '닉네임 확인 중 오류가 발생했습니다.';
+
+  @override
+  String get profileEditImageError => '이미지 선택 중 오류가 발생했습니다.';
+
+  @override
+  String get profileEditPermissionTitle => '권한 설정 필요';
+
+  @override
+  String get profileEditPermissionContent =>
+      '프로필 사진을 등록하려면 갤러리 접근 권한이 필요합니다.\n설정에서 권한을 허용해주세요.';
+
+  @override
+  String get profileEditGoToSettings => '설정으로 이동';
+
+  @override
+  String get profileEditMainPhotoChanged => '대표 프로필 사진이 변경되었습니다.';
+
+  @override
+  String get profileEditNicknameEmpty => '닉네임을 입력해주세요.';
+
+  @override
+  String get profileEditNicknameTooShort => '닉네임은 2자 이상이어야 합니다.';
+
+  @override
+  String get profileEditHeightEmpty => '키를 입력해주세요.';
+
+  @override
+  String get profileEditHeightRange => '140-220cm 사이로 입력해주세요.';
+
+  @override
+  String get profileEditHeightHint => '키를 입력하세요';
+
+  @override
+  String get profileEditIntroEmpty => '소개글을 입력해주세요.';
+
+  @override
+  String get profileEditIntroTooShort => '5자 이상 작성해주세요.';
+
+  @override
+  String get profileEditUploadFailed => '이미지 업로드 실패';
+
+  @override
+  String get profileEditSuccess => '프로필이 업데이트되었습니다.';
+
+  @override
+  String get profileEditFailed => '프로필 업데이트 실패';
+
+  @override
+  String get profileEditEmailLabel => '이메일';
+
+  @override
+  String get profileEditBirthDateLabel => '생년월일';
+
+  @override
+  String get profileEditGenderLabel => '성별';
+
+  @override
+  String get registerEmailInUse => '이미 사용 중인 이메일입니다.';
+
+  @override
+  String get registerEmailAvailable => '사용 가능한 이메일입니다.';
+
+  @override
+  String get registerEmailError => '이메일 확인 중 오류가 발생했습니다.';
+
+  @override
+  String get registerPhoneInUse => '이미 사용 중인 전화번호입니다.';
+
+  @override
+  String get registerPhoneAvailable => '사용 가능한 전화번호입니다.';
+
+  @override
+  String get registerPhoneError => '전화번호 확인 중 오류가 발생했습니다.';
+
+  @override
+  String get registerPhoneValid => '올바른 전화번호를 입력 후 중복 확인을 완료해주세요.';
+
+  @override
+  String get registerCodeSent => '인증번호가 전송되었습니다.';
+
+  @override
+  String get registerPhoneVerified => '전화번호 인증이 완료되었습니다.';
+
+  @override
+  String get registerPassword8Chars => '비밀번호는 8자 이상이어야 합니다.';
+
+  @override
+  String get registerPasswordConfirmEmpty => '비밀번호를 다시 입력해주세요.';
+
+  @override
+  String get registerBirthDateEmpty => '생년월일을 입력해주세요.';
+
+  @override
+  String get registerBirthDate8Digits => '8자리여야 합니다.';
+
+  @override
+  String get registerYearInvalid => '유효한 연도를 입력해주세요.';
+
+  @override
+  String get registerMonthInvalid => '유효한 월을 입력해주세요.';
+
+  @override
+  String get registerDayInvalid => '유효한 일을 입력해주세요.';
+
+  @override
+  String get registerAgeRestriction => '만 18세 미만은 이용할 수 없습니다.';
+
+  @override
+  String get registerDateInvalid => '유효한 날짜를 입력해주세요.';
+
+  @override
+  String get registerTermsServiceFull => '서비스 이용약관 (EULA)';
+
+  @override
+  String get registerTermsServiceContent =>
+      '제1조 (목적)\n이 약관은 그룹팅 서비스 이용과 관련하여 회사와 이용자의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.\n\n(자세한 내용은 앱 설정의 이용약관 전문을 참고하세요)';
+
+  @override
+  String get registerPrivacyPolicyFull => '개인정보 처리방침';
+
+  @override
+  String get registerPrivacyPolicyContent =>
+      '1. 수집하는 개인정보\n- 이메일, 전화번호, 생년월일, 성별 등\n\n2. 이용목적\n- 본인 확인 및 서비스 제공\n\n(자세한 내용은 앱 설정을 참고하세요)';
+
+  @override
+  String get registerPhoneVerifyNeeded => '전화번호 인증을 완료해주세요.';
+
+  @override
+  String get registerSuccess => '가입되었습니다! 우선 프로필을 완성해주세요.';
+
+  @override
+  String get registerTermsView => '보기';
+
+  @override
+  String get timeJustNow => '방금 전';
+
+  @override
+  String timeMinutesAgo(Object count) {
+    return '$count분 전';
+  }
+
+  @override
+  String timeHoursAgo(Object count) {
+    return '$count시간 전';
+  }
+
+  @override
+  String timeDaysAgo(Object count) {
+    return '$count일 전';
+  }
+
+  @override
+  String timeMonthDay(Object day, Object month) {
+    return '$month월 $day일';
+  }
+
+  @override
+  String get helpFAQSection => '자주 묻는 질문';
+
+  @override
+  String get helpGuideSection => '이용 가이드';
+
+  @override
+  String get helpContactSection => '문의하기';
+
+  @override
+  String get helpServiceSection => '서비스 정보';
+
+  @override
+  String get helpEmailContact => '이메일 문의';
+
+  @override
+  String get helpBugReportTitle => '버그 신고';
+
+  @override
+  String get helpBugReportSubtitle => '앱 사용 중 문제가 발생했나요?';
+
+  @override
+  String get helpBugReportHint => '예: 로그인 화면에서 버튼이 안 눌려요.';
+
+  @override
+  String get helpBugReportContent => '버그 내용을 상세히 적어주세요.';
+
+  @override
+  String get helpPhotoAttach => '사진 첨부';
+
+  @override
+  String get helpPhotoSelected => '사진 선택됨';
+
+  @override
+  String get helpSend => '보내기';
+
+  @override
+  String get helpEmailFailed => '이메일 앱을 열 수 없습니다. 기본 메일 앱을 확인해주세요.';
+
+  @override
+  String get helpCustomerService => '고객센터 운영시간';
+
+  @override
+  String get helpOperatingHours => '평일: 09:00 - 18:00\n주말 및 공휴일: 휴무';
+
+  @override
+  String get helpResponseTime => '응답시간';
+
+  @override
+  String get helpResponseEmail => '이메일: 24시간 이내';
+
+  @override
+  String get helpFAQ1Q => '그룹팅은 어떻게 시작하나요?';
+
+  @override
+  String get helpFAQ1A =>
+      '1. 프로필을 완성하세요\n2. 친구들을 초대하거나 혼자 매칭을 시작하세요\n3. 매칭이 완료되면 채팅을 통해 대화를 나누세요\n4. 실제 만남을 계획해보세요';
+
+  @override
+  String get helpFAQ2Q => '1:1 매칭과 그룹 매칭의 차이는 무엇인가요?';
+
+  @override
+  String get helpFAQ2A =>
+      '1:1 매칭: 혼자서 다른 1명과 매칭되는 방식입니다.\n그룹 매칭: 2-5명의 친구들과 함께 같은 인원 수의 다른 그룹과 매칭되는 방식입니다.';
+
+  @override
+  String get helpFAQ3Q => '매칭은 어떤 기준으로 이루어지나요?';
+
+  @override
+  String get helpFAQ3A =>
+      '매칭은 다음 기준으로 이루어집니다:\n- 활동지역이 같거나 인접한 지역\n- 그룹 인원 수가 같음\n- 매칭 대기 중인 상태';
+
+  @override
+  String get helpFAQ4Q => '프로필 사진은 몇 장까지 등록할 수 있나요?';
+
+  @override
+  String get helpFAQ4A =>
+      '최대 6장까지 등록할 수 있습니다.\n1번째 사진이 메인 프로필 사진으로 사용되며, 나머지는 추가 사진으로 표시됩니다.';
+
+  @override
+  String get helpFAQ5Q => '그룹에서 나가고 싶어요.';
+
+  @override
+  String get helpFAQ5A =>
+      '홈 화면 우상단 메뉴에서 \"그룹 나가기\"를 선택하세요.\n그룹을 나간 후에는 다시 초대를 받거나 새 그룹을 만들어야 합니다.';
+
+  @override
+  String get helpFAQ6Q => '매칭이 안 되는 이유가 뭐예요?';
+
+  @override
+  String get helpFAQ6A =>
+      '다음 경우에 매칭이 어려울 수 있습니다:\n- 같은 활동지역에 매칭 대기 중인 그룹이 없는 경우\n- 같은 인원 수의 그룹이 없는 경우\n- 매칭 시간대에 활성 사용자가 적은 경우';
+
+  @override
+  String get helpGuideSignup => '회원가입';
+
+  @override
+  String get helpGuideSignupDesc => '기본 정보 입력 후 프로필을 완성하세요';
+
+  @override
+  String get helpGuideSignupContent =>
+      '1. 아이디, 비밀번호, 전화번호, 생년월일, 성별을 입력하세요\n2. 프로필 사진을 업로드하세요 (최대 6장)\n3. 키, 닉네임, 활동지역, 소개글을 작성하세요\n4. 프로필 완성 후 매칭을 시작할 수 있습니다';
+
+  @override
+  String get helpGuideGroup => '그룹 만들기';
+
+  @override
+  String get helpGuideGroupDesc => '친구들을 초대해서 그룹을 구성하세요';
+
+  @override
+  String get helpGuideGroupContent =>
+      '1. 홈 화면에서 \"그룹 만들기\" 버튼을 누르세요\n2. \"친구 초대하기\"를 통해 친구들을 초대하세요\n3. 친구들이 초대를 수락하면 그룹이 구성됩니다\n4. 최대 5명까지 그룹을 구성할 수 있습니다';
+
+  @override
+  String get helpGuideFilter => '필터 적용하기';
+
+  @override
+  String get helpGuideFilterDesc => '내가 원하는 그룹과 매칭되세요';
+
+  @override
+  String get helpGuideFilterContent =>
+      '1. 그룹을 만든 후, 상단 우측 필터 버튼을 누르세요\n2. 필터를 조절 하세요\n3. 적용하기를 누르세요';
+
+  @override
+  String get helpGuideMatch => '매칭하기';
+
+  @override
+  String get helpGuideMatchDesc => '1:1 또는 그룹 매칭을 시작하세요';
+
+  @override
+  String get helpGuideMatchContent =>
+      '1. 그룹이 구성되면 \"매칭 시작\" 버튼이 활성화됩니다\n2. 혼자인 경우 \"1:1 매칭 시작\"을 선택하세요\n3. 그룹인 경우 \"그룹 매칭 시작\"을 선택하세요\n4. 매칭이 완료되면 알림이 오고 채팅을 시작할 수 있습니다';
+
+  @override
+  String get helpGuideChat => '채팅하기';
+
+  @override
+  String get helpGuideChatDesc => '매칭된 상대방과 채팅을 나누세요';
+
+  @override
+  String get helpGuideChatContent =>
+      '1. 매칭이 완료되면 \"채팅하기\" 버튼이 나타납니다\n2. 채팅방에서 상대방과 대화를 나누세요\n3. 서로를 알아가는 시간을 가져보세요\n4. 실제 만남을 계획해보세요';
+
+  @override
+  String get helpGuideSafety => '안전하게 이용하기';
+
+  @override
+  String get helpGuideSafetyDesc => '안전한 만남을 위한 주의사항을 확인하세요';
+
+  @override
+  String get helpGuideSafetyContent =>
+      '🔒 개인정보 보호\n- 개인정보(주소, 직장 등)는 충분히 신뢰할 때까지 공개하지 마세요\n\n👥 첫 만남\n- 첫 만남은 공공장소에서 진행하세요\n- 친구들과 함께 만나는 것을 권장합니다\n\n🚨 신고하기\n- 부적절한 행동을 하는 사용자는 즉시 신고해주세요\n- 불쾌한 메세지나 사진을 받으면 스크린샷을 남기고 신고하세요';
+
+  @override
+  String get myPageEditProfile => '프로필 편집';
+
+  @override
+  String get registerPhotos => '프로필 사진';
+
+  @override
+  String get registerNickname => '닉네임';
+
+  @override
+  String get registerNicknameHint => '닉네임을 입력하세요 (2~10자)';
+
+  @override
+  String get registerHeight => '키 (cm)';
+
+  @override
+  String get registerIntroHint => '나를 표현하는 멋진 소개글을 작성해보세요.\n(취미, 관심사, 성격 등)';
+
+  @override
+  String get registerPhotosLongPress => '대표 사진은 길게 눌러 설정하세요';
+
+  @override
+  String get registerPhotosAdd => '사진 추가';
+
+  @override
+  String get registerPhotosMain => '대표';
+
+  @override
+  String get registerActivityArea => '활동지역';
+
+  @override
+  String get registerActivityAreaHint => '지도를 눌러 위치를 선택하세요';
+
+  @override
+  String get registerPhotosMin => '사진을 최소 1장 등록해주세요.';
+
+  @override
+  String get settingsBlockConfirm =>
+      '차단하면 서로의 프로필을 볼 수 없으며,\n채팅 및 초대를 받을 수 없습니다.\n정말 차단하시겠습니까?';
+
+  @override
+  String get settingsReport => '신고하기';
+
+  @override
+  String get settingsHelp => '도움말';
+
+  @override
+  String get homeTitle => '그룹팅';
+
+  @override
+  String get homeNavHome => '홈';
+
+  @override
+  String get homeNavInvitations => '초대';
+
+  @override
+  String get homeNavMyPage => '마이페이지';
+
+  @override
+  String get homeNavMore => '더보기';
+
+  @override
+  String get homeMenuReceivedInvites => '받은 초대';
+
+  @override
+  String get homeMenuMyPage => '마이페이지';
+
+  @override
+  String get homeLeaveGroupTitle => '그룹 나가기';
+
+  @override
+  String get homeLeaveGroupConfirm => '정말로 그룹을 나가시겠습니까?';
+
+  @override
+  String get homeLeaveGroupBtn => '나가기';
+
+  @override
+  String get homeLeaveGroupSuccess => '그룹에서 나왔습니다.';
+
+  @override
+  String get homeLogoutTitle => '로그아웃';
+
+  @override
+  String get homeLogoutConfirm => '정말로 로그아웃 하시겠습니까?';
+
+  @override
+  String get homeMatchSuccess => '매칭 성공! 🎉';
+
+  @override
+  String get homeMatchSuccessDesc => '매칭되었습니다!\n채팅방에서 인사해보세요 👋';
+
+  @override
+  String get homeLater => '나중에';
+
+  @override
+  String get homeGoToChat => '채팅방으로 이동';
+
+  @override
+  String get homeFilterMale => '남자';
+
+  @override
+  String get homeFilterFemale => '여자';
+
+  @override
+  String get homeFilterMixed => '혼성';
+
+  @override
+  String get homeFilterAny => '상관없음';
+
+  @override
+  String homeFilterDistanceValue(Object km) {
+    return '${km}km 이내';
+  }
+
+  @override
+  String get homeProfileCardHidden =>
+      '프로필 완성하기 알림을 숨겼습니다. 마이페이지에서 언제든 프로필을 완성할 수 있습니다.';
+
+  @override
+  String get homeProfileSignup => '회원가입하기';
+
+  @override
+  String get homeProfileBasicInfo => '기본 정보 입력하기';
+
+  @override
+  String get homeProfileComplete => '프로필 완성하기';
+
+  @override
+  String get homeProfileSignupDesc => '그룹팅 서비스를 이용하시려면\n먼저 회원가입을 완료해주세요!';
+
+  @override
+  String get homeProfileBasicInfoDesc => '전화번호, 생년월일, 성별 정보가 필요해요!';
+
+  @override
+  String get homeProfileCompleteDesc => '닉네임, 키, 활동지역 등을 입력해주세요!';
+
+  @override
+  String get homeProfileBasicInfoLong =>
+      '회원가입 중 누락된 필수 정보가 있어요.\n기본 정보를 입력하고 프로필을 완성해주세요!';
+
+  @override
+  String get homeProfileCompleteLong =>
+      '닉네임, 키, 소개글, 활동지역을 추가하면\n그룹 생성과 매칭 기능을 사용할 수 있어요!';
+
+  @override
+  String get homeProfileNow => '지금 완성하기';
+
+  @override
+  String get homeLoadingGroup => '그룹 정보 로딩 중...';
+
+  @override
+  String get homeLoadingWait => '잠시만 기다려주세요.';
+
+  @override
+  String get homeErrorNetwork => '네트워크 연결 오류';
+
+  @override
+  String get homeErrorLoad => '데이터 로드 실패';
+
+  @override
+  String get homeErrorNetworkDesc => '인터넷 연결을 확인하고 다시 시도해주세요.';
+
+  @override
+  String get homeErrorUnknown => '알 수 없는 오류가 발생했습니다.';
+
+  @override
+  String get homeErrorRetry => '다시 시도';
+
+  @override
+  String get homeErrorCheckConnection => '연결 확인';
+
+  @override
+  String get homeErrorWifiCheck => 'Wi-Fi나 모바일 데이터 연결을 확인해주세요.';
+
+  @override
+  String get homeNoGroup => '그룹이 없습니다';
+
+  @override
+  String get homeCreateGroup => '새 그룹 만들기';
+
+  @override
+  String get homeProfileRequiredTitle => '프로필 완성 필요';
+
+  @override
+  String get homeProfileRequiredDesc => '프로필을 완성해야 서비스 이용이 가능합니다.';
+
+  @override
+  String get homeProfileRequiredBtn => '프로필 완성하기';
+
+  @override
+  String get homeMatchedStatus => '매칭 성공! 🎉';
+
+  @override
+  String get homeMatchingStatus => '매칭 진행중...';
+
+  @override
+  String get homeWaitingStatus => '매칭 대기중';
+
+  @override
+  String get homeMatchedDesc => '새로운 인연과 대화를 시작해보세요';
+
+  @override
+  String get homeMatchingDesc => '매칭 상대를 찾고 있어요...';
+
+  @override
+  String get homeWaitingDesc => '친구들과 대화 해보세요';
+
+  @override
+  String get homeNewMessage => '새로운 메시지 💬';
+
+  @override
+  String get homeCurrentMembers => '현재 그룹 멤버';
+
+  @override
+  String homeMemberCount(Object count) {
+    return '$count명';
+  }
+
+  @override
+  String get homeInvite => '초대하기';
+
+  @override
+  String get homeMatchFilter => '매칭 필터';
+
+  @override
+  String get homeErrorCheckConnectionDesc => 'Wi-Fi나 모바일 데이터 연결을 확인해주세요.';
 }

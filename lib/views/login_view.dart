@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/auth_controller.dart';
+import '../controllers/locale_controller.dart';
 import '../utils/app_theme.dart';
+import '../l10n/generated/app_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class LoginView extends StatefulWidget {
@@ -66,50 +68,103 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 20),
-                  // 1. 로고 및 타이틀 섹션
-                  _buildHeaderSection(),
-                  const SizedBox(height: 48),
+        child: Stack(
+          children: [
+            // Main content
+            Center(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 20),
+                      // 1. 로고 및 타이틀 섹션
+                      _buildHeaderSection(l10n),
+                      const SizedBox(height: 48),
 
-                  // 2. 입력 폼 섹션
-                  _buildInputSection(),
-                  const SizedBox(height: 24),
+                      // 2. 입력 폼 섹션
+                      _buildInputSection(l10n),
+                      const SizedBox(height: 24),
 
-                  // 3. 에러 메시지
-                  _buildErrorMessage(),
-                  const SizedBox(height: 24),
+                      // 3. 에러 메시지
+                      _buildErrorMessage(),
+                      const SizedBox(height: 24),
 
-                  // 4. 버튼 및 하단 링크 섹션
-                  _buildBottomSection(),
-                  const SizedBox(height: 20),
-                ],
+                      // 4. 버튼 및 하단 링크 섹션
+                      _buildBottomSection(l10n),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
+            // Language toggle button in top-right corner
+            Positioned(
+              top: 8,
+              right: 8,
+              child: _buildLanguageToggle(),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildHeaderSection() {
+  Widget _buildLanguageToggle() {
+    return Consumer<LocaleController>(
+      builder: (context, localeController, _) {
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => localeController.toggleLocale(),
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.gray100,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.language,
+                    size: 18,
+                    color: AppTheme.textSecondary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    localeController.currentLanguageName,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeaderSection(AppLocalizations l10n) {
     return Column(
       children: [
         const SizedBox(height: 24),
         Text(
-          '그룹팅',
+          l10n.appTitle,
           style: GoogleFonts.gugi(
             textStyle: const TextStyle(
               fontSize: 42,
@@ -121,9 +176,9 @@ class _LoginViewState extends State<LoginView> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
-        const Text(
-          '친구들과 함께 즐기는\n새로운 만남의 시작',
-          style: TextStyle(
+        Text(
+          l10n.appSubtitle,
+          style: const TextStyle(
             fontSize: 16,
             color: AppTheme.textSecondary,
             height: 1.5,
@@ -134,7 +189,7 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 
-  Widget _buildInputSection() {
+  Widget _buildInputSection(AppLocalizations l10n) {
     return Column(
       children: [
         TextFormField(
@@ -142,8 +197,8 @@ class _LoginViewState extends State<LoginView> {
           keyboardType: TextInputType.emailAddress,
           style: const TextStyle(fontWeight: FontWeight.w500),
           decoration: InputDecoration(
-            labelText: '이메일',
-            hintText: 'example@email.com',
+            labelText: l10n.loginEmailLabel,
+            hintText: l10n.loginEmailHint,
             prefixIcon: const Icon(Icons.email_outlined),
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             filled: true,
@@ -163,10 +218,10 @@ class _LoginViewState extends State<LoginView> {
           ),
           validator: (value) {
             if (value == null || value.isEmpty) {
-              return '이메일을 입력해주세요.';
+              return l10n.loginErrorEmailEmpty;
             }
             if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(value)) {
-              return '올바른 이메일 형식을 입력해주세요.';
+              return l10n.loginErrorEmailInvalid;
             }
             return null;
           },
@@ -177,8 +232,8 @@ class _LoginViewState extends State<LoginView> {
           obscureText: _obscurePassword,
           style: const TextStyle(fontWeight: FontWeight.w500),
           decoration: InputDecoration(
-            labelText: '비밀번호',
-            hintText: '비밀번호를 입력해주세요',
+            labelText: l10n.loginPasswordLabel,
+            hintText: l10n.loginPasswordHint,
             prefixIcon: const Icon(Icons.lock_outline),
             suffixIcon: IconButton(
               icon: Icon(
@@ -209,10 +264,10 @@ class _LoginViewState extends State<LoginView> {
           ),
           validator: (value) {
             if (value == null || value.isEmpty) {
-              return '비밀번호를 입력해주세요.';
+              return l10n.loginErrorPasswordEmpty;
             }
             if (value.length < 6) {
-              return '비밀번호는 6자 이상이어야 합니다.';
+              return l10n.loginErrorPasswordShort;
             }
             return null;
           },
@@ -259,7 +314,7 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 
-  Widget _buildBottomSection() {
+  Widget _buildBottomSection(AppLocalizations l10n) {
     return Column(
       children: [
         Consumer<AuthController>(
@@ -289,9 +344,9 @@ class _LoginViewState extends State<LoginView> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Text(
-                  '로그인',
-                  style: TextStyle(
+                child: Text(
+                  l10n.loginButton,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -305,7 +360,7 @@ class _LoginViewState extends State<LoginView> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              '계정이 없으신가요?',
+              l10n.loginNoAccount,
               style: TextStyle(
                 color: AppTheme.gray600,
                 fontSize: 14,
@@ -321,9 +376,9 @@ class _LoginViewState extends State<LoginView> {
                 foregroundColor: AppTheme.primaryColor,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
-              child: const Text(
-                '회원가입',
-                style: TextStyle(
+              child: Text(
+                l10n.loginRegister,
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),
