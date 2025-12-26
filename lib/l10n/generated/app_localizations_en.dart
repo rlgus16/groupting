@@ -804,6 +804,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Nickname changed. (10 Ting deducted)';
 
   @override
+  String get profileEditActivityAreaChangeCost =>
+      'Changing activity area costs 5 Ting.';
+
+  @override
+  String get profileEditActivityAreaChangeConfirm =>
+      'Change your activity area?\n5 Ting will be deducted.';
+
+  @override
   String get profileEditNicknameDuplicate => 'This nickname is already in use.';
 
   @override

@@ -1628,6 +1628,18 @@ abstract class AppLocalizations {
   /// **'닉네임이 변경되었습니다. (10 Ting 차감)'**
   String get profileEditNicknameChangeSuccess;
 
+  /// No description provided for @profileEditActivityAreaChangeCost.
+  ///
+  /// In ko, this message translates to:
+  /// **'활동지역 변경에 5 Ting이 필요합니다.'**
+  String get profileEditActivityAreaChangeCost;
+
+  /// No description provided for @profileEditActivityAreaChangeConfirm.
+  ///
+  /// In ko, this message translates to:
+  /// **'활동지역을 변경하시겠습니까?\n5 Ting이 차감됩니다.'**
+  String get profileEditActivityAreaChangeConfirm;
+
   /// No description provided for @profileEditNicknameDuplicate.
   ///
   /// In ko, this message translates to:

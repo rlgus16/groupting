@@ -40,6 +40,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
   bool _isCheckingNickname = false;
   String? _nicknameValidationMessage;
   String _originalNickname = '';
+  String _originalActivityArea = '';
 
   @override
   void initState() {
@@ -57,6 +58,7 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       _introductionController.text = user.introduction;
       _heightController.text = user.height.toString();
       _activityAreaController.text = user.activityArea;
+      _originalActivityArea = user.activityArea;
 
       _latitude = user.latitude;
       _longitude = user.longitude;
@@ -322,6 +324,25 @@ class _ProfileEditViewState extends State<ProfileEditView> {
                         ),
                         const SizedBox(height: 20),
                         _buildLocationField(l10n),
+                        // 활동지역 변경 비용 안내 (처음 설정하는 경우는 표시 안함)
+                        if (_originalActivityArea.isNotEmpty && _activityAreaController.text != _originalActivityArea && _activityAreaController.text.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6, left: 4),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.info_outline, size: 14, color: AppTheme.warningColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  l10n.profileEditActivityAreaChangeCost,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.warningColor,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -819,6 +840,54 @@ class _ProfileEditViewState extends State<ProfileEditView> {
       // Ting 차감
       final userService = UserService();
       final deducted = await userService.deductTings(user.uid, 10);
+      if (!deducted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.profileEditInsufficientTings)),
+          );
+        }
+        return;
+      }
+    }
+
+    // 활동지역 변경 시 5 Ting 차감 (처음 설정하는 경우는 무료)
+    final newActivityArea = _activityAreaController.text.trim();
+    final isActivityAreaChanged = newActivityArea != _originalActivityArea && _originalActivityArea.isNotEmpty;
+    
+    if (isActivityAreaChanged) {
+      // 잔액 확인 (닉네임 변경으로 이미 차감된 경우 반영)
+      final currentBalance = isNicknameChanged ? user.tingBalance - 10 : user.tingBalance;
+      if (currentBalance < 5) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.profileEditInsufficientTings)),
+        );
+        return;
+      }
+      
+      // 확인 다이얼로그
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(l10n.registerActivityArea),
+          content: Text(l10n.profileEditActivityAreaChangeConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(l10n.commonCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(l10n.commonConfirm),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirmed != true) return;
+      
+      // Ting 차감
+      final userService = UserService();
+      final deducted = await userService.deductTings(user.uid, 5);
       if (!deducted) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
