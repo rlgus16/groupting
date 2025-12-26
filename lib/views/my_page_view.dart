@@ -218,6 +218,8 @@ class _MyPageViewState extends State<MyPageView> {
             _buildTag(l10n.myPageAge(user.age)),
             const SizedBox(width: 6),
             _buildTag(user.gender == '남' ? l10n.myPageMale : l10n.myPageFemale),
+            const SizedBox(width: 6),
+            _buildTingTag(user.tingBalance),
           ],
         ),
       ],
@@ -239,6 +241,42 @@ class _MyPageViewState extends State<MyPageView> {
           color: AppTheme.textSecondary,
           fontWeight: FontWeight.w500,
         ),
+      ),
+    );
+  }
+
+  Widget _buildTingTag(int tingBalance) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFD700).withValues(alpha: 0.3),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.diamond_outlined, size: 14, color: Colors.white),
+          const SizedBox(width: 4),
+          Text(
+            '$tingBalance Ting',
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
