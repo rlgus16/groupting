@@ -164,6 +164,8 @@ service cloud.firestore {
         request.auth.uid == resource.data.exempterId ||
         request.auth.uid == resource.data.exemptedId
       );
+      // 수정: 제외한 사람만 가능 (set() 호출 시 필요)
+      allow update: if request.auth != null && request.auth.uid == resource.data.exempterId;
       // 삭제(제외 해제): 제외한 사람만 가능
       allow delete: if request.auth != null && request.auth.uid == resource.data.exempterId;
     }

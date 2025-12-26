@@ -23,6 +23,31 @@ class ProfileDetailView extends StatefulWidget {
 class _ProfileDetailViewState extends State<ProfileDetailView> {
   int _currentImageIndex = 0;
   final ScrollController _scrollController = ScrollController();
+  bool _isExempted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkExemptionStatus();
+  }
+
+  Future<void> _checkExemptionStatus() async {
+    final currentUser = context.read<AuthController>().currentUserModel;
+    if (currentUser == null) return;
+    
+    final exemptDocId = '${currentUser.uid}_${widget.user.uid}';
+    final doc = await FirebaseFirestore.instance
+        .collection('matchExemptions')
+        .doc(exemptDocId)
+        .get();
+    
+    if (mounted) {
+      setState(() {
+        _isExempted = doc.exists;
+      });
+    }
+  }
+
 
   // Report user functionality
   void _showReportDialog(BuildContext context) {
@@ -292,7 +317,7 @@ Platform: ${Theme.of(context).platform}
                 });
 
                 if (mounted) {
-                  Navigator.pop(context);
+                  setState(() => _isExempted = true);
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(l10n.profileDetailExempted)),
@@ -314,6 +339,53 @@ Platform: ${Theme.of(context).platform}
     );
   }
 
+  // Unexempt from matching functionality
+  void _showUnexemptDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.profileDetailUnexempt),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Text(l10n.profileDetailUnexemptConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.commonCancel, style: const TextStyle(color: AppTheme.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final currentUser = context.read<AuthController>().currentUserModel;
+                if (currentUser == null) return;
+                final exemptDocId = '${currentUser.uid}_${widget.user.uid}';
+
+                await FirebaseFirestore.instance.collection('matchExemptions').doc(exemptDocId).delete();
+
+                if (mounted) {
+                  setState(() => _isExempted = false);
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(l10n.profileDetailUnexempted)),
+                  );
+                }
+              } catch (e) {
+                debugPrint('Unexempt failed: $e');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            child: Text(l10n.profileDetailUnexempt),
+          ),
+        ],
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -324,7 +396,71 @@ Platform: ${Theme.of(context).platform}
 
     if (isBlocked) {
       return Scaffold(
-        appBar: AppBar(elevation: 0, backgroundColor: Colors.white, foregroundColor: Colors.black),
+        appBar: AppBar(
+          elevation: 0, 
+          backgroundColor: Colors.white, 
+          foregroundColor: Colors.black,
+          actions: isMe ? [] : [
+            IconButton(
+              icon: const Icon(Icons.more_vert),
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  builder: (context) => SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.report_problem_outlined, color: Colors.orange),
+                          title: Text(l10n.profileDetailReport),
+                          onTap: () {
+                            Navigator.pop(context);
+                            _showReportDialog(context);
+                          },
+                        ),
+                        ListTile(
+                          leading: Icon(
+                            _isExempted ? Icons.person_add_outlined : Icons.person_off_outlined, 
+                            color: _isExempted ? AppTheme.primaryColor : Colors.orange,
+                          ),
+                          title: Text(_isExempted ? l10n.profileDetailUnexempt : l10n.profileDetailExempt),
+                          onTap: () {
+                            Navigator.pop(context);
+                            if (_isExempted) {
+                              _showUnexemptDialog(context);
+                            } else {
+                              _showExemptFromMatchingDialog(context);
+                            }
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.block_outlined, color: AppTheme.primaryColor),
+                          title: Text(l10n.settingsUnblock),
+                          onTap: () async {
+                            final currentUser = context.read<AuthController>().currentUserModel;
+                            if (currentUser == null) return;
+                            final blockDocId = '${currentUser.uid}_${widget.user.uid}';
+                            await FirebaseFirestore.instance.collection('blocks').doc(blockDocId).delete();
+                            if (mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(l10n.profileDetailUnblocked)),
+                              );
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -380,11 +516,18 @@ Platform: ${Theme.of(context).platform}
                               },
                             ),
                             ListTile(
-                              leading: const Icon(Icons.person_off_outlined, color: Colors.orange),
-                              title: Text(l10n.profileDetailExempt),
+                              leading: Icon(
+                                _isExempted ? Icons.person_add_outlined : Icons.person_off_outlined, 
+                                color: _isExempted ? AppTheme.primaryColor : Colors.orange,
+                              ),
+                              title: Text(_isExempted ? l10n.profileDetailUnexempt : l10n.profileDetailExempt),
                               onTap: () {
                                 Navigator.pop(context);
-                                _showExemptFromMatchingDialog(context);
+                                if (_isExempted) {
+                                  _showUnexemptDialog(context);
+                                } else {
+                                  _showExemptFromMatchingDialog(context);
+                                }
                               },
                             ),
                             ListTile(

@@ -738,6 +738,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileDetailBlocked => 'User has been blocked.';
 
   @override
+  String get profileDetailUnblocked => 'User has been unblocked.';
+
+  @override
   String get profileDetailBlockedUser => 'This user is blocked.';
 
   @override
@@ -773,6 +776,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileDetailExempted => 'User exempted from matching.';
+
+  @override
+  String get profileDetailUnexempt => 'Remove Exemption';
+
+  @override
+  String get profileDetailUnexemptConfirm =>
+      'Remove matching exemption for this user?';
+
+  @override
+  String get profileDetailUnexempted => 'Matching exemption removed.';
 
   @override
   String get profileEditNicknameChangeCost =>

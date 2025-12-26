@@ -264,6 +264,7 @@
   "profileDetailEmailFailed": "Cannot open email app.",
   "profileDetailBlockTitle": "Block User",
   "profileDetailBlocked": "User has been blocked.",
+  "profileDetailUnblocked": "User has been unblocked.",
   "profileDetailBlockedUser": "This user is blocked.",
   "profileDetailBasicInfo": "Basic Info",
   "profileDetailIntro": "Bio",
@@ -277,6 +278,9 @@
   "profileDetailExempt": "Exempt from Matching",
   "profileDetailExemptConfirm": "Exempt this user from matching?\nYou won't be matched with groups containing this user.",
   "profileDetailExempted": "User exempted from matching.",
+  "profileDetailUnexempt": "Remove Exemption",
+  "profileDetailUnexemptConfirm": "Remove matching exemption for this user?",
+  "profileDetailUnexempted": "Matching exemption removed.",
 
   "profileEditNicknameChangeCost": "Changing nickname costs 10 Ting.",
   "profileEditNicknameChangeConfirm": "Change your nickname?\n10 Ting will be deducted.",

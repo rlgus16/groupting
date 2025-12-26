@@ -869,7 +869,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUnblock.
   ///
   /// In ko, this message translates to:
-  /// **'해제'**
+  /// **'차단 해제'**
   String get settingsUnblock;
 
   /// No description provided for @settingsExemption.
@@ -887,7 +887,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsExemptionRemove.
   ///
   /// In ko, this message translates to:
-  /// **'해제'**
+  /// **'매칭 제외 해제'**
   String get settingsExemptionRemove;
 
   /// No description provided for @settingsDeleteAccount.
@@ -1508,6 +1508,12 @@ abstract class AppLocalizations {
   /// **'사용자를 차단했습니다.'**
   String get profileDetailBlocked;
 
+  /// No description provided for @profileDetailUnblocked.
+  ///
+  /// In ko, this message translates to:
+  /// **'차단이 해제되었습니다.'**
+  String get profileDetailUnblocked;
+
   /// No description provided for @profileDetailBlockedUser.
   ///
   /// In ko, this message translates to:
@@ -1579,6 +1585,24 @@ abstract class AppLocalizations {
   /// In ko, this message translates to:
   /// **'매칭에서 제외되었습니다.'**
   String get profileDetailExempted;
+
+  /// No description provided for @profileDetailUnexempt.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭 제외 해제'**
+  String get profileDetailUnexempt;
+
+  /// No description provided for @profileDetailUnexemptConfirm.
+  ///
+  /// In ko, this message translates to:
+  /// **'이 사용자의 매칭 제외를 해제하시겠습니까?'**
+  String get profileDetailUnexemptConfirm;
+
+  /// No description provided for @profileDetailUnexempted.
+  ///
+  /// In ko, this message translates to:
+  /// **'매칭 제외가 해제되었습니다.'**
+  String get profileDetailUnexempted;
 
   /// No description provided for @profileEditNicknameChangeCost.
   ///
